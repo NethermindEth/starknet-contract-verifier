@@ -136,8 +136,8 @@ pub fn generate_updated_scarb_toml(manifest_path: PathBuf, target_path: &Path) -
 
     table_keys.iter().for_each(|k| {
         // starkent package dependency is builtin
-        // within the scarb compiler
-        if (*k == "starknet") {
+        // within the compiler
+        if *k == "starknet" {
             return;
         }
 
