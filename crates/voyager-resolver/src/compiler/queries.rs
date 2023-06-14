@@ -9,8 +9,9 @@ use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, FileId, FileLongId};
 use cairo_lang_parser::db::ParserGroup;
 use cairo_lang_semantic::diagnostic::{NotFoundItemType, SemanticDiagnostics};
-use cairo_lang_semantic::resolve_path::{ResolvedGenericItem, Resolver};
-use cairo_lang_syntax::node::ast::MaybeModuleBody;
+use cairo_lang_semantic::items::us::get_use_segments;
+use cairo_lang_semantic::resolve::{ResolvedGenericItem, Resolver};
+use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf};
 use cairo_lang_syntax::node::{ast, Terminal, TypedSyntaxNode};
 use cairo_lang_utils::ordered_hash_map::OrderedHashMap;
 use cairo_lang_utils::Upcast;
@@ -72,7 +73,7 @@ fn extract_child_module_imports(
     db: &dyn DefsGroup,
     module_ast: &ast::ItemModule,
     module_file_id: ModuleFileId,
-    module_uses: &mut OrderedHashMap<UseId, ast::ItemUse>,
+    module_uses: &mut OrderedHashMap<UseId, UsePathLeaf>,
 ) {
     if let MaybeModuleBody::Some(module_body) = module_ast.body(db.upcast()) {
         module_body
@@ -80,16 +81,61 @@ fn extract_child_module_imports(
             .elements(db.upcast())
             .iter()
             .for_each(|el| match el {
-                ast::Item::Use(item_use) => {
-                    let use_id = db.intern_use(UseLongId(module_file_id, item_use.stable_ptr()));
-                    module_uses.insert(use_id, item_use.clone());
-                }
+                ast::Item::Use(item_use) => capture_imports(
+                    db,
+                    module_file_id,
+                    module_uses,
+                    item_use.use_path(db.upcast()),
+                ),
                 ast::Item::Module(item_module) => {
                     extract_child_module_imports(db, item_module, module_file_id, module_uses);
                 }
                 _ => {}
             });
     }
+}
+
+/// Extracts the imports of a child module and adds them to a hash map.
+///
+/// The function recursively processes a use import. If a path containts only an
+/// import, the use statmenent is added to the hash map with the corresponding `UseId`.
+/// If a use contains more than one use path, it is recursively added.
+///
+/// # Arguments
+///
+/// * `db` - A trait object that provides access to the database.
+/// * `module_file_id` - The ID of the file that contains the child module.
+/// * `module_uses` - A mutable hash map that stores the `UseId` and syntax tree node for each
+/// * `item_use` - The use statment
+/// * `use_path` - The use path of the use statement
+///
+fn capture_imports(
+    db: &dyn DefsGroup,
+    module_file_id: ModuleFileId,
+    module_uses: &mut OrderedHashMap<UseId, UsePathLeaf>,
+    use_path: UsePath,
+) {
+    match use_path {
+        UsePath::Leaf(use_path_leaf) => {
+            let use_id = db.intern_use(UseLongId(module_file_id, use_path_leaf.stable_ptr()));
+            module_uses.insert(use_id, use_path_leaf.clone());
+        }
+        UsePath::Single(use_path_single) => capture_imports(
+            db,
+            module_file_id,
+            module_uses,
+            use_path_single.use_path(db.upcast()),
+        ),
+        UsePath::Multi(use_path_multiple) => {
+            use_path_multiple
+                .use_paths(db.upcast())
+                .elements(db.upcast())
+                .into_iter()
+                .for_each(|use_path_i| {
+                    capture_imports(db, module_file_id, module_uses, use_path_i)
+                });
+        }
+    };
 }
 
 /// This function extracts the modules for a given crate and returns them as a vector of `CairoModule`s.
@@ -260,9 +306,7 @@ pub fn extract_file_imports(
         // Top level items
         match item_ast {
             ast::Item::Use(item_use) => {
-                // let use_id = handle_use(&db, &item_use, module_file_id);
-                let use_id: UseId = db.intern_use(UseLongId(module_file_id, item_use.stable_ptr()));
-                module_uses.insert(use_id, item_use);
+                capture_imports(db, module_file_id, &mut module_uses, item_use.use_path(db))
             }
             ast::Item::Module(item_module) => {
                 extract_child_module_imports(db, &item_module, module_file_id, &mut module_uses);
@@ -277,22 +321,25 @@ pub fn extract_file_imports(
 
     // Resolve the module's imports
     // the resolver depends on the current module file id
-    let mut resolver = Resolver::new_without_inference(db, module_file_id);
+    let mut resolver = Resolver::new(db, module_file_id);
     let mut diagnostics = SemanticDiagnostics::new(module_file_id);
 
-    for (use_id, item_use) in module_uses.iter() {
+    for (use_id, use_path) in module_uses.iter() {
         // let resolved_item_maybe = db.use_resolved_item(*use_id);
         // diagnostics.diagnostics.extend(db.use_semantic_diagnostics(*use_id));
         let syntax_db = db.upcast();
-        let import_path = item_use
-            .name(syntax_db)
-            .as_syntax_node()
-            .get_text(syntax_db);
-        let resolved_item_maybe = resolver.resolve_generic_path(
-            &mut diagnostics,
-            &item_use.name(syntax_db),
-            NotFoundItemType::Identifier,
-        );
+        let import_path = use_path.as_syntax_node().get_text(syntax_db);
+
+        // Use Path needs to break down into segments
+        let mut segments = vec![];
+        get_use_segments(
+            syntax_db,
+            &ast::UsePath::Leaf(use_path.clone()),
+            &mut segments,
+        )
+        .unwrap();
+        let resolved_item_maybe =
+            resolver.resolve_generic_path(&mut diagnostics, segments, NotFoundItemType::Identifier);
 
         // If the import is resolved, get the full path
         if let Ok(resolved_item) = resolved_item_maybe {
@@ -313,7 +360,7 @@ pub fn extract_file_imports(
         } else {
             return Err(anyhow!(
                 "IMPORT NOT RESOLVED: {}",
-                item_use.as_syntax_node().get_text(db.upcast())
+                use_path.as_syntax_node().get_text(db.upcast())
             ));
         }
     }
@@ -358,6 +405,7 @@ fn get_full_path(db: &RootDatabase, resolved_item: &ResolvedGenericItem) -> Stri
         }
         ResolvedGenericItem::Variant(variant) => variant.enum_id.full_path(db),
         ResolvedGenericItem::Impl(impl_id) => impl_id.full_path(db),
+        ResolvedGenericItem::GenericImplAlias(impl_alias) => impl_alias.full_path(db),
     }
 }
 
@@ -368,7 +416,8 @@ mod tests {
     use cairo_lang_defs::db::DefsGroup;
     use cairo_lang_filesystem::db::{FilesGroup, FilesGroupEx};
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
-    use cairo_lang_starknet::db::StarknetRootDatabaseBuilderEx;
+    use cairo_lang_starknet::plugin::StarkNetPlugin;
+    use std::sync::Arc;
 
     fn setup_default_environment(
         path: &str,
@@ -376,8 +425,7 @@ mod tests {
         _import_type: CairoImportType,
     ) -> Result<(RootDatabase, ModuleId, FileData, CrateId)> {
         let db = &mut RootDatabase::builder()
-            .detect_corelib()
-            .with_starknet()
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()?;
 
         let test_import = TestImport {
@@ -428,8 +476,7 @@ mod tests {
     #[test]
     fn test_extract_declared_module() -> Result<(), Box<dyn std::error::Error>> {
         let db = &mut RootDatabase::builder()
-            .detect_corelib()
-            .with_starknet()
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()?;
 
         let crate_id = db.intern_crate(CrateLongId("test".into()));
@@ -455,15 +502,18 @@ mod tests {
     #[test]
     fn test_extract_declared_module_nested() -> Result<()> {
         let db = &mut RootDatabase::builder()
-            .detect_corelib()
-            .with_starknet()
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()?;
 
         let crate_id = db.intern_crate(CrateLongId("test".into()));
         let root = Directory("src".into());
         db.set_crate_root(crate_id, Some(root));
-        set_file_content(db, "src/lib.cairo", "use test::submod::subsubmod::foo;\n \
-        mod submod {mod subsubmod;}\n");
+        set_file_content(
+            db,
+            "src/lib.cairo",
+            "use test::submod::subsubmod::foo;\n \
+        mod submod {mod subsubmod;}\n",
+        );
         set_file_content(db, "src/submod/subsubmod.cairo", "fn foo{}");
         let path: PathBuf = "src/lib.cairo".into();
         let module_id = db.file_modules(FileId::new(db, path.clone())).unwrap()[0];
@@ -570,8 +620,7 @@ mod tests {
     #[test]
     fn test_extract_crate_modules() {
         let db = &mut RootDatabase::builder()
-            .detect_corelib()
-            .with_starknet()
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
@@ -664,8 +713,7 @@ mod tests {
     #[test]
     fn test_get_module_file() {
         let db = &mut RootDatabase::builder()
-            .detect_corelib()
-            .with_starknet()
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 

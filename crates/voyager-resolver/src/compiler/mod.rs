@@ -1,32 +1,33 @@
-use anyhow::{ensure, Context, Result};
+use anyhow::{Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
-use cairo_lang_compiler::project::get_main_crate_ids_from_project;
 use cairo_lang_defs::ids::ModuleId;
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, FileLongId};
+use camino::Utf8PathBuf;
+use scarb::compiler::helpers::collect_main_crate_ids;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use camino::Utf8PathBuf;
 
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_diagnostics::ToOption;
-use cairo_lang_starknet::db::StarknetRootDatabaseBuilderEx;
 use cairo_lang_utils::Upcast;
 use petgraph::Graph;
 
 use crate::compiler::queries::collect_crate_module_files;
 use crate::model::{CairoAttachmentModule, CairoCrate, CairoModule, ModulePath};
 
-use crate::utils::{copy_required_files, create_attachment_files, generate_attachment_module_data, get_import_remaps, run_scarb_build};
+use crate::utils::{
+    copy_required_files, create_attachment_files, generate_attachment_module_data,
+    get_import_remaps, run_scarb_build,
+};
 
 use crate::compiler::scarb_utils::{
     generate_scarb_updated_files, get_contracts_to_verify, read_scarb_metadata,
     update_crate_roots_from_metadata,
 };
 use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
-use scarb::compiler::helpers::{build_project_config};
 use scarb::compiler::{CompilationUnit, Compiler};
-use scarb::core::{ExternalTargetKind, Workspace};
+use scarb::core::Workspace;
 use scarb::flock::Filesystem;
 
 pub struct VoyagerGenerator;
@@ -73,38 +74,43 @@ impl Compiler for VoyagerGenerator {
     /// - There is a problem creating the attachment files.
     /// - There is a problem copying the required modules to the target directory.
     /// - There is a problem generating the Scarb manifest files for the output directory.
-    fn compile(&self, unit: CompilationUnit, ws: &Workspace<'_>) -> Result<()> {
+    fn compile(
+        &self,
+        unit: CompilationUnit,
+        db: &mut RootDatabase,
+        ws: &Workspace<'_>,
+    ) -> Result<()> {
+        // TODO: Do we still need this check?!
         // Get the properties of the target to ensure it has no parameters
         // As our custom compiler target is starknet-contracts by default.
-        let props = unit.target.kind.downcast::<ExternalTargetKind>();
-        ensure!(
-            props.params.is_empty(),
-            "target `{}` does not accept any parameters",
-            props.kind_name
-        );
+        // let props = unit.target.kind.downcast::<ExternalTargetKind>();
+        //ensure!(
+        //    props.params.is_empty(),
+        //    "target `{}` does not accept any parameters",
+        //    props.kind_name
+        //);
 
-        // Builds the project configuration, overridden with the local corelib.
-        let config = build_project_config(&unit)?;
-        let mut db = RootDatabase::builder()
-            .with_project_config(config.clone())
-            .with_starknet()
-            .build()?;
+        //let mut db = RootDatabase::builder()
+        //    .with_project_config(config.clone())
+        //    .with_starknet()
+        //    .build()?;
 
         // We can use scarb metadata to update crate root info with external dependencies,
         // This updates the compiler database with the crate roots of the external dependencies.
         // This enables resolving external dependencies paths.
-        let manifest_path: PathBuf = unit.package.manifest_path().into();
+        let manifest_path: PathBuf = unit.main_component().package.manifest_path().into();
         let metadata = read_scarb_metadata(&manifest_path)
             .expect("Failed to obtain scarb metadata from manifest file.");
-        update_crate_roots_from_metadata(&mut db, metadata.clone());
+        update_crate_roots_from_metadata(db, metadata.clone());
 
+        // TODO: Check external dependencies are collected
         // Collect the main crate IDs from the compilation unit and the compiler database
         // There can be multiple crate IDs if the compilation unit contains multiple crates, for examples when
         // the project has external dependencies.
-        let project_crate_ids = get_main_crate_ids_from_project(&mut db, &config);
+        let project_crate_ids = collect_main_crate_ids(&unit, &db);
 
         // Get a vector of CairoCrate, which contain the crate root directory, main file and modules for each crate in the project.
-        let project_crates = self.get_project_crates(&mut db, project_crate_ids)?;
+        let project_crates = self.get_project_crates(db, project_crate_ids)?;
 
         // Collect all modules from all crates in the project.
         let project_modules = project_crates
@@ -118,7 +124,7 @@ impl Compiler for VoyagerGenerator {
 
         // Read Scarb manifest file to get the list of contracts to verify from the [tool.voyager] section.
         // This returns the relative file paths of the contracts to verify.
-        let contracts_to_verify = get_contracts_to_verify(&unit.package)?;
+        let contracts_to_verify = get_contracts_to_verify(&unit.main_component().package)?;
 
         // Collect the CairoModule corresponding to the file paths of the contracts.
         let modules_to_verify = project_modules
@@ -126,11 +132,17 @@ impl Compiler for VoyagerGenerator {
             .filter(|m| contracts_to_verify.contains(&m.relative_filepath))
             .collect::<Vec<_>>();
 
-
         let (required_modules_paths, attachment_modules_data) =
             self.get_reduced_project(&graph, modules_to_verify)?;
 
-        let target_dir = Filesystem::new(Utf8PathBuf::from(manifest_path.parent().unwrap().join("voyager-verify").to_str().unwrap()));
+        let target_dir = Filesystem::new(Utf8PathBuf::from(
+            manifest_path
+                .parent()
+                .unwrap()
+                .join("voyager-verify")
+                .to_str()
+                .unwrap(),
+        ));
 
         create_attachment_files(&attachment_modules_data, &target_dir)
             .with_context(|| "Failed to create attachment files")?;
@@ -147,7 +159,7 @@ impl Compiler for VoyagerGenerator {
         // The dependencies are updated to include the required modules as local dependencies.
         generate_scarb_updated_files(metadata, &target_dir)?;
 
-        let package_name = unit.package.id.name.to_string();
+        let package_name = unit.main_component().package.id.name.to_string();
         let generated_crate_dir = target_dir.path_existent().unwrap().join(package_name);
 
         //Locally run scarb build to make sure that everything compiles correctly before sending the files to voyager.
@@ -158,7 +170,6 @@ impl Compiler for VoyagerGenerator {
 }
 
 impl VoyagerGenerator {
-
     /// Gets a vector of `CairoCrate` structs, given a database and a list of crate IDs
     ///
     /// # Arguments
@@ -212,7 +223,6 @@ impl VoyagerGenerator {
         Ok(project_crates)
     }
 
-
     /// Given the module graph and a list of module contracts to verify,
     /// returns the path of the modules required for compilation, and the data for the attachment modules.
     /// Attachment modules are modules that declare submodules, attaching them to the module tree.
@@ -245,7 +255,6 @@ impl VoyagerGenerator {
             imports_path_not_matching_resolved_path,
         );
 
-
         let unrequired_attachment_modules: HashMap<ModulePath, CairoAttachmentModule> =
             attachment_modules_data
                 .iter()
@@ -267,15 +276,15 @@ mod tests {
     use cairo_lang_filesystem::db::FilesGroup;
     use cairo_lang_filesystem::db::FilesGroupEx;
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
-    use cairo_lang_starknet::db::StarknetRootDatabaseBuilderEx;
+    use cairo_lang_starknet::plugin::StarkNetPlugin;
     use std::collections::HashSet;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     #[test]
     fn test_reduced_project_no_remap() {
         let db = &mut RootDatabase::builder()
-            .detect_corelib()
-            .with_starknet()
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
@@ -338,8 +347,7 @@ mod tests {
     #[test]
     fn test_reduced_project_with_remap() {
         let db = &mut RootDatabase::builder()
-            .detect_corelib()
-            .with_starknet()
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
@@ -433,8 +441,7 @@ mod tests {
     #[test]
     fn test_reduced_project_import_from_attachment() {
         let db = &mut RootDatabase::builder()
-            .detect_corelib()
-            .with_starknet()
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
