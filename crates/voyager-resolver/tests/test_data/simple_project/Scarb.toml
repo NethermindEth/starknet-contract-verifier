@@ -12,4 +12,3 @@ dependency = { path = "../dependency" }
 
 [tool.voyager]
 ERC20 = { path = "contracts/ERC20.cairo", address = "0x12345" }
-

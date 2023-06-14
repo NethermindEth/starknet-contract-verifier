@@ -84,7 +84,8 @@ pub fn generate_scarb_updated_files(
     target_dir: &Filesystem,
 ) -> Result<()> {
     for package in scarb_metadata.packages {
-        if package.name == "core" {
+        // core and starknet are builtin dependencies of the compiler
+        if package.name == "core" || package.name == "starknet" {
             continue;
         }
         let manifest_path = package.manifest_path;
@@ -134,6 +135,12 @@ pub fn generate_updated_scarb_toml(manifest_path: PathBuf, target_path: &Path) -
         .collect::<Vec<_>>();
 
     table_keys.iter().for_each(|k| {
+        // starkent package dependency is builtin
+        // within the scarb compiler
+        if (*k == "starknet") {
+            return;
+        }
+
         let mut new_table = InlineTable::new();
         new_table.insert("path", Value::String(Formatted::new(format!("../{}", k))));
         tab.as_table_like_mut()

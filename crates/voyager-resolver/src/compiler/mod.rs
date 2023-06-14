@@ -135,15 +135,30 @@ impl Compiler for VoyagerGenerator {
         let (required_modules_paths, attachment_modules_data) =
             self.get_reduced_project(&graph, modules_to_verify)?;
 
-        let target_dir = Filesystem::new(Utf8PathBuf::from(
+        let target_dir = Utf8PathBuf::from(
             manifest_path
                 .parent()
                 .unwrap()
                 .join("voyager-verify")
                 .to_str()
                 .unwrap(),
-        ));
+        );
 
+        // Clean directory
+        std::fs::remove_dir_all(Utf8PathBuf::from(
+            manifest_path
+                .parent()
+                .unwrap()
+                .join("voyager-verify")
+                .to_str()
+                .unwrap(),
+        ))
+        .unwrap_or_else(|e| println!("Deleting folder error: {e}"));
+
+        // treat target dir as a Filesystem
+        let target_dir = Filesystem::new(target_dir);
+
+        // Get the main contract to verify and copy it to target directory
         create_attachment_files(&attachment_modules_data, &target_dir)
             .with_context(|| "Failed to create attachment files")?;
 

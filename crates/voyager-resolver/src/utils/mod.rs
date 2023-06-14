@@ -197,10 +197,8 @@ pub fn run_scarb_build(path: &str) -> Result<()> {
     }
 }
 
-pub fn run_starknet_compile(path: &str) -> Result<()>{
-    let output = Command::new("starknet-compile")
-        .arg(path)
-        .output()?;
+pub fn run_starknet_compile(path: &str) -> Result<()> {
+    let output = Command::new("starknet-compile").arg(path).output()?;
 
     if output.status.success() {
         Ok(())
