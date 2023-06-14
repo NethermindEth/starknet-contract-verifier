@@ -1,6 +1,5 @@
 use std::env;
 
-
 use scarb::compiler::CompilerRepository;
 use scarb::core::Config;
 use scarb::ops;
@@ -10,7 +9,6 @@ use std::path::PathBuf;
 use voyager_resolver::compiler::scarb_utils::get_contracts_to_verify;
 use voyager_resolver::compiler::VoyagerGenerator;
 use voyager_resolver::utils::run_scarb_build;
-
 
 #[test]
 fn test_get_contracts_to_verify() {

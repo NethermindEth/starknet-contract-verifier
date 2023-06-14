@@ -15,6 +15,7 @@ use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf};
 use cairo_lang_syntax::node::{ast, Terminal, TypedSyntaxNode};
 use cairo_lang_utils::ordered_hash_map::OrderedHashMap;
 use cairo_lang_utils::Upcast;
+use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
@@ -338,6 +339,13 @@ pub fn extract_file_imports(
             &mut segments,
         )
         .unwrap();
+
+        let import_path = segments
+            .clone()
+            .into_iter()
+            .map(|x| x.as_syntax_node().get_text(db))
+            .join("::");
+
         let resolved_item_maybe =
             resolver.resolve_generic_path(&mut diagnostics, segments, NotFoundItemType::Identifier);
 
