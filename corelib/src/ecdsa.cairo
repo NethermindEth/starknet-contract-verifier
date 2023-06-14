@@ -1,4 +1,10 @@
 use zeroable::IsZeroResult;
+use ec::{
+    ec_mul, ec_neg, ec_point_from_x, ec_point_from_x_nz, ec_point_is_zero, ec_point_new,
+    ec_point_new_nz, ec_point_non_zero, ec_point_try_new, ec_point_try_new_nz, ec_point_unwrap,
+    ec_point_zero, ec_state_add_mul, ec_state_add, ec_state_finalize, ec_state_init,
+    ec_state_try_finalize_nz
+};
 
 // Checks if (`signature_r`, `signature_s`) is a valid ECDSA signature for the given `public_key`
 // on the given `message`.

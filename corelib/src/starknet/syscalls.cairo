@@ -1,7 +1,7 @@
-use starknet::SyscallResult;
-use starknet::storage_access::StorageAddress;
-use starknet::class_hash::ClassHash;
-use starknet::contract_address::ContractAddress;
+use starknet::{
+    SyscallResult, storage_access::StorageAddress, class_hash::ClassHash,
+    contract_address::ContractAddress
+};
 
 // Calls a given contract.
 // `address` - The address of the called contract.
@@ -22,7 +22,7 @@ extern fn deploy_syscall(
     contract_address_salt: felt252,
     calldata: Span<felt252>,
     deploy_from_zero: bool,
-) -> SyscallResult<(ContractAddress, Span::<felt252>)> implicits(GasBuiltin, System) nopanic;
+) -> SyscallResult<(ContractAddress, Span<felt252>)> implicits(GasBuiltin, System) nopanic;
 
 // Emits an event.
 // `keys` - The keys of the event.
@@ -30,6 +30,11 @@ extern fn deploy_syscall(
 extern fn emit_event_syscall(
     keys: Span<felt252>, data: Span<felt252>
 ) -> SyscallResult<()> implicits(GasBuiltin, System) nopanic;
+
+// Gets the block hash of the block with the given number.
+extern fn get_block_hash_syscall(
+    block_number: u64
+) -> SyscallResult<felt252> implicits(GasBuiltin, System) nopanic;
 
 // Gets information about the current execution.
 extern fn get_execution_info_syscall() -> SyscallResult<Box<starknet::info::ExecutionInfo>> implicits(
@@ -77,3 +82,11 @@ extern fn storage_write_syscall(
 extern fn replace_class_syscall(
     class_hash: ClassHash
 ) -> SyscallResult<()> implicits(GasBuiltin, System) nopanic;
+
+
+// Computes the keccak of the input.
+// The system call does not add any padding and the input needs to be a multiple of 1088 bits
+// (== 17 u64 word).
+extern fn keccak_syscall(
+    input: Span<u64>
+) -> SyscallResult<u256> implicits(GasBuiltin, System) nopanic;
