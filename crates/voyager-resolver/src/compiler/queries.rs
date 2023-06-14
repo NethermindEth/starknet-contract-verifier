@@ -329,7 +329,6 @@ pub fn extract_file_imports(
         // let resolved_item_maybe = db.use_resolved_item(*use_id);
         // diagnostics.diagnostics.extend(db.use_semantic_diagnostics(*use_id));
         let syntax_db = db.upcast();
-        let import_path = use_path.as_syntax_node().get_text(syntax_db);
 
         // Use Path needs to break down into segments
         let mut segments = vec![];
