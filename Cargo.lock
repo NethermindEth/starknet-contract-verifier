@@ -3822,7 +3822,7 @@ dependencies = [
  "once_cell",
  "pathdiff",
  "petgraph 0.6.3",
- "scarb-metadata 1.4.2",
+ "scarb-metadata 1.4.2 (git+https://github.com/software-mansion/scarb.git?rev=80dcf3748cdcce1ad010f0d4208e0a4974daae8c)",
  "semver",
  "serde",
  "serde_json",
@@ -3845,12 +3845,11 @@ dependencies = [
 
 [[package]]
 name = "scarb-metadata"
-version = "1.0.1"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2480a9a896395a1414feebcfe8550b35f4dce0e6a437eeaa0c3d79ec938ddf42"
+checksum = "26ba10c59bd4ebde82de954e3a3d6d503eb17bd634106ef144af1356b28b8f0f"
 dependencies = [
  "camino",
- "derive_builder",
  "semver",
  "serde",
  "serde_json",
@@ -4855,7 +4854,7 @@ dependencies = [
  "rstest",
  "salsa",
  "scarb",
- "scarb-metadata 1.0.1",
+ "scarb-metadata 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "smol_str",
