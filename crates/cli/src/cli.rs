@@ -1,8 +1,8 @@
 mod build;
 
+use crate::build::VerifyFileArgs;
 use build::VerifyProjectArgs;
 use clap::{Parser, Subcommand};
-use crate::build::VerifyFileArgs;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -19,8 +19,7 @@ enum Commands {
     VerifyFile(VerifyFileArgs),
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {

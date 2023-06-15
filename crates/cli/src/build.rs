@@ -17,7 +17,7 @@ pub struct VerifyProjectArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct VerifyFileArgs{
+pub struct VerifyFileArgs {
     #[clap(help = "File path")]
     path: Utf8PathBuf,
 }
@@ -55,7 +55,7 @@ pub fn verify_project(args: VerifyProjectArgs) -> Result<()> {
     ops::compile(&ws)
 }
 
-pub fn verify_file(args: VerifyFileArgs) -> Result<()>{
+pub fn verify_file(args: VerifyFileArgs) -> Result<()> {
     let file_dir = match args.path.is_absolute() {
         true => args.path.clone(),
         false => {
@@ -70,3 +70,4 @@ pub fn verify_file(args: VerifyFileArgs) -> Result<()>{
     // the corelib from the release.
     run_starknet_compile(file_dir.as_str())
 }
+
