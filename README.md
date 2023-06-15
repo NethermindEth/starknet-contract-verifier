@@ -9,7 +9,7 @@ curl https://sh.rustup.rs -sSf | sh -s
 ## Build cairo project
 
 ```bash
-cargo run --bin voyager-resolver build examples/cairo_ds
+cargo run --bin voyager-resolver verify-project examples/cairo_ds
 ```
 
 ## Documentation
@@ -82,6 +82,7 @@ This reduced project is generated under the `voyager-verify` directory, which is
 Our verifier will use a `tool` section inside the Scarb manifest file to know which contracts it should verify.
 Users will create a section `tool.voyager`, under which they will declare the name of the contracts they want
 to verify, followed by the path to the contract file and the address the associated on-chain address.
+
 ```toml
 [tool.voyager]
 ERC20 ={path= "contracts/ERC20.cairo", address = "0x12345"}
