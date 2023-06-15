@@ -4,7 +4,6 @@ mod ERC20 {
     use starknet::get_caller_address;
     use starknet::contract_address_const;
     use starknet::ContractAddress;
-    use starknet::ContractAddressZeroable;
     use dependency::main::foo;
     use local::contracts::bar;
 
