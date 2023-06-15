@@ -2,9 +2,8 @@ use anyhow::{Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::ids::ModuleId;
 use cairo_lang_filesystem::db::FilesGroup;
-use cairo_lang_filesystem::ids::{CrateId, FileLongId};
+use cairo_lang_filesystem::ids::{CrateId, CrateLongId, FileLongId};
 use camino::Utf8PathBuf;
-use scarb::compiler::helpers::collect_main_crate_ids;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -25,7 +24,7 @@ use crate::compiler::scarb_utils::{
     generate_scarb_updated_files, get_contracts_to_verify, read_scarb_metadata,
     update_crate_roots_from_metadata,
 };
-use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
+use crate::graph::{create_graph, display_graphviz, get_required_module_for_contracts, EdgeWeight};
 use scarb::compiler::{CompilationUnit, Compiler};
 use scarb::core::Workspace;
 use scarb::flock::Filesystem;
@@ -103,11 +102,13 @@ impl Compiler for VoyagerGenerator {
             .expect("Failed to obtain scarb metadata from manifest file.");
         update_crate_roots_from_metadata(db, metadata.clone());
 
-        // TODO: Check external dependencies are collected
-        // Collect the main crate IDs from the compilation unit and the compiler database
-        // There can be multiple crate IDs if the compilation unit contains multiple crates, for examples when
-        // the project has external dependencies.
-        let project_crate_ids = collect_main_crate_ids(&unit, &db);
+        // We need all crate ids different than `core`
+        let project_crate_ids = unit
+            .components
+            .iter()
+            .filter(|component| component.cairo_package_name() != "core")
+            .map(|component| db.intern_crate(CrateLongId(component.cairo_package_name())))
+            .collect();
 
         // Get a vector of CairoCrate, which contain the crate root directory, main file and modules for each crate in the project.
         let project_crates = self.get_project_crates(db, project_crate_ids)?;
@@ -145,32 +146,30 @@ impl Compiler for VoyagerGenerator {
         );
 
         // Clean directory
-        std::fs::remove_dir_all(Utf8PathBuf::from(
-            manifest_path
-                .parent()
-                .unwrap()
-                .join("voyager-verify")
-                .to_str()
-                .unwrap(),
-        ))
-        .unwrap_or_else(|e| println!("Deleting folder error: {e}"));
+        std::fs::remove_dir_all(target_dir.clone()).unwrap_or_else(|e| {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                panic!(
+                    "Error removing target directory \"{}\" caused by:\n{}",
+                    target_dir, e
+                )
+            }
+        });
 
         // treat target dir as a Filesystem
         let target_dir = Filesystem::new(target_dir);
 
-        // Get the main contract to verify and copy it to target directory
         create_attachment_files(&attachment_modules_data, &target_dir)
             .with_context(|| "Failed to create attachment files")?;
 
         // Get the Cairo Modules corresponding to the required modules paths.
-        // Copy these modules in the target directory.
         let required_modules = project_modules
             .iter()
             .filter(|m| required_modules_paths.contains(&m.path))
             .collect::<Vec<_>>();
+        // Copy these modules in the target directory.
         copy_required_files(&required_modules, &target_dir, ws)?;
 
-        // Generate the scarb manifest files for the output directory.
+        // Generate each of the scarb manifest files for the output directory.
         // The dependencies are updated to include the required modules as local dependencies.
         generate_scarb_updated_files(metadata, &target_dir)?;
 
