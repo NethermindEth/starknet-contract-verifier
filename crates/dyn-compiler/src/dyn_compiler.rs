@@ -1,30 +1,8 @@
-// use camino::Utf8PathBuf;
-// use scarb::compiler::CompilerRepository;
-// use scarb::core::Config;
-// use scarb::ops;
-// use scarb::ui::Verbosity;
+use anyhow::Result;
+use camino::{Utf8PathBuf};
 
 
-// pub fn dynamic_compile_project(source_dir: Utf8Path) -> Result<()>{
-//     let mut compilers = CompilerRepository::empty();
-//     compilers.add(Box::new(get_resolver(CairoVersion::V2_0_1).try_into().unwrap())).unwrap();
-    
-//     let manifest_path = source_dir.join("Scarb.toml");
-    
-//     let config = Config::builder(manifest_path)
-//         .ui_verbosity(Verbosity::Verbose)
-//         .log_filter_directive(env::var_os("SCARB_LOG"))
-//         .compilers(compilers)
-//         .build()
-//         .unwrap();
-    
-//     let ws = ops::read_workspace(config.manifest_path(), &config).unwrap()
-//     ops::compile(&ws)
-// }
-
-use camino::Utf8Path;
-
-
+#[derive(Debug)]
 pub enum SupportedCairoVersions {
         V1_1_0,
         V1_1_1,
@@ -33,6 +11,7 @@ pub enum SupportedCairoVersions {
         V2_0_2,
 }
 
+#[derive(Debug)]
 pub enum SupportedScarbVersions {
     V0_4_0,
     V0_4_1,
@@ -47,15 +26,17 @@ pub enum SupportedScarbVersions {
  * and compile scarb projects easily,
  */
 pub trait DynamicCompiler {
-    fn get_versions(&self) -> (SupportedScarbVersions, SupportedCairoVersions);
+    fn get_supported_scarb_versions(&self) -> Vec<SupportedScarbVersions>;
+
+    fn get_supported_cairo_versions(&self) -> Vec<SupportedCairoVersions>;
 
     fn compile_project(
         &self,
-        project_path: Utf8Path
-    ) -> Result<(), &str>;
+        project_path: Utf8PathBuf
+    ) -> Result<()>;
 
     fn compile_file(
         &self,
-        file_path: Utf8Path
-    ) -> Result<(), &str>;
+        file_path: Utf8PathBuf
+    ) -> Result<()>;
 }

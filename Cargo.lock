@@ -1880,7 +1880,6 @@ dependencies = [
  "clap",
  "comfy-table",
  "dyn-compiler",
- "scarb 0.4.1",
  "serde",
  "smol_str",
  "starknet",
@@ -2449,6 +2448,7 @@ checksum = "68b0cf012f1230e43cd00ebb729c6bb58707ecfa8ad08b52ef3a4ccd2697fc30"
 name = "dyn-compiler"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "camino",
 ]
 
@@ -6691,6 +6691,7 @@ dependencies = [
  "cairo-lang-test-utils 1.1.0",
  "cairo-lang-utils 1.1.0",
  "camino",
+ "dyn-compiler",
  "env_logger",
  "indoc 1.0.9",
  "itertools 0.10.5",
@@ -6737,6 +6738,7 @@ dependencies = [
  "cairo-lang-test-utils 1.1.1",
  "cairo-lang-utils 1.1.1",
  "camino",
+ "dyn-compiler",
  "env_logger",
  "indoc 1.0.9",
  "itertools 0.10.5",
@@ -6783,6 +6785,7 @@ dependencies = [
  "cairo-lang-test-utils 2.0.2",
  "cairo-lang-utils 2.0.2",
  "camino",
+ "dyn-compiler",
  "env_logger",
  "indoc 1.0.9",
  "itertools 0.10.5",
@@ -6829,6 +6832,7 @@ dependencies = [
  "cairo-lang-test-utils 2.0.2",
  "cairo-lang-utils 2.0.2",
  "camino",
+ "dyn-compiler",
  "env_logger",
  "indoc 1.0.9",
  "itertools 0.10.5",
@@ -6875,6 +6879,7 @@ dependencies = [
  "cairo-lang-test-utils 2.0.2",
  "cairo-lang-utils 2.0.2",
  "camino",
+ "dyn-compiler",
  "env_logger",
  "indoc 1.0.9",
  "itertools 0.10.5",

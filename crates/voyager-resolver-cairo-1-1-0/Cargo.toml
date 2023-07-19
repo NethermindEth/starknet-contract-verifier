@@ -24,6 +24,7 @@ toml.workspace = true
 toml_edit = "0.19.8"
 rstest = "0.17.0"
 camino.workspace = true
+dyn-compiler = { path = "../dyn-compiler" }
 
 # All version dependent dependencies
 cairo-lang-casm = { version = "1.1.0", git = "https://github.com/starkware-libs/cairo.git", rev = "43b83560" }
