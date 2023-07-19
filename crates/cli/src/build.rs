@@ -7,8 +7,8 @@ use scarb::compiler::CompilerRepository;
 use scarb::core::Config;
 use scarb::ops;
 use scarb::ui::Verbosity;
-use voyager_resolver::compiler::VoyagerGenerator;
-use voyager_resolver::utils::run_starknet_compile;
+use voyager_resolver_cairo_1_1_1::compiler::VoyagerGenerator;
+use voyager_resolver_cairo_1_1_1::utils::run_starknet_compile;
 
 #[derive(Args, Debug)]
 pub struct VerifyProjectArgs {

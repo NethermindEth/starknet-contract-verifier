@@ -1,0 +1,7 @@
+[package]
+name = "dyn-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+camino.workspace = true

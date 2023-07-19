@@ -1,7 +1,8 @@
 mod build;
+mod resolver;
 
 use crate::build::VerifyFileArgs;
-use build::VerifyProjectArgs;
+use crate::build::VerifyProjectArgs;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
