@@ -5188,6 +5188,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "resolver-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "camino",
+ "clap",
+ "comfy-table",
+ "dyn-compiler",
+ "serde",
+ "smol_str",
+ "starknet",
+ "thiserror",
+ "tokio",
+ "toml 0.4.10",
+ "url",
+ "voyager-resolver-cairo-1-1-0",
+ "voyager-resolver-cairo-1-1-1",
+ "voyager-resolver-cairo-2-0-0",
+ "voyager-resolver-cairo-2-0-1",
+ "voyager-resolver-cairo-2-0-2",
+]
+
+[[package]]
 name = "rfc6979"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -2,8 +2,7 @@ mod build;
 mod resolver;
 mod utils;
 
-use crate::build::VerifyFileArgs;
-use crate::build::VerifyProjectArgs;
+use crate::build::ResolveProjectArgs;
 use crate::utils::detect_local_tools;
 use clap::{Parser, Subcommand};
 
@@ -15,13 +14,10 @@ struct Cli {
     command: Commands,
 }
 
-// TODO 1: There's a need of refactoring all this to reduce repetition.
-// TODO 2: support single file verification
 #[derive(Subcommand)]
 enum Commands {
     #[command(about = "Builds the voyager-verify output")]
-    VerifyProject(VerifyProjectArgs),
-    // VerifyFile(VerifyFileArgs),
+    ResolveProject(ResolveProjectArgs)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -30,8 +26,7 @@ fn main() -> anyhow::Result<()> {
     let (local_scarb_version, local_cairo_version) = detect_local_tools();
 
     match cli.command {
-        Commands::VerifyProject(args) => build::verify_project(args, local_cairo_version),
-        // Commands::VerifyFile(args) => build::verify_file(args, local_cairo_version),
+        Commands::ResolveProject(args) => build::resolve_project(args, local_cairo_version),
     }?;
     Ok(())
 }

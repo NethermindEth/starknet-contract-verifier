@@ -1,5 +1,5 @@
 [package]
-name = "cli"
+name = "resolver-cli"
 version = "0.1.0"
 edition = "2021"
 
@@ -28,5 +28,5 @@ voyager-resolver-cairo-2-0-1 = { path = "../voyager-resolver-cairo-2-0-1" }
 voyager-resolver-cairo-2-0-2 = { path = "../voyager-resolver-cairo-2-0-2" }
 
 [[bin]]
-name = "voyager-verify"
+name = "voyager-resolver"
 path = "src/cli.rs"
