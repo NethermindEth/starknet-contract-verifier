@@ -1,14 +1,11 @@
-use std::env::{self, current_dir};
+use std::env::current_dir;
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::Args;
-use scarb::compiler::CompilerRepository;
-use scarb::core::Config;
-use scarb::ops;
-use scarb::ui::Verbosity;
-use voyager_resolver::compiler::VoyagerGenerator;
-use voyager_resolver::utils::run_starknet_compile;
+use dyn_compiler::dyn_compiler::SupportedCairoVersions;
+
+use crate::resolver::get_dynamic_compiler;
 
 #[derive(Args, Debug)]
 pub struct VerifyProjectArgs {
@@ -22,7 +19,7 @@ pub struct VerifyFileArgs {
     path: Utf8PathBuf,
 }
 
-pub fn verify_project(args: VerifyProjectArgs) -> Result<()> {
+pub fn verify_project(args: VerifyProjectArgs, cairo_version: SupportedCairoVersions) -> Result<()> {
     let source_dir = match args.path {
         Some(path) => {
             if path.is_absolute() {
@@ -36,27 +33,12 @@ pub fn verify_project(args: VerifyProjectArgs) -> Result<()> {
         None => Utf8PathBuf::from_path_buf(current_dir().unwrap()).unwrap(),
     };
 
-    let mut compilers = CompilerRepository::empty();
-    compilers.add(Box::new(VoyagerGenerator)).unwrap();
-
-    let manifest_path = source_dir.join("Scarb.toml");
-
-    let config = Config::builder(manifest_path)
-        .ui_verbosity(Verbosity::Verbose)
-        .log_filter_directive(env::var_os("SCARB_LOG"))
-        .compilers(compilers)
-        .build()
-        .unwrap();
-
-    let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
-        std::process::exit(1);
-    });
-    ops::compile(&ws)
+    let compiler = get_dynamic_compiler(cairo_version);
+    compiler.compile_project(source_dir)
 }
 
-pub fn verify_file(args: VerifyFileArgs) -> Result<()> {
-    let file_dir = match args.path.is_absolute() {
+pub fn verify_file(args: VerifyFileArgs, cairo_version: SupportedCairoVersions) -> Result<()> {
+    let file_dir: Utf8PathBuf = match args.path.is_absolute() {
         true => args.path.clone(),
         false => {
             let mut current_path = current_dir().unwrap();
@@ -65,9 +47,7 @@ pub fn verify_file(args: VerifyFileArgs) -> Result<()> {
         }
     };
 
-    //TODO detect_corelib will try to use the local corelib.
-    // Once cairo is released, it will probably be able to use
-    // the corelib from the release.
-    run_starknet_compile(file_dir.as_str())
+    let compiler = get_dynamic_compiler(cairo_version);
+    compiler.compile_file(file_dir)
 }
 
