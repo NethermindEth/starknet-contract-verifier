@@ -14,8 +14,9 @@ serde.workspace = true
 smol_str.workspace = true
 starknet.workspace = true
 thiserror.workspace = true
-tokio = { version = "1.28.2", features = ["full"] }
 toml.workspace = true
+reqwest = { version = "0.11", features = ["blocking", "json", "multipart"] }
+tokio = { version = "1.28.2", features = ["full"] }
 url = "2.2.2"
 
 dyn-compiler = { path = "../dyn-compiler" }
@@ -26,6 +27,7 @@ voyager-resolver-cairo-1-1-1 = { path = "../voyager-resolver-cairo-1-1-1" }
 voyager-resolver-cairo-2-0-0 = { path = "../voyager-resolver-cairo-2-0-0" }
 voyager-resolver-cairo-2-0-1 = { path = "../voyager-resolver-cairo-2-0-1" }
 voyager-resolver-cairo-2-0-2 = { path = "../voyager-resolver-cairo-2-0-2" }
+walkdir = "2.3.3"
 
 [[bin]]
 name = "voyager-verify"

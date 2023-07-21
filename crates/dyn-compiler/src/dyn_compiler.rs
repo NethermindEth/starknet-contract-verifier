@@ -1,23 +1,46 @@
 use anyhow::Result;
-use camino::{Utf8PathBuf};
+use camino::Utf8PathBuf;
 
-
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum SupportedCairoVersions {
-        V1_1_0,
-        V1_1_1,
-        V2_0_0,
-        V2_0_1,
-        V2_0_2,
+    V1_1_0,
+    V1_1_1,
+    V2_0_0,
+    V2_0_1,
+    V2_0_2,
 }
 
-#[derive(Debug)]
+impl ToString for SupportedCairoVersions {
+    fn to_string(&self) -> String {
+        match self {
+            SupportedCairoVersions::V1_1_0 => "1.1.0".into(),
+            SupportedCairoVersions::V1_1_1 => "1.1.1".into(),
+            SupportedCairoVersions::V2_0_0 => "2.0.0".into(),
+            SupportedCairoVersions::V2_0_1 => "2.0.1".into(),
+            SupportedCairoVersions::V2_0_2 => "2.0.2".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum SupportedScarbVersions {
     V0_4_0,
     V0_4_1,
     V0_5_0,
     V0_5_1,
     V0_5_2,
+}
+
+impl ToString for SupportedScarbVersions {
+    fn to_string(&self) -> String {
+        match self {
+            SupportedScarbVersions::V0_4_0 => "0.4.0".into(),
+            SupportedScarbVersions::V0_4_1 => "0.4.1".into(),
+            SupportedScarbVersions::V0_5_0 => "0.5.0".into(),
+            SupportedScarbVersions::V0_5_1 => "0.5.1".into(),
+            SupportedScarbVersions::V0_5_2 => "0.5.2".into(),
+        }
+    }
 }
 
 /**
@@ -30,13 +53,9 @@ pub trait DynamicCompiler {
 
     fn get_supported_cairo_versions(&self) -> Vec<SupportedCairoVersions>;
 
-    fn compile_project(
-        &self,
-        project_path: Utf8PathBuf
-    ) -> Result<()>;
+    fn get_contracts_to_verify_path(&self, project_path: &Utf8PathBuf) -> Result<Vec<Utf8PathBuf>>;
 
-    fn compile_file(
-        &self,
-        file_path: Utf8PathBuf
-    ) -> Result<()>;
+    fn compile_project(&self, project_path: &Utf8PathBuf) -> Result<()>;
+
+    fn compile_file(&self, file_path: &Utf8PathBuf) -> Result<()>;
 }

@@ -1,9 +1,10 @@
-mod build;
 mod resolver;
 mod utils;
+mod api;
+mod verify;
 
-use crate::build::VerifyFileArgs;
-use crate::build::VerifyProjectArgs;
+use crate::verify::VerifyFileArgs;
+use crate::verify::VerifyProjectArgs;
 use crate::utils::detect_local_tools;
 use clap::{Parser, Subcommand};
 
@@ -30,7 +31,7 @@ fn main() -> anyhow::Result<()> {
     let (local_scarb_version, local_cairo_version) = detect_local_tools();
 
     match cli.command {
-        Commands::VerifyProject(args) => build::verify_project(args, local_cairo_version),
+        Commands::VerifyProject(args) => verify::verify_project(args, local_cairo_version, local_scarb_version),
         // Commands::VerifyFile(args) => build::verify_file(args, local_cairo_version),
     }?;
     Ok(())
