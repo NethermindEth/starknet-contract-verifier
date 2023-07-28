@@ -34,5 +34,5 @@ pub fn resolve_project(args: ResolveProjectArgs, cairo_version: SupportedCairoVe
     };
 
     let compiler = get_dynamic_compiler(cairo_version);
-    compiler.compile_project(source_dir)
+    compiler.compile_project(&source_dir)
 }

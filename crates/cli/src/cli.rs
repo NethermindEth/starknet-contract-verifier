@@ -17,7 +17,10 @@ struct Cli {
 }
 
 // TODO 1: There's a need of refactoring all this to reduce repetition.
-// TODO 2: support single file verification
+// TODO 2: support other types of project/file configurations
+//          - single file
+//          - non scarb
+//          - multiple contracts in project
 #[derive(Subcommand)]
 enum Commands {
     #[command(about = "Builds the voyager-verify output")]
