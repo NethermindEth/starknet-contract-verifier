@@ -189,24 +189,32 @@ pub fn does_class_exist(network: Network, class_hash: &str) -> Result<bool> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ProjectMetadataInfo {
+    pub cairo_version: SupportedCairoVersions,
+    pub scarb_version: SupportedScarbVersions,
+    pub project_dir_path: String
+}
+
 pub fn dispatch_class_verification_job(
     network: Network,
     address: &str,
-    cairo_version: SupportedCairoVersions,
-    scarb_version: SupportedScarbVersions,
     license: &str,
     is_account: bool,
     name: &str,
+    project_metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
 ) -> Result<String> {
+    println!("{:?}", project_metadata);
     // Construct form body
     let body = multipart::Form::new()
-        .text("compiler-version", cairo_version.to_string())
-        .text("scarb-version", scarb_version.to_string())
+        .text("compiler-version", project_metadata.cairo_version.to_string())
+        .text("scarb-version", project_metadata.scarb_version.to_string())
         .text("license", license.to_string())
         .text("account-contract", is_account.to_string())
         .text("name", name.to_string())
-        .text("contract-name", address.to_string());
+        .text("contract-name", address.to_string())
+        .text("project-dir-path", project_metadata.project_dir_path);
 
     let body = files.iter().fold(body, |body, file| {
         let part = multipart::Part::text(file.content.clone()).file_name(file.path.clone());

@@ -13,7 +13,7 @@ use walkdir::{DirEntry, WalkDir};
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
 
 use crate::{
-    api::{dispatch_class_verification_job, does_class_exist, FileInfo, LicenseType, Network, poll_verification_status},
+    api::{dispatch_class_verification_job, does_class_exist, FileInfo, LicenseType, Network, poll_verification_status, ProjectMetadataInfo},
     resolver::get_dynamic_compiler,
 };
 
@@ -146,6 +146,9 @@ pub fn verify_project(
     // we'll read the files from there.
     let extracted_files_dir = source_dir.join("voyager-verify");
 
+    // Since we also know that the dir of main project to be verified will be the same name, extract relative path
+    let project_dir_path = source_dir.strip_prefix(source_dir.parent().unwrap()).unwrap();
+
     // Read project directory
     let project_files = WalkDir::new(extracted_files_dir.as_path())
         .into_iter()
@@ -178,11 +181,14 @@ pub fn verify_project(
     let dispatch_response = dispatch_class_verification_job(
         network_enum.clone(),
         &args.hash,
-        cairo_version,
-        scarb_version,
         args.license.to_long_string().as_str(),
         args.is_account_contract.unwrap_or(false),
         &args.name,
+        ProjectMetadataInfo {
+            cairo_version,
+            scarb_version,
+            project_dir_path: project_dir_path.as_str().to_owned()
+        },
         project_files,
     );
 
