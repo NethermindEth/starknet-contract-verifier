@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::fs::File;
+use std::path::{Path, PathBuf};
 use std::{str::FromStr, thread::sleep};
 
 use anyhow::{anyhow, Error, Ok, Result};
@@ -113,6 +114,19 @@ pub enum VerifyJobStatus {
     Success,
 }
 
+impl VerifyJobStatus {
+    fn from_string(status: &str) -> Self {
+        match status {
+            "0" => Self::Submitted,
+            "1" => Self::Compiled,
+            "2" => Self::CompileFailed,
+            "3" => Self::Fail,
+            "4" => Self::Success,
+            _ => panic!("Unknown status: {}", status),
+        }
+    }
+}
+
 impl Display for VerifyJobStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -130,7 +144,7 @@ pub fn get_network_api(network: Network) -> String {
         Network::Mainnet => "https://voyager.online",
         Network::Goerli => "https://goerli.voyager.online",
         Network::Goerli2 => "https://goerli-2.voyager.online",
-        Network::Integration => "https://integration.voyager.online",
+        Network::Integration => "http://integration.voyager.online",
     };
 
     url.into()
@@ -146,21 +160,21 @@ pub struct VerificationJobDispatch {
 #[serde(rename_all = "camelCase")]
 pub struct VerificationJob {
     job_id: String,
-    status: VerifyJobStatus,
+    status: String,
     class_hash: String,
-    created_timestamp: String,
-    updated_timestamp: String,
+    created_timestamp: u64,
+    updated_timestamp: Option<u64>,
     address: String,
-    contract_name: String,
-    name: String,
-    version: String,
-    license: String,
+    contract_name: Option<String>,
+    name: Option<String>,
+    version: Option<String>,
+    license: Option<String>,
 }
 
 #[derive(Debug)]
 pub struct FileInfo {
-    pub path: String,
-    pub content: String,
+    pub name: String,
+    pub path: PathBuf,
 }
 
 pub fn does_contract_exist(network: Network, address: &str) -> Result<bool> {
@@ -205,9 +219,8 @@ pub fn dispatch_class_verification_job(
     project_metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
 ) -> Result<String> {
-    println!("{:?}", project_metadata);
     // Construct form body
-    let body = multipart::Form::new()
+    let mut body = multipart::Form::new()
         .text("compiler-version", project_metadata.cairo_version.to_string())
         .text("scarb-version", project_metadata.scarb_version.to_string())
         .text("license", license.to_string())
@@ -216,10 +229,10 @@ pub fn dispatch_class_verification_job(
         .text("contract-name", address.to_string())
         .text("project-dir-path", project_metadata.project_dir_path);
 
-    let body = files.iter().fold(body, |body, file| {
-        let part = multipart::Part::text(file.content.clone()).file_name(file.path.clone());
-        body.part("file", part)
-    });
+    for (idx, file) in files.iter().enumerate() {
+        let part = multipart::Part::file(file.path.clone())?.file_name(file.name.clone());
+        body = body.part(format!("files{}", idx), part);
+    }
 
     let url = get_network_api(network);
     let client = Client::new();
@@ -275,7 +288,7 @@ pub fn poll_verification_status(
 
         // Go through the possible status
         let data = result.json::<VerificationJob>().unwrap();
-        match data.status {
+        match VerifyJobStatus::from_string(data.status.as_str()) {
             VerifyJobStatus::Success => return Ok(data),
             VerifyJobStatus::Fail => return Err(anyhow!("Failed to verify")),
             VerifyJobStatus::CompileFailed => return Err(anyhow!("Compilation failed")),

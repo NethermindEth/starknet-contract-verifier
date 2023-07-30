@@ -155,25 +155,25 @@ pub fn verify_project(
         .filter_map(|f| f.ok())
         .filter(|f| f.file_type().is_file())
         .filter(|f| {
-            f.path().extension().unwrap() == "cairo" || f.path().extension().unwrap() == "toml"
+            f.path().extension().unwrap() == "cairo" || 
+                f.path().file_name().map(|f| f.to_string_lossy().to_owned()).unwrap_or("".into()).to_lowercase() == "scarb.toml"
         })
         .collect::<Vec<DirEntry>>();
 
     let project_files = project_files
         .iter()
         .map(|f| {
-            let file_path = f
-                .path()
-                .strip_prefix(&source_dir)
+            let actual_path = f.path().to_owned();
+            let file_name = actual_path
+                .strip_prefix(&extracted_files_dir)
                 .unwrap()
                 .to_str()
                 .to_owned()
                 .unwrap()
                 .to_string();
-            let file_content = fs::read_to_string(f.path()).unwrap();
             FileInfo {
-                path: file_path,
-                content: file_content,
+                name: file_name,
+                path: actual_path
             }
         })
         .collect::<Vec<FileInfo>>();
