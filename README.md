@@ -9,7 +9,7 @@ curl https://sh.rustup.rs -sSf | sh -s
 ## Build cairo project
 
 ```bash
-cargo run --bin voyager-resolver verify-project examples/cairo_ds
+cargo run --bin voyager-resolver
 ```
 
 ## Documentation

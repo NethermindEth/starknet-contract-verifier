@@ -1,7 +1,8 @@
 use anyhow::Result;
 use camino::Utf8PathBuf;
+use strum_macros::EnumIter;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, EnumIter)]
 pub enum SupportedCairoVersions {
     V1_1_0,
     V1_1_1,
