@@ -69,25 +69,25 @@ pub struct VerifyProjectArgs {
         default_value_t=String::from("mainnet"),
         required = true
     )]
-    network: String,
+    pub network: String,
 
     #[arg(help = "Class hash to verify", required = true)]
-    hash: String,
+    pub hash: String,
 
     #[arg(help = "license type", required = true)]
-    license: LicenseType,
+    pub license: LicenseType,
 
     #[arg(help = "Name", required = true)]
-    name: String,
+    pub name: String,
 
     #[arg(help = "Source directory", required = true)]
-    path: Utf8PathBuf,
+    pub path: Utf8PathBuf,
 
     #[arg(long, help = "Is it an account contract?")]
-    is_account_contract: Option<bool>,
+    pub is_account_contract: Option<bool>,
 
     #[arg(long, help = "Max retries")]
-    max_retries: Option<u32>,
+    pub max_retries: Option<u32>,
 }
 
 #[derive(Args, Debug)]
