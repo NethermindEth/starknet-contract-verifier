@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{str::FromStr, thread::sleep};
+use strum_macros::EnumIter;
 
 use anyhow::{anyhow, Error, Ok, Result};
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
@@ -10,7 +11,7 @@ use reqwest::{
     StatusCode,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumIter, Copy)]
 pub enum LicenseType {
     NoLicense,
     Unlicense,
