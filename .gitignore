@@ -1,7 +1,5 @@
 target/
 .idea/
 
-
-**/*.tool-versions
 .DS_Store
 bin/
