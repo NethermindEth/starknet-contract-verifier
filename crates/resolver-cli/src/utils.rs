@@ -1,12 +1,28 @@
 use std::process::Command;
 
-use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
+use camino::Utf8PathBuf;
 
-pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) {
+use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
+use scarb_metadata::{CairoVersionInfo, MetadataCommand, Metadata};
+
+pub fn detect_local_tools(path: &Utf8PathBuf) -> (SupportedScarbVersions, SupportedCairoVersions) {
     let versioning = Command::new("scarb")
         .arg("--version")
         .output()
         .expect("Failed to detect local scarb.");
+    // init metadata command
+    println!("init metadata from scarb-metadata");
+    let mut cmd = MetadataCommand::new();
+    let mut scarb_path = path.clone();
+    scarb_path.push("Scarb.toml");
+    cmd.manifest_path(scarb_path);
+
+    if let Ok(metadata) = cmd.exec() {
+        println!("metadata: {:?}", metadata);
+    } else {
+        println!("scarb-metadata execution failure");
+        std::process::exit(1);
+    }
 
     let versioning_str = String::from_utf8(versioning.stdout).unwrap();
     let scarb_version = versioning_str.split('\n').collect::<Vec<&str>>()[0].split(" ").collect::<Vec<&str>>()[1];

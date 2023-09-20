@@ -2,8 +2,11 @@ mod build;
 mod resolver;
 mod utils;
 
+use std::path::PathBuf;
+
 use crate::build::ResolveProjectArgs;
 use crate::utils::detect_local_tools;
+use camino::Utf8PathBuf;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -17,16 +20,22 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     #[command(about = "Builds the voyager-verify output")]
-    ResolveProject(ResolveProjectArgs)
+    ResolveProject(ResolveProjectArgs),
 }
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-
-    let (local_scarb_version, local_cairo_version) = detect_local_tools();
-
     match cli.command {
-        Commands::ResolveProject(args) => build::resolve_project(args, local_cairo_version),
-    }?;
+        Commands::ResolveProject(args) => {
+            if let Some(path) = &args.path {
+                let (local_scarb_version, local_cairo_version) = detect_local_tools(path);
+                build::resolve_project(args, local_cairo_version)?;
+            } else {
+                println!("❌ path invalid");
+                std::process::exit(1);
+            }
+        }
+    };
+
     Ok(())
 }
