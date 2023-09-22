@@ -4,7 +4,7 @@ use voyager_resolver_cairo_2_0_0::dyn_compiler::VoyagerGeneratorWrapper as Voyag
 use voyager_resolver_cairo_2_0_1::dyn_compiler::VoyagerGeneratorWrapper as VoyagerGeneratorV2_0_1;
 use voyager_resolver_cairo_2_0_2::dyn_compiler::VoyagerGeneratorWrapper as VoyagerGeneratorV2_0_2;
 
-use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions, SupportedScarbVersions};
+use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions};
 
 pub fn get_dynamic_compiler(cairo_version: SupportedCairoVersions) -> Box<dyn DynamicCompiler> {
     match cairo_version {

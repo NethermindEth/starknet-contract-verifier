@@ -2,12 +2,10 @@ mod build;
 mod resolver;
 mod utils;
 
-use std::path::PathBuf;
-
 use crate::build::ResolveProjectArgs;
 use crate::utils::detect_local_tools;
-use camino::Utf8PathBuf;
 use clap::{Parser, Subcommand};
+use semver::Version;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -31,7 +29,7 @@ fn main() -> anyhow::Result<()> {
                 let (local_scarb_version, local_cairo_version) = detect_local_tools(path);
                 build::resolve_project(args, local_cairo_version)?;
             } else {
-                println!("❌ path invalid");
+                println!("❌ path not provided");
                 std::process::exit(1);
             }
         }
