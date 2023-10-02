@@ -17,6 +17,8 @@ thiserror.workspace = true
 tokio = { version = "1.28.2", features = ["full"] }
 toml.workspace = true
 url = "2.2.2"
+scarb-metadata.workspace = true
+semver = "1.0.18"
 
 dyn-compiler = { path = "../dyn-compiler" }
 

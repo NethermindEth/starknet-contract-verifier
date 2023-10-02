@@ -7,10 +7,10 @@ use dyn_compiler::dyn_compiler::SupportedCairoVersions;
 
 use crate::resolver::get_dynamic_compiler;
 
-#[derive(Args, Debug)]
+#[derive(Args, Clone, Debug)]
 pub struct ResolveProjectArgs {
     #[clap(help = "Source directory")]
-    path: Option<Utf8PathBuf>,
+    pub path: Option<Utf8PathBuf>,
 }
 
 #[derive(Args, Debug)]

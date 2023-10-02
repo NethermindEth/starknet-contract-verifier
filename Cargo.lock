@@ -5334,6 +5334,7 @@ dependencies = [
  "clap",
  "comfy-table",
  "dyn-compiler",
+ "scarb-metadata 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "smol_str",
  "starknet",
