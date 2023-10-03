@@ -1,12 +1,8 @@
 [workspace]
 members = [
-    "crates/cli",
-    "crates/resolver-cli",
-    "crates/voyager-resolver-cairo-1-1-0",
-    "crates/voyager-resolver-cairo-1-1-1",
-    "crates/voyager-resolver-cairo-2-0-0",
-    "crates/voyager-resolver-cairo-2-0-1",
-    "crates/voyager-resolver-cairo-2-0-2",
+    # "crates/cli",
+    # "crates/resolver-cli",
+    "crates/voyager-resolver-universal",
     "crates/dyn-compiler",
 ]
 [workspace.package]
@@ -37,4 +33,3 @@ starknet = { git = "https://github.com/xJonathanLEI/starknet-rs" }
 thiserror = "1.0.32"
 toml = "0.4.2"
 test-log = "0.2.11"
-scarb-metadata = "1.4.2"
