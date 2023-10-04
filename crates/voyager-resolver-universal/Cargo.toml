@@ -1,0 +1,33 @@
+[package]
+name = "voyager-resolver-universal"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow.workspace = true
+indoc.workspace = true
+itertools.workspace = true
+salsa = "0.16.1"
+serde.workspace = true
+serde_json.workspace = true
+smol_str.workspace = true
+tracing = "0.1.37"
+regex = "1.7.1"
+petgraph = "0.5.0"
+toml.workspace = true
+toml_edit = "0.19.8"
+rstest = "0.17.0"
+camino.workspace = true
+
+scarb-metadata = "1.8.0"
+
+[dev-dependencies]
+env_logger.workspace = true
+pretty_assertions.workspace = true
+test-case = "2.2.2"
+test-case-macros = "2.2.2"
+test-log.workspace = true
