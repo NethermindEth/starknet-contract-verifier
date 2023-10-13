@@ -8293,6 +8293,7 @@ dependencies = [
  "salsa",
  "scarb 0.7.0",
  "scarb-metadata 1.7.1",
+ "scarb-ui",
  "serde",
  "serde_json",
  "smol_str",

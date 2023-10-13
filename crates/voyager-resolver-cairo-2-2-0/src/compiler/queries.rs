@@ -6,7 +6,7 @@ use cairo_lang_defs::ids::{
     UseId, UseLongId,
 };
 use cairo_lang_filesystem::db::FilesGroup;
-use cairo_lang_filesystem::ids::{CrateId, FileId, FileLongId};
+use cairo_lang_filesystem::ids::{CrateId, FileId, FileLongId, Directory};
 use cairo_lang_parser::db::ParserGroup;
 use cairo_lang_semantic::diagnostic::{NotFoundItemType, SemanticDiagnostics};
 use cairo_lang_semantic::items::us::get_use_segments;
@@ -159,12 +159,12 @@ pub fn collect_crate_module_files(
     let mut crate_modules = vec![];
     let defs_db: &dyn DefsGroup = db.upcast();
     let mut visited_files = HashMap::new();
-    let crate_root_dir = defs_db
-        .crate_root_dir(crate_id)
-        .with_context(|| "Couldn't get crate root dir")?
-        .0
-        .display()
-        .to_string();
+    let crate_root_dir = match defs_db.crate_root_dir(crate_id).with_context(|| "Couldn't get crate root dir")? {
+        Directory::Real(path) => path.display().to_string(),
+        Directory::Virtual{..} => {
+            return Err(anyhow!("Virtual directories are not supported"));
+        }  
+    };
     for module_id in &*defs_db.crate_modules(crate_id) {
         let module_file = defs_db
             .module_main_file(ModuleId::CrateRoot(crate_id))
@@ -188,15 +188,17 @@ pub fn collect_crate_module_files(
             visited_files.insert(file.clone(), true);
 
             let defs_group: &dyn DefsGroup = db.upcast();
-            let module_dir = defs_group
-                .module_dir(*module_id)
-                .to_option()
-                .with_context(|| {
+            let module_dir = match defs_group.module_dir(*module_id).to_option().with_context(|| {
                     format!("Could not get module directory for module {:?}", module_id)
-                })?;
+                })? {
+                    Directory::Real(path) => path.display().to_string(),
+                    Directory::Virtual { .. } => {
+                        return Err(anyhow!("Virtual directories are not supported"));
+                    }
+                };
             let module_imports = HashSet::from_iter(extract_file_imports(db, *module_id, &file)?);
             let cairo_module_data = CairoModule {
-                dir: module_dir.0,
+                dir: module_dir.into(),
                 main_file: main_file_path,
                 path: ModulePath::new(module_id.full_path(db.upcast())),
                 filepath: file.path.clone(),

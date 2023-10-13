@@ -60,8 +60,10 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
                 .build()
                 .unwrap();
 
-            let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
-            ops::compile(&ws)
+        let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
+        let resolve = ops::resolve_workspace(&ws).unwrap();
+        let package_ids = resolve.packages.keys().clone().collect();
+        ops::compile(package_ids,&ws)
     }
 
     fn compile_file(

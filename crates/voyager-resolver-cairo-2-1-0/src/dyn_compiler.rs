@@ -53,6 +53,7 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
         let mut compilers  = CompilerRepository::empty();
         compilers.add(Box::new(VoyagerGenerator)).unwrap();
 
+
         let config = Config::builder(manifest_path)
                 .ui_verbosity(Verbosity::Verbose)
                 .log_filter_directive(env::var_os("SCARB_LOG"))
@@ -60,11 +61,12 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
                 .build()
                 .unwrap();
 
-            let resolve = ops::resolve_workspace(ws)?;
+        
+        let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
+        let resolve = ops::resolve_workspace(&ws)?;
+        let package_ids = resolve.packages.keys().clone().collect();
 
-
-            let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
-            ops::compile(&ws)
+        ops::compile(package_ids,&ws)
     }
 
     fn compile_file(

@@ -296,7 +296,7 @@ mod tests {
     #[test]
     fn test_reduced_project_no_remap() {
         let db = &mut RootDatabase::builder()
-            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn test_reduced_project_with_remap() {
         let db = &mut RootDatabase::builder()
-            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn test_reduced_project_import_from_attachment() {
         let db = &mut RootDatabase::builder()
-            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 

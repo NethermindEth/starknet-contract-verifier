@@ -5,6 +5,7 @@ use camino::Utf8PathBuf;
 use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions, SupportedScarbVersions};
 use itertools::Itertools;
 use scarb::{ops, compiler::CompilerRepository, core::Config};
+use scarb_ui::Verbosity;
 
 use crate::{compiler::{VoyagerGenerator, scarb_utils::get_contracts_to_verify}, utils::run_starknet_compile};
 
@@ -14,7 +15,6 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
     fn get_supported_scarb_versions(&self) -> Vec<SupportedScarbVersions> {
         vec![SupportedScarbVersions::V0_4_0, SupportedScarbVersions::V0_4_1]
     }
-
     fn get_supported_cairo_versions(&self) -> Vec<SupportedCairoVersions> {
         vec![SupportedCairoVersions::V1_1_0, SupportedCairoVersions::V1_1_1]
     }
@@ -54,13 +54,16 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
         compilers.add(Box::new(VoyagerGenerator)).unwrap();
 
         let config = Config::builder(manifest_path)
+                .ui_verbosity(Verbosity::Verbose)
                 .log_filter_directive(env::var_os("SCARB_LOG"))
                 .compilers(compilers)
                 .build()
                 .unwrap();
 
-            let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
-            ops::compile(&ws)
+        let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
+        let resolve = ops::resolve_workspace(&ws)?;
+        let package_ids = resolve.packages.keys().cloned().collect();
+        ops::compile(package_ids, &ws)
     }
 
     fn compile_file(
