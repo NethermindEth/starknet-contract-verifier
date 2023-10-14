@@ -11,6 +11,7 @@ use cairo_lang_parser::db::ParserGroup;
 use cairo_lang_semantic::diagnostic::{NotFoundItemType, SemanticDiagnostics};
 use cairo_lang_semantic::items::us::get_use_segments;
 use cairo_lang_semantic::resolve::{ResolvedGenericItem, Resolver};
+use cairo_lang_semantic::expr::inference::InferenceId;
 use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf};
 use cairo_lang_syntax::node::{ast, Terminal, TypedSyntaxNode};
 use cairo_lang_utils::ordered_hash_map::OrderedHashMap;
@@ -250,8 +251,9 @@ fn collect_submodule_declarations(
     parent_path: &str,
 ) -> Vec<CairoImport> {
     let mut imports = Vec::new();
-    let module_declarations =
-        db.module_submodules(*module_id).unwrap() as OrderedHashMap<SubmoduleId, ast::ItemModule>;
+    let arc_module_declarations = db.module_submodules(*module_id).unwrap();
+        
+    let module_declarations = (*arc_module_declarations).clone();
 
     for (k, v) in module_declarations.iter() {
         let submodule_name = v.name(db).text(db);
@@ -324,8 +326,8 @@ pub fn extract_file_imports(
 
     // Resolve the module's imports
     // the resolver depends on the current module file id
-    let mut resolver = Resolver::new(db, module_file_id);
-    let mut diagnostics = SemanticDiagnostics::new(module_file_id);
+    let mut resolver = Resolver::new(db, module_file_id, InferenceId::NoContext);
+    let mut diagnostics = SemanticDiagnostics::new(file_data.id);
 
     for (use_id, use_path) in module_uses.iter() {
         // let resolved_item_maybe = db.use_resolved_item(*use_id);
@@ -415,6 +417,7 @@ fn get_full_path(db: &RootDatabase, resolved_item: &ResolvedGenericItem) -> Stri
         ResolvedGenericItem::Variant(variant) => variant.enum_id.full_path(db),
         ResolvedGenericItem::Impl(impl_id) => impl_id.full_path(db),
         ResolvedGenericItem::GenericImplAlias(impl_alias) => impl_alias.full_path(db),
+        ResolvedGenericItem::Variable(body_func_id, var_id) => body_func_id.full_path(db),
     }
 }
 
@@ -434,7 +437,7 @@ mod tests {
         _import_type: CairoImportType,
     ) -> Result<(RootDatabase, ModuleId, FileData, CrateId)> {
         let db = &mut RootDatabase::builder()
-            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()?;
 
         let test_import = TestImport {
@@ -485,11 +488,11 @@ mod tests {
     #[test]
     fn test_extract_declared_module() -> Result<(), Box<dyn std::error::Error>> {
         let db = &mut RootDatabase::builder()
-            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()?;
 
-        let crate_id = db.intern_crate(CrateLongId("test".into()));
-        let root = Directory("src".into());
+        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
+        let root = Directory::Real("src".into());
         db.set_crate_root(crate_id, Some(root));
         set_file_content(db, "src/lib.cairo", "mod submod;");
         set_file_content(db, "src/submod.cairo", "fn foo{}");
@@ -511,11 +514,11 @@ mod tests {
     #[test]
     fn test_extract_declared_module_nested() -> Result<()> {
         let db = &mut RootDatabase::builder()
-            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()?;
 
-        let crate_id = db.intern_crate(CrateLongId("test".into()));
-        let root = Directory("src".into());
+        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
+        let root = Directory::Real("src".into());
         db.set_crate_root(crate_id, Some(root));
         set_file_content(
             db,
@@ -629,7 +632,7 @@ mod tests {
     #[test]
     fn test_extract_crate_modules() {
         let db = &mut RootDatabase::builder()
-            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
@@ -722,7 +725,7 @@ mod tests {
     #[test]
     fn test_get_module_file() {
         let db = &mut RootDatabase::builder()
-            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 

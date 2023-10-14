@@ -300,7 +300,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
+        let crate_id = CrateLongId::Real("test".into()).into();
         let root = Directory::Real("src".into());
         db.set_crate_root(crate_id, Some(root));
 
@@ -363,7 +363,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
+        let crate_id = CrateLongId::Real("test".into()).into();
         let root = Directory::Real("src".into());
         db.set_crate_root(crate_id, Some(root));
 
@@ -457,7 +457,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
+        let crate_id = CrateLongId::Real("test".into()).into();
         let root = Directory::Real("src".into());
         db.set_crate_root(crate_id, Some(root));
 
