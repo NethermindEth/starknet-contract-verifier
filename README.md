@@ -1,123 +1,152 @@
-# voyager-resolver
+# starknet-contract-verifier
 
-## Install Rust
+`starknet-contract-verifier` is a contract class verification cli that allows you to verify your starknet classes on a block explorer.
+
+#### The list of the block explorer we currently support are:
+- [Voyager Starknet block explorer](https://voyager.online).
+
+
+#### We currently support the following cairo version & scarb version.
+- [x] Cairo 2.0.2 (Scarb v0.5.2)
+- [x] Cairo 2.1.1 (Scarb v0.6.2)
+- [ ] Cairo 2.2.0 (Scarb v0.7.0)
+- [ ] Cairo & Scarb  2.3.0
+- [x] Cairo & Scarb 2.4.0
+- [x] Cairo & Scarb 2.4.1
+- [x] Cairo & Scarb 2.4.2
+- [x] Cairo & Scarb 2.4.3
+- [x] Cairo & Scarb 2.4.4
+- [x] Cairo & Scarb 2.5.0
+- [x] Cairo & Scarb 2.5.1
+- [x] Cairo & Scarb 2.5.2
+- [x] Cairo & Scarb 2.5.3
+- [x] Cairo & Scarb 2.5.4
+- [x] Cairo & Scarb 2.6.0
+- [x] Cairo & Scarb 2.6.1
+- [x] Cairo & Scarb 2.6.2
+- [x] Cairo & Scarb 2.6.3
+- [ ] Cairo & Scarb 2.6.4
+
+The source code release for each version is available at their respective branch at `release/2.<major_version>.<minor_version>`. For example, the release for `2.4.3` would live at `release/2.4.3`.
+
+
+## Getting started
+
+### Prerequisite
+
+#### Installing Scarb
+
+This CLI relies upon Scarb for dependencies resolving during compilation and thus require you to have Scarb installed for it to work properly. You can install Scarb following the instruction on their documentation at https://docs.swmansion.com/scarb.
+
+Note that CLI version that you install should follow the version of the Scarb you have installed for it to work as expected.
+
+<!-- #### Getting an api key
+
+The verification CLI uses the public API of the block explorer under the hood, as such you will have to obtain your API key in order to start using the verifier.
+
+You can get an API key from Voyager here with this form [https://forms.gle/34RE6d4aiiv16HoW6](https://forms.gle/34RE6d4aiiv16HoW6).
+
+You can then set the api key via setting the environment variables.
+
+```
+API_KEY=<Your api key>
+```
+
+If you want to set the api key manually on each verifier call, you can also attach the variables like so:
+
+```
+API_KEY=<Your api key> starknet-contract-verifier
+``` -->
+
+#### Adding configuration for the verification
+
+In order to start verification, you'll need to add a table in your `Scarb.toml` as such:
+
+```toml
+[package]
+name = "my_project"
+version = "0.1.0"
+
+[dependencies]
+starknet = ">=2.4.0"
+
+[[target.starknet-contract]]
+sierra = true
+
+# Add the following section
+[tool.voyager]
+my_contract = { path = "main.cairo" }
+```
+
+The path should be set to the path of whichever contract you would like to verify, relative to your `src` directory. For the example above, the cairo contract is located at `src/main.cairo` and as such the path should be set to `main.cairo`.
+
+Note that only one contract should be provided in this section as multi contract verification is not supported yet.
+
+### Verification
+
+First do a clone of this repository.
+
+```bash
+git clone git@github.com:NethermindEth/starknet-contract-verifier.git
+```
+
+After cloning the repository, checkout to the release branch corresponding to the cairo version that your contract uses. For example, if you write your contract in `cairo 2.5.4`, you would do the following:
+
+```bash
+cd starknet-contract-verifier
+git checkout release/2.5
+```
+
+<!-- To get started on the verification of your cairo project, simply do the command -->
+
+<!-- ```bash
+starknet-contract-verifier
+``` -->
+<!-- 
+If you are instead building from source and running it on your machine, you might want to do this instead: -->
+
+To start the verifier, you can do the following command, and a prompt should guide you through the verification process.
+
+```bash
+cargo run --bin starknet-contract-verifier
+```
+
+You should be greeted with prompts that asks for the details of your cairo project & contracts, and will be guided step by step through the verification process.
+
+## Building from source
+
+If you are developing and building the project from source, you will first need to install rust.
 
 ```bash
 curl https://sh.rustup.rs -sSf | sh -s
 ```
 
-## Build cairo project
+> Note: Builds for 2.4.3 and below only works with < Rust 1.77. As such please make sure that you have the correct rust version before building.
+
+To build the project, simply do
 
 ```bash
-cargo run --bin voyager-resolver verify-project examples/cairo_ds
+cargo build
 ```
 
-## Documentation
+and the project should start building.
 
-### Overview
+## Limitations and Known Issues
 
-Cairo 1 adopts a crate/module-centric approach, inspired by Rust's design, to group related items into coherent units, facilitating the organization of code within a project. To declare the root of a crate, Cairo uses a `lib.cairo` file, which attaches all the modules to the module tree, making them accessible to the rest of the project.
+There's a few known issue with the current implementation of this verifier.
 
-The challenge in designing this contract verifier is that, to verify a contract within a project, we need to provide the compiler with the entire project, as it must resolve all the modules declared in the `lib.cairo` file and their submodules. However, to improve performance, we want to minimize the number of files sent to our backend.
 
-To verify a contract, we only need to send the contract itself and its dependent modules. However, the compiler requires a valid Cairo project to compile. Therefore, we must send a Cairo crate, with a `lib.cairo` file that declares all the modules on which the contract depends, including their submodules. To accomplish this, we follow these steps:
+### 1. Limitation with `super` imports
 
-- Gather the list of imports used by each module in the crate.
-- Resolve the file path of each module, ignoring virtual file modules generated by compiler plugins.
-- Create a directed graph that links module files together based on their dependencies.
-- Generate a new crate that includes only the required files.
-- Generate the "attachment" files that link the modules to the module tree up to the top-level lib.rs file.
+If you use `super` import in your source code, the verifier would fail to resolve it and cause an `IMPORT ERROR`. This is an expected issue and we are in the process of fixing it.
 
-As an example, let's consider the following project structure:
+### 2. Scarb.toml specified starknet versioning affects which binaries work with the verifier
 
-```
-.
-├── cairo_ds
-│   ├── Scarb.toml
-│   └── src
-│       ├── contracts
-│       │   └── erc20.cairo
-│       ├── contracts.cairo
-│       ├── lib.cairo
-│       ├── tests
-│       │   └── test_erc20.cairo
-│       └── tests.cairo
-└── dependency
-    ├── Scarb.toml
-    └── src
-        ├── lib.cairo
-        └── main.cairo
+The verifier would usually work cairo compiler versions that are lower than its version given no breaking changes between compiler versions, meaning using a `2.4.3` verifier with a compiler version of less than 2.4.3 would work as long as you specify in your `Scarb.toml` file the starknet version with a range including the verifier version (for example, `>=2.4.0` & `2.2.0` usually works for verifier `2.4.3`) If you use strict versioning for your starknet version in form of `=2.4.3` for example, it would stop working with verifier of other versions.
 
-```
 
-To verify the erc20.cairo contract that imports `use dependency::main::foo;`, we generate a new crate that contains only the required files.
-In this case, our contract depends on the external `dependency dependency::main::foo`. The resolver generates two crates: one for the cairo_ds project and one for the dependency project. Both crates contain only the necessary files.
+## Contributing
 
-### Output
+We welcome any form of contribution to this project! 
 
-Here is the generated minimal `cairo_ds` crate that can be sent to our backend for verification:
-
-```
-.
-├── cairo_ds
-│   ├── Scarb.toml
-│   └── src
-│       ├── contracts
-│       │   └── ERC20.cairo
-│       ├── contracts.cairo
-│       └── lib.cairo
-└── dependency
-    ├── Scarb.toml
-    └── src
-        ├── lib.cairo
-        └── main.cairo
-```
-
-You will notice here that everything related to `tests` is gone, as it is not required to compile the `erc20.cairo` contract.
-
-This reduced project is generated under the `voyager-verify` directory, which is created in the root of the project.
-
-### Scarb
-
-Our verifier will use a `tool` section inside the Scarb manifest file to know which contracts it should verify.
-Users will create a section `tool.voyager`, under which they will declare the name of the contracts they want
-to verify, followed by the path to the contract file and the address the associated on-chain address.
-
-```toml
-[tool.voyager]
-ERC20 ={path= "contracts/ERC20.cairo", address = "0x12345"}
-```
-
-### Sequence Diagram
-
-```mermaid
-sequenceDiagram
-    User ->> CLI: voyager-verify [args]
-    CLI ->> Resolver: compile(workspace)
-    Resolver ->> CairoCompiler: RootDatabase.[...]build()
-    CairoCompiler --> Resolver: db
-    Resolver ->> Scarb: read_scarb_metadata(manifest_path)
-    Scarb -->> Resolver: metadata
-    Resolver ->> CairoCompiler: update_crate_roots_from_metadata(metadata)
-    Resolver ->> CairoCompiler: get_main_crate_ids_from_project(db, config)
-    CairoCompiler -->> Resolver: Vec<CrateId>
-    loop crate_id
-        CairoCompiler-->>Resolver: crate_root_dir
-        CairoCompiler-->>Resolver: main_file_path
-        Resolver ->> Queries: extract_crate_modules(db, crate_id)
-        loop crate_modules
-            Queries -->> Queries: get_module_file(db, module_id)
-            Queries -->> Queries: extract_file_imports(db, module_id, file)
-            Queries -->> Queries: CairoModule{...}
-        end
-        Queries -->> Resolver: crate_modules
-    end
-
-    Resolver ->> Graph: create_graph(all_modules)
-    Graph -->> Resolver: graph
-    Resolver ->> Graph: get_reduced_project(graph, modules_to_verify)
-    Graph -->> Resolver: (required_modules_paths, attachment_modules_data)
-    Resolver ->> Filesystem: create_attachment_files()
-    Resolver ->> Filesystem: copy_required_files()
-    Resolver ->> Filesystem: generate_scarb_updated_files
-```
+To start, you can take a look at the issues that's available for taking and work on whichever you might be interested in. Do leave a comment so we can assign the issue to you!

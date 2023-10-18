@@ -1,16 +1,16 @@
+mod api;
 mod resolver;
 mod utils;
-mod api;
 mod verify;
 
-use crate::verify::VerifyFileArgs;
-use crate::verify::VerifyProjectArgs;
-use crate::api::LicenseType ;
+use crate::api::LicenseType;
 use crate::utils::detect_local_tools;
-use clap::{Parser, Subcommand};
+use crate::verify::VerifyProjectArgs;
 use camino::Utf8PathBuf;
-use dialoguer::{theme::ColorfulTheme, FuzzySelect, Input, Select, Confirm};
+use clap::{Parser, Subcommand};
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use regex::Regex;
+use std::env;
 use strum::IntoEnumIterator;
 
 #[derive(Parser)]
@@ -28,14 +28,33 @@ struct Cli {
 //          - multiple contracts in project
 #[derive(Subcommand)]
 enum Commands {
-    #[command(about = "Builds the voyager-verify output")]
+    #[command(about = "Builds the starknet-contract-verifier output")]
     VerifyProject(VerifyProjectArgs),
     // VerifyFile(VerifyFileArgs),
 }
 
 fn main() -> anyhow::Result<()> {
+    // TODO: make this cli use a secure api
+    // let api_key = match env::var("API_KEY") {
+    //     Ok(api_key) => Some(api_key),
+    //     Err(_) => None,
+    // };
 
-    let network_items = vec!["Mainnet", "Goerli", "Goerli-2"];
+    // let api_key = match api_key {
+    //     Some(key_values) => key_values,
+    //     None => {
+    //         println!("API_KEY not detected in environment variables. You can get one at https://forms.gle/34RE6d4aiiv16HoW6");
+    //         return Ok(());
+    //     }
+    // };
+
+    let is_debug_network = env::var("DEBUG_NETWORK").is_ok();
+
+    let network_items = if is_debug_network {
+        vec!["Mainnet", "Sepolia", "Integration", "Local"]
+    } else {
+        vec!["Mainnet", "Sepolia"]
+    };
 
     let network_index: Option<usize> = Select::with_theme(&ColorfulTheme::default())
         .items(&network_items)
@@ -54,16 +73,28 @@ fn main() -> anyhow::Result<()> {
     let re = Regex::new(r"^0x[a-fA-F0-9]{64}$").unwrap();
 
     let class_hash: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Input class hash or address to verify : ")
+        .with_prompt("Input class hash to verify : ")
         .validate_with(|input: &String| -> Result<(), &str> {
             if re.is_match(input) {
                 Ok(())
             } else {
-                Err("This is not a valid address")
+                Err("This is not a valid class hash")
             }
         })
         .interact()?;
 
+    // Path entry
+    // TODO: Auto completion
+    let path: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Enter Class Contract Path :")
+        .interact_text()
+        .unwrap();
+    // Remove whitespace here since a whitespace causes the path to be incorrect.
+    let path = path.trim().to_string();
+
+    let utf8_path: Utf8PathBuf = Utf8PathBuf::from(path);
+
+    // Set license for your contract code
     let licenses: Vec<LicenseType> = LicenseType::iter().collect();
     let license_index: Option<usize> = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select license you'd like to verify under :")
@@ -78,28 +109,38 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    // Get name that you want to use for the contract
+    let class_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Enter your desired class name: ")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            if input.len() > 50 {
+                Err("Given name is too long")
+            } else {
+                Ok(())
+            }
+        })
+        .interact_text()
+        .unwrap();
+
+    let class_name = class_name.trim().to_string();
+
     // Check if account contract
-    let is_account_contract: bool = Confirm::new().with_prompt("Is this an Account Contract?").interact()?;
-
-    // Path entry
-    let path: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enter Contracts Path :")
-        .interact_text().unwrap();
-
-    // let utf8_path: Option<Utf8PathBuf> = Some(path).map(Utf8PathBuf::from);
-    let utf8_path: Utf8PathBuf = Utf8PathBuf::from(path);
+    let is_account_contract: bool = Confirm::new()
+        .with_prompt("Is this an Account Class?")
+        .interact()?;
 
     let (local_scarb_version, local_cairo_version) = detect_local_tools();
 
     // Parse args into VerifyProjectArgs
-    let verify_args = VerifyProjectArgs{
+    let verify_args = VerifyProjectArgs {
         network: network_items[network_index.unwrap()].to_string(),
         hash: class_hash,
         license: licenses[license_index.unwrap()],
-        name: "test".to_string(),
+        name: class_name,
         path: utf8_path,
         is_account_contract: Some(is_account_contract),
-        max_retries: Some(10)
+        max_retries: Some(10),
+        api_key: "".to_string(),
     };
 
     match verify_args {

@@ -1,4 +1,0 @@
-[submodule "examples/starkgate-contracts"]
-	path = examples/starkgate-contracts
-	url = git@github.com:starknet-io/starkgate-contracts.git
-	branch = cairo-1

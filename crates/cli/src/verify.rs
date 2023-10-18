@@ -1,24 +1,23 @@
-use std::{
-    env::current_dir,
-    fs::{self, File},
-    slice,
-    str::FromStr,
-};
+use std::{env::current_dir, fs, str::FromStr};
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::{arg, builder::PossibleValue, Args, ValueEnum};
+use serde::{Deserialize, Serialize};
 use walkdir::{DirEntry, WalkDir};
 
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
 
 use crate::{
-    api::{dispatch_class_verification_job, does_class_exist, FileInfo, LicenseType, Network, poll_verification_status, ProjectMetadataInfo},
+    api::{
+        dispatch_class_verification_job, does_class_exist, poll_verification_status, FileInfo,
+        LicenseType, Network, ProjectMetadataInfo,
+    },
     resolver::get_dynamic_compiler,
 };
 
 impl ValueEnum for LicenseType {
-    fn from_str(input: &str, ignore_case: bool) -> std::result::Result<Self, String> {
+    fn from_str(input: &str, _ignore_case: bool) -> std::result::Result<Self, String> {
         match input {
             "NoLicense" => Ok(LicenseType::NoLicense),
             "Unlicense" => Ok(LicenseType::Unlicense),
@@ -88,12 +87,25 @@ pub struct VerifyProjectArgs {
 
     #[arg(long, help = "Max retries")]
     pub max_retries: Option<u32>,
+
+    pub api_key: String,
 }
 
 #[derive(Args, Debug)]
 pub struct VerifyFileArgs {
     #[arg(help = "File path")]
     path: Utf8PathBuf,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ScarbTomlRawPackageData {
+    name: String,
+    version: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ScarbTomlRawData {
+    package: ScarbTomlRawPackageData,
 }
 
 pub fn verify_project(
@@ -115,7 +127,7 @@ pub fn verify_project(
     let contract_paths = compiler.get_contracts_to_verify_path(&source_dir)?;
 
     // TODO: maybe support multiple contracts in one verification?
-    if contract_paths.len() == 0 {
+    if contract_paths.is_empty() {
         return Err(anyhow::anyhow!("No contracts to verify"));
     }
     if contract_paths.len() > 1 {
@@ -127,17 +139,21 @@ pub fn verify_project(
     let network_enum = Network::from_str(args.network.as_str())?;
 
     match does_class_exist(network_enum.clone(), &args.hash) {
-        Ok(true) => {}
-        Ok(false) => {
-            return Err(anyhow::anyhow!("Class does not exist on the network"));
-        }
+        Ok(true) => (),
+        Ok(false) => return Err(anyhow::anyhow!("Class does not exist on the network")),
         Err(e) => {
             return Err(anyhow::anyhow!(
                 "Error while checking if class exists: {}",
                 e
-            ));
+            ))
         }
     }
+
+    // Read the scarb metadata to get more information
+    let scarb_toml_content = fs::read_to_string(source_dir.join("Scarb.toml"))?;
+    let scarb_metadata_package_name = toml::from_str::<ScarbTomlRawData>(&scarb_toml_content)?
+        .package
+        .name;
 
     // Compiler and extract the necessary files
     compiler.compile_project(&source_dir)?;
@@ -146,8 +162,12 @@ pub fn verify_project(
     // we'll read the files from there.
     let extracted_files_dir = source_dir.join("voyager-verify");
 
-    // Since we also know that the dir of main project to be verified will be the same name, extract relative path
-    let project_dir_path = source_dir.strip_prefix(source_dir.parent().unwrap()).unwrap();
+    // The compiler compiles into the original scarb package name
+    // As such we have to craft the correct path to the main package
+    let project_dir_path = extracted_files_dir.join(scarb_metadata_package_name);
+    let project_dir_path = project_dir_path
+        .strip_prefix(extracted_files_dir.clone())
+        .unwrap();
 
     // Read project directory
     let project_files = WalkDir::new(extracted_files_dir.as_path())
@@ -155,8 +175,13 @@ pub fn verify_project(
         .filter_map(|f| f.ok())
         .filter(|f| f.file_type().is_file())
         .filter(|f| {
-            f.path().extension().unwrap() == "cairo" || 
-                f.path().file_name().map(|f| f.to_string_lossy().to_owned()).unwrap_or("".into()).to_lowercase() == "scarb.toml"
+            f.path().extension().unwrap() == "cairo"
+                || f.path()
+                    .file_name()
+                    .map(|f| f.to_string_lossy().into_owned())
+                    .unwrap_or("".into())
+                    .to_lowercase()
+                    == "scarb.toml"
         })
         .collect::<Vec<DirEntry>>();
 
@@ -173,12 +198,13 @@ pub fn verify_project(
                 .to_string();
             FileInfo {
                 name: file_name,
-                path: actual_path
+                path: actual_path,
             }
         })
         .collect::<Vec<FileInfo>>();
 
     let dispatch_response = dispatch_class_verification_job(
+        args.api_key.as_str(),
         network_enum.clone(),
         &args.hash,
         args.license.to_long_string().as_str(),
@@ -187,7 +213,7 @@ pub fn verify_project(
         ProjectMetadataInfo {
             cairo_version,
             scarb_version,
-            project_dir_path: project_dir_path.as_str().to_owned()
+            project_dir_path: project_dir_path.as_str().to_owned(),
         },
         project_files,
     );
@@ -195,20 +221,30 @@ pub fn verify_project(
     let job_id = match dispatch_response {
         Ok(response) => response,
         Err(e) => {
-            return Err(anyhow::anyhow!("Error while dispatching verification job: {}", e));
+            return Err(anyhow::anyhow!(
+                "Error while dispatching verification job: {}",
+                e
+            ));
         }
     };
 
-    let poll_result = poll_verification_status(network_enum, &job_id, args.max_retries.unwrap_or(10));
+    // Retry for 5 minutes
+    let poll_result = poll_verification_status(
+        args.api_key.as_str(),
+        network_enum,
+        &job_id,
+        args.max_retries.unwrap_or(180),
+    );
 
     match poll_result {
-        Ok(response) => {
+        Ok(_response) => {
             println!("Successfully verified!");
-            return Ok(());
-        },
-        Err(e) => {
-            return Err(anyhow::anyhow!("Error while polling verification status: {}", e));
+            Ok(())
         }
+        Err(e) => Err(anyhow::anyhow!(
+            "Error while polling verification status: {}",
+            e
+        )),
     }
 }
 

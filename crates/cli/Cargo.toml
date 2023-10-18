@@ -12,7 +12,6 @@ clap.workspace = true
 comfy-table = "6.0.0"
 serde.workspace = true
 smol_str.workspace = true
-starknet.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 reqwest = { version = "0.11", features = ["blocking", "json", "multipart"] }
@@ -26,16 +25,9 @@ strum_macros = "0.25.0"
 dyn-compiler = { path = "../dyn-compiler" }
 
 # All resolver versions, based on scarb + cairo
-voyager-resolver-cairo-1-1-0 = { path = "../voyager-resolver-cairo-1-1-0" }
-voyager-resolver-cairo-1-1-1 = { path = "../voyager-resolver-cairo-1-1-1" }
-voyager-resolver-cairo-2-0-0 = { path = "../voyager-resolver-cairo-2-0-0" }
-voyager-resolver-cairo-2-0-1 = { path = "../voyager-resolver-cairo-2-0-1" }
-voyager-resolver-cairo-2-0-2 = { path = "../voyager-resolver-cairo-2-0-2" }
-voyager-resolver-cairo-2-1-0 = { path = "../voyager-resolver-cairo-2-1-0" }
-voyager-resolver-cairo-2-1-1 = { path = "../voyager-resolver-cairo-2-1-1" }
-voyager-resolver-cairo-2-2-0 = { path = "../voyager-resolver-cairo-2-2-0" }
+voyager-resolver-cairo = { path = "../voyager-resolver-cairo" }
 walkdir = "2.3.3"
 
 [[bin]]
-name = "voyager-verify"
+name = "starknet-contract-verifier"
 path = "src/cli.rs"

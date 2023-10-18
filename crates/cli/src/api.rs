@@ -1,6 +1,6 @@
 use std::fmt::Display;
-use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::fs;
+use std::path::PathBuf;
 use std::{str::FromStr, thread::sleep};
 use strum_macros::EnumIter;
 
@@ -76,18 +76,16 @@ impl ToString for LicenseType {
 #[derive(Debug, Clone)]
 pub enum Network {
     Mainnet,
-    Goerli,
-    Goerli2,
-    Integration,
+    Sepolia,
+    Local,
 }
 
 impl Display for Network {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Network::Mainnet => write!(f, "mainnet"),
-            Network::Goerli => write!(f, "goerli"),
-            Network::Goerli2 => write!(f, "goerli2"),
-            Network::Integration => write!(f, "integration"),
+            Network::Sepolia => write!(f, "sepolia"),
+            Network::Local => write!(f, "local"),
         }
     }
 }
@@ -98,9 +96,8 @@ impl FromStr for Network {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "mainnet" => Ok(Network::Mainnet),
-            "goerli" => Ok(Network::Goerli),
-            "goerli2" => Ok(Network::Goerli2),
-            "integration" => Ok(Network::Integration),
+            "sepolia" => Ok(Network::Sepolia),
+            "local" => Ok(Network::Local),
             _ => Err(anyhow!("Unknown network: {}", s)),
         }
     }
@@ -116,13 +113,13 @@ pub enum VerifyJobStatus {
 }
 
 impl VerifyJobStatus {
-    fn from_string(status: &str) -> Self {
+    fn from_u8(status: u8) -> Self {
         match status {
-            "0" => Self::Submitted,
-            "1" => Self::Compiled,
-            "2" => Self::CompileFailed,
-            "3" => Self::Fail,
-            "4" => Self::Success,
+            0 => Self::Submitted,
+            1 => Self::Compiled,
+            2 => Self::CompileFailed,
+            3 => Self::Fail,
+            4 => Self::Success,
             _ => panic!("Unknown status: {}", status),
         }
     }
@@ -140,32 +137,69 @@ impl Display for VerifyJobStatus {
     }
 }
 
-pub fn get_network_api(network: Network) -> String {
+/**
+ * Currently only GetJobStatus and VerifyClass are public available apis.
+ * In the future, the get class api should be moved to using public apis too.
+ */
+pub enum ApiEndpoints {
+    GetClass,
+    GetJobStatus,
+    VerifyClass,
+}
+
+impl ApiEndpoints {
+    fn as_str(&self) -> String {
+        match self {
+            ApiEndpoints::GetClass => "/api/class/{class_hash}".to_owned(),
+            ApiEndpoints::GetJobStatus => "/class-verify/job/{job_id}".to_owned(),
+            ApiEndpoints::VerifyClass => "/class-verify/{class_hash}".to_owned(),
+        }
+    }
+
+    fn to_api_path(&self, param: String) -> String {
+        match self {
+            ApiEndpoints::GetClass => self.as_str().replace("{class_hash}", param.as_str()),
+            ApiEndpoints::GetJobStatus => self.as_str().replace("{job_id}", param.as_str()),
+            ApiEndpoints::VerifyClass => self.as_str().replace("{class_hash}", param.as_str()),
+        }
+    }
+}
+
+pub fn get_network_api(network: Network) -> (String, String) {
     let url = match network {
         Network::Mainnet => "https://voyager.online",
-        Network::Goerli => "https://goerli.voyager.online",
-        Network::Goerli2 => "https://goerli-2.voyager.online",
-        Network::Integration => "http://integration.voyager.online",
+        Network::Sepolia => "https://sepolia.voyager.online",
+        Network::Local => "http://localhost:8899",
     };
 
-    url.into()
+    let public_url = match network {
+        Network::Mainnet => "https://api.voyager.online/beta",
+        Network::Sepolia => "https://sepolia-api.voyager.online/beta",
+        Network::Local => "http://localhost:30380",
+    };
+
+    (url.into(), public_url.into())
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+pub struct ApiError {
+    error: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct VerificationJobDispatch {
     job_id: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct VerificationJob {
     job_id: String,
-    status: String,
+    status: u8,
+    status_description: Option<String>,
     class_hash: String,
-    created_timestamp: u64,
-    updated_timestamp: Option<u64>,
-    address: String,
+    created_timestamp: Option<f64>,
+    updated_timestamp: Option<f64>,
+    address: Option<String>,
     contract_name: Option<String>,
     name: Option<String>,
     version: Option<String>,
@@ -178,8 +212,10 @@ pub struct FileInfo {
     pub path: PathBuf,
 }
 
+// Currently not dealing with contract based verification and tagging, and focusing on just class verification.
+// TODO: explore this too, might be useful in differentiating contract using the same code.
 pub fn does_contract_exist(network: Network, address: &str) -> Result<bool> {
-    let url = get_network_api(network);
+    let (url, _) = get_network_api(network);
     let result = get(url + "/api/contract/" + address)?;
     match result.status() {
         StatusCode::OK => Ok(true),
@@ -192,8 +228,9 @@ pub fn does_contract_exist(network: Network, address: &str) -> Result<bool> {
 }
 
 pub fn does_class_exist(network: Network, class_hash: &str) -> Result<bool> {
-    let url = get_network_api(network);
-    let result = get(url + "/api/class/" + class_hash)?;
+    let (url, _) = get_network_api(network);
+    let path_with_params = ApiEndpoints::GetClass.to_api_path(class_hash.to_owned());
+    let result = get(url + path_with_params.as_str())?;
     match result.status() {
         StatusCode::OK => Ok(true),
         StatusCode::NOT_FOUND => Ok(false),
@@ -208,10 +245,11 @@ pub fn does_class_exist(network: Network, class_hash: &str) -> Result<bool> {
 pub struct ProjectMetadataInfo {
     pub cairo_version: SupportedCairoVersions,
     pub scarb_version: SupportedScarbVersions,
-    pub project_dir_path: String
+    pub project_dir_path: String,
 }
 
 pub fn dispatch_class_verification_job(
+    api_key: &str,
     network: Network,
     address: &str,
     license: &str,
@@ -222,24 +260,31 @@ pub fn dispatch_class_verification_job(
 ) -> Result<String> {
     // Construct form body
     let mut body = multipart::Form::new()
-        .text("compiler-version", project_metadata.cairo_version.to_string())
-        .text("scarb-version", project_metadata.scarb_version.to_string())
+        .percent_encode_noop()
+        .text(
+            "compiler_version",
+            project_metadata.cairo_version.to_string(),
+        )
+        .text("scarb_version", project_metadata.scarb_version.to_string())
         .text("license", license.to_string())
-        .text("account-contract", is_account.to_string())
+        .text("account_contract", is_account.to_string())
         .text("name", name.to_string())
-        .text("contract-name", address.to_string())
-        .text("project-dir-path", project_metadata.project_dir_path);
+        .text("contract_name", address.to_string())
+        .text("project_dir_path", project_metadata.project_dir_path);
 
-    for (idx, file) in files.iter().enumerate() {
-        let part = multipart::Part::file(file.path.clone())?.file_name(file.name.clone());
-        body = body.part(format!("files{}", idx), part);
+    for file in files.iter() {
+        let file_content = fs::read_to_string(file.path.as_path())?;
+        body = body.text(format!("files__{}", file.name.clone()), file_content);
     }
 
-    let url = get_network_api(network);
+    let (_, public_url) = get_network_api(network);
     let client = Client::new();
 
+    let path_with_param = ApiEndpoints::VerifyClass.to_api_path(address.to_owned());
+
     let response = client
-        .post(url + "/api/class/" + address + "/code")
+        .post(public_url + path_with_param.as_str())
+        // .header("x-api-key", api_key)
         .multipart(body)
         .send()?;
 
@@ -248,8 +293,14 @@ pub fn dispatch_class_verification_job(
         StatusCode::NOT_FOUND => {
             return Err(anyhow!("Job not found"));
         }
-        _ => {
-            return Err(anyhow!("Unexpected status code: {}", response.status()));
+        status_code => {
+            let err_response = response.json::<ApiError>()?;
+
+            return Err(anyhow!(
+                "Failed to dispatch verification job with status {}: {}",
+                status_code,
+                err_response.error
+            ));
         }
     }
 
@@ -259,12 +310,13 @@ pub fn dispatch_class_verification_job(
 }
 
 pub fn poll_verification_status(
+    api_key: &str,
     network: Network,
     job_id: &str,
     max_retries: u32,
 ) -> Result<VerificationJob> {
     // Get network api url
-    let url = get_network_api(network);
+    let (_, public_url) = get_network_api(network);
 
     // Blocking loop that polls every 2 seconds
     static RETRY_INTERVAL: u64 = 2000; // Ms
@@ -272,10 +324,13 @@ pub fn poll_verification_status(
 
     let client = Client::new();
 
-    // Retry every 500ms until we hit maxRetries
+    let path_with_param = ApiEndpoints::GetJobStatus.to_api_path(job_id.to_owned());
+
+    // Retry every 2000ms until we hit maxRetries
     while retries < max_retries {
         let result = client
-            .get(url.clone() + "/api/class/job/" + job_id)
+            .get(public_url.clone() + path_with_param.as_str())
+            // .header("x-api-key", api_key)
             .send()?;
         match result.status() {
             StatusCode::OK => (),
@@ -289,10 +344,22 @@ pub fn poll_verification_status(
 
         // Go through the possible status
         let data = result.json::<VerificationJob>().unwrap();
-        match VerifyJobStatus::from_string(data.status.as_str()) {
+        match VerifyJobStatus::from_u8(data.status) {
             VerifyJobStatus::Success => return Ok(data),
-            VerifyJobStatus::Fail => return Err(anyhow!("Failed to verify")),
-            VerifyJobStatus::CompileFailed => return Err(anyhow!("Compilation failed")),
+            VerifyJobStatus::Fail => {
+                return Err(anyhow!(
+                    "Failed to verify: {:?}",
+                    data.status_description
+                        .unwrap_or("unknown failure".to_owned())
+                ))
+            }
+            VerifyJobStatus::CompileFailed => {
+                return Err(anyhow!(
+                    "Compilation failed: {:?}",
+                    data.status_description
+                        .unwrap_or("unknown failure".to_owned())
+                ))
+            }
             _ => (),
         }
         retries += 1;
