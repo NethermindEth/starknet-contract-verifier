@@ -23,13 +23,6 @@ semver = "1.0.18"
 dyn-compiler = { path = "../dyn-compiler" }
 
 # All resolver versions, based on scarb + cairo
-voyager-resolver-cairo-1-1-0 = { path = "../voyager-resolver-cairo-1-1-0" }
-voyager-resolver-cairo-1-1-1 = { path = "../voyager-resolver-cairo-1-1-1" }
-voyager-resolver-cairo-2-0-0 = { path = "../voyager-resolver-cairo-2-0-0" }
-voyager-resolver-cairo-2-0-1 = { path = "../voyager-resolver-cairo-2-0-1" }
-voyager-resolver-cairo-2-0-2 = { path = "../voyager-resolver-cairo-2-0-2" }
-voyager-resolver-cairo-2-1-0 = { path = "../voyager-resolver-cairo-2-1-0" }
-voyager-resolver-cairo-2-1-1 = { path = "../voyager-resolver-cairo-2-1-1" }
 voyager-resolver-cairo-2-2-0 = { path = "../voyager-resolver-cairo-2-2-0" }
 
 [[bin]]

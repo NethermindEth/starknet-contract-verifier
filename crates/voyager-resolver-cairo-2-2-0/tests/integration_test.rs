@@ -1,14 +1,15 @@
 use std::env;
 
+use anyhow::Result;
 use scarb::compiler::CompilerRepository;
 use scarb::core::Config;
 use scarb::ops;
-use scarb::ui::Verbosity;
+use scarb_ui::Verbosity;
 use std::path::PathBuf;
 
-use voyager_resolver::compiler::scarb_utils::get_contracts_to_verify;
-use voyager_resolver::compiler::VoyagerGenerator;
-use voyager_resolver::utils::run_scarb_build;
+use voyager_resolver_cairo_2_2_0::compiler::scarb_utils::get_contracts_to_verify;
+use voyager_resolver_cairo_2_2_0::compiler::VoyagerGenerator;
+use voyager_resolver_cairo_2_2_0::utils::run_scarb_build;
 
 #[test]
 fn test_get_contracts_to_verify() {
@@ -38,7 +39,7 @@ fn test_get_contracts_to_verify() {
 }
 
 #[test]
-fn test_simple_project() {
+fn test_simple_project() -> Result<()> {
     let source_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/test_data")
         .join("simple_project");
@@ -58,7 +59,9 @@ fn test_simple_project() {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    ops::compile(&ws).unwrap();
+    let resolve = ops::resolve_workspace(&ws)?;
+    let package_ids = resolve.packages.keys().cloned().collect();
+    ops::compile(package_ids, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/local");
     println!(
@@ -66,10 +69,11 @@ fn test_simple_project() {
         reduced_project_path.to_str().unwrap()
     );
     run_scarb_build(reduced_project_path.to_str().unwrap()).unwrap();
+    Ok(())
 }
 
 #[test]
-fn test_project_with_remap() {
+fn test_project_with_remap() -> Result<()> {
     let source_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/test_data")
         .join("project_with_remap");
@@ -89,7 +93,9 @@ fn test_project_with_remap() {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    ops::compile(&ws).unwrap();
+    let resolve = ops::resolve_workspace(&ws)?;
+    let package_ids = resolve.packages.keys().cloned().collect();
+    ops::compile(package_ids, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/local");
     println!(
@@ -97,10 +103,11 @@ fn test_project_with_remap() {
         reduced_project_path.to_str().unwrap()
     );
     run_scarb_build(reduced_project_path.to_str().unwrap()).unwrap();
+    Ok(())
 }
 
 #[test]
-fn test_project_w_import_from_attachment() {
+fn test_project_w_import_from_attachment() -> Result<()> {
     let source_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/test_data")
         .join("project_w_import_from_attachment");
@@ -120,7 +127,9 @@ fn test_project_w_import_from_attachment() {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    ops::compile(&ws).unwrap();
+    let resolve = ops::resolve_workspace(&ws)?;
+    let package_ids = resolve.packages.keys().cloned().collect();
+    ops::compile(package_ids, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/local");
     println!(
@@ -128,4 +137,5 @@ fn test_project_w_import_from_attachment() {
         reduced_project_path.to_str().unwrap()
     );
     run_scarb_build(reduced_project_path.to_str().unwrap()).unwrap();
+    Ok(())
 }

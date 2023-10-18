@@ -287,7 +287,8 @@ mod tests {
     use crate::model::{CairoAttachmentModule, ModulePath};
     use crate::utils::test_utils::set_file_content;
     use cairo_lang_compiler::db::RootDatabase;
-    use cairo_lang_filesystem::ids::{CrateLongId, Directory};
+    use cairo_lang_filesystem::db::{FilesGroup, FilesGroupEx};
+    use cairo_lang_filesystem::ids::{CrateId, CrateLongId, Directory};
     use cairo_lang_starknet::plugin::StarkNetPlugin;
     use std::collections::HashSet;
     use std::path::PathBuf;
@@ -300,7 +301,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let crate_id = CrateLongId::Real("test".into()).into();
+        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
         let root = Directory::Real("src".into());
         db.set_crate_root(crate_id, Some(root));
 
@@ -363,7 +364,8 @@ mod tests {
             .build()
             .unwrap();
 
-        let crate_id = CrateLongId::Real("test".into()).into();
+        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
+
         let root = Directory::Real("src".into());
         db.set_crate_root(crate_id, Some(root));
 
@@ -457,7 +459,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let crate_id = CrateLongId::Real("test".into()).into();
+        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
         let root = Directory::Real("src".into());
         db.set_crate_root(crate_id, Some(root));
 
