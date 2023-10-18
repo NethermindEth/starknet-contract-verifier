@@ -1,1 +1,1 @@
-use local::contracts::ERC20;
+use project_with_remap::contracts::ERC20;

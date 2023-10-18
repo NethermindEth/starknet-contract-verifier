@@ -12,7 +12,7 @@ use cairo_lang_semantic::diagnostic::{NotFoundItemType, SemanticDiagnostics};
 use cairo_lang_semantic::items::us::get_use_segments;
 use cairo_lang_semantic::resolve::{ResolvedGenericItem, Resolver};
 use cairo_lang_semantic::expr::inference::InferenceId;
-use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf, Item};
+use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf, Item, SyntaxFile};
 use cairo_lang_syntax::node::{ast, Terminal, TypedSyntaxNode};
 use cairo_lang_utils::ordered_hash_map::OrderedHashMap;
 use cairo_lang_utils::Upcast;
@@ -300,15 +300,14 @@ pub fn extract_file_imports(
         .file_syntax(file_data.id)
         .to_option()
         .with_context(|| format!("Could not get file_syntax for file {:?}", file_data.id))?;
-    let file_ast = file_syntax.children(db);
+    let file_ast = SyntaxFile::from_syntax_node(db, file_syntax).items(db);
     let module_file_id = ModuleFileId(module_id, FileIndex(file_data.index));
 
     let mut imports: Vec<CairoImport> = vec![];
     let mut module_uses = OrderedHashMap::default();
 
     // Process the top-level items in the file AST
-    for syntax_node in file_ast {
-        let item_ast = Item::from_syntax_node(db, syntax_node);
+    for item_ast in file_ast.elements(db) {
         // Top level items
         match item_ast {
             ast::Item::Use(item_use) => {

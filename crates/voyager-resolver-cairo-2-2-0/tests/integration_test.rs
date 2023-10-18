@@ -97,7 +97,7 @@ fn test_project_with_remap() -> Result<()> {
     let package_ids = resolve.packages.keys().cloned().collect();
     ops::compile(package_ids, &ws).unwrap();
 
-    let reduced_project_path = source_dir.join("voyager-verify/local");
+    let reduced_project_path = source_dir.join("voyager-verify/project_with_remap");
     println!(
         "Reduced project path: {}",
         reduced_project_path.to_str().unwrap()
