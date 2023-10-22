@@ -116,6 +116,7 @@ pub fn generate_scarb_updated_files(
 pub fn generate_updated_scarb_toml(manifest_path: PathBuf, target_path: &Path) -> Result<()> {
     let manifest_path = fs::canonicalize(manifest_path)?;
     let original_raw_manifest = fs::read_to_string(&manifest_path)?;
+
     let mut doc = Document::from_str(&original_raw_manifest).with_context(|| {
         format!(
             "failed to read manifest at `{}`",
@@ -179,7 +180,9 @@ pub fn generate_updated_scarb_toml(manifest_path: PathBuf, target_path: &Path) -
 /// * The tool metadata is not a table.
 ///
 pub fn get_contracts_to_verify(package: &Package) -> Result<Vec<PathBuf>> {
-    let verify_metadata = package.fetch_tool_metadata("voyager")?;
+    let verify_metadata = package.fetch_tool_metadata("voyager").with_context(|| {
+        "manifest has no [tool.voyager] section which is required"
+    })?;
     let table_values = verify_metadata
         .as_table()
         .ok_or_else(|| anyhow!("verify metadata is not a table"))?

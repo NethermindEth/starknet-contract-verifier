@@ -1,15 +1,15 @@
+mod api;
 mod resolver;
 mod utils;
-mod api;
 mod verify;
 
+use crate::api::LicenseType;
+use crate::utils::detect_local_tools;
 use crate::verify::VerifyFileArgs;
 use crate::verify::VerifyProjectArgs;
-use crate::api::LicenseType ;
-use crate::utils::detect_local_tools;
-use clap::{Parser, Subcommand};
 use camino::Utf8PathBuf;
-use dialoguer::{theme::ColorfulTheme, FuzzySelect, Input, Select, Confirm};
+use clap::{Parser, Subcommand};
+use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input, Select};
 use regex::Regex;
 use strum::IntoEnumIterator;
 
@@ -34,8 +34,7 @@ enum Commands {
 }
 
 fn main() -> anyhow::Result<()> {
-
-    let network_items = vec!["Mainnet", "Goerli", "Goerli-2"];
+    let network_items = vec!["Mainnet", "Goerli"];
 
     let network_index: Option<usize> = Select::with_theme(&ColorfulTheme::default())
         .items(&network_items)
@@ -79,12 +78,15 @@ fn main() -> anyhow::Result<()> {
     }
 
     // Check if account contract
-    let is_account_contract: bool = Confirm::new().with_prompt("Is this an Account Contract?").interact()?;
+    let is_account_contract: bool = Confirm::new()
+        .with_prompt("Is this an Account Contract?")
+        .interact()?;
 
     // Path entry
     let path: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Enter Contracts Path :")
-        .interact_text().unwrap();
+        .interact_text()
+        .unwrap();
 
     // let utf8_path: Option<Utf8PathBuf> = Some(path).map(Utf8PathBuf::from);
     let utf8_path: Utf8PathBuf = Utf8PathBuf::from(path);
@@ -92,14 +94,14 @@ fn main() -> anyhow::Result<()> {
     let (local_scarb_version, local_cairo_version) = detect_local_tools();
 
     // Parse args into VerifyProjectArgs
-    let verify_args = VerifyProjectArgs{
+    let verify_args = VerifyProjectArgs {
         network: network_items[network_index.unwrap()].to_string(),
         hash: class_hash,
         license: licenses[license_index.unwrap()],
         name: "test".to_string(),
         path: utf8_path,
         is_account_contract: Some(is_account_contract),
-        max_retries: Some(10)
+        max_retries: Some(10),
     };
 
     match verify_args {

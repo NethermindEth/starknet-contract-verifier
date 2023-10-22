@@ -77,7 +77,6 @@ impl ToString for LicenseType {
 pub enum Network {
     Mainnet,
     Goerli,
-    Goerli2,
     Integration,
 }
 
@@ -86,7 +85,6 @@ impl Display for Network {
         match self {
             Network::Mainnet => write!(f, "mainnet"),
             Network::Goerli => write!(f, "goerli"),
-            Network::Goerli2 => write!(f, "goerli2"),
             Network::Integration => write!(f, "integration"),
         }
     }
@@ -99,7 +97,6 @@ impl FromStr for Network {
         match s.to_lowercase().as_str() {
             "mainnet" => Ok(Network::Mainnet),
             "goerli" => Ok(Network::Goerli),
-            "goerli2" => Ok(Network::Goerli2),
             "integration" => Ok(Network::Integration),
             _ => Err(anyhow!("Unknown network: {}", s)),
         }
@@ -144,7 +141,6 @@ pub fn get_network_api(network: Network) -> String {
     let url = match network {
         Network::Mainnet => "https://voyager.online",
         Network::Goerli => "https://goerli.voyager.online",
-        Network::Goerli2 => "https://goerli-2.voyager.online",
         Network::Integration => "http://integration.voyager.online",
     };
 
