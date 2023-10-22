@@ -13,7 +13,10 @@ use walkdir::{DirEntry, WalkDir};
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
 
 use crate::{
-    api::{dispatch_class_verification_job, does_class_exist, FileInfo, LicenseType, Network, poll_verification_status, ProjectMetadataInfo},
+    api::{
+        dispatch_class_verification_job, does_class_exist, poll_verification_status, FileInfo,
+        LicenseType, Network, ProjectMetadataInfo,
+    },
     resolver::get_dynamic_compiler,
 };
 
@@ -147,7 +150,9 @@ pub fn verify_project(
     let extracted_files_dir = source_dir.join("voyager-verify");
 
     // Since we also know that the dir of main project to be verified will be the same name, extract relative path
-    let project_dir_path = source_dir.strip_prefix(source_dir.parent().unwrap()).unwrap();
+    let project_dir_path = source_dir
+        .strip_prefix(source_dir.parent().unwrap())
+        .unwrap();
 
     // Read project directory
     let project_files = WalkDir::new(extracted_files_dir.as_path())
@@ -155,8 +160,13 @@ pub fn verify_project(
         .filter_map(|f| f.ok())
         .filter(|f| f.file_type().is_file())
         .filter(|f| {
-            f.path().extension().unwrap() == "cairo" || 
-                f.path().file_name().map(|f| f.to_string_lossy().to_owned()).unwrap_or("".into()).to_lowercase() == "scarb.toml"
+            f.path().extension().unwrap() == "cairo"
+                || f.path()
+                    .file_name()
+                    .map(|f| f.to_string_lossy().to_owned())
+                    .unwrap_or("".into())
+                    .to_lowercase()
+                    == "scarb.toml"
         })
         .collect::<Vec<DirEntry>>();
 
@@ -173,7 +183,7 @@ pub fn verify_project(
                 .to_string();
             FileInfo {
                 name: file_name,
-                path: actual_path
+                path: actual_path,
             }
         })
         .collect::<Vec<FileInfo>>();
@@ -187,7 +197,7 @@ pub fn verify_project(
         ProjectMetadataInfo {
             cairo_version,
             scarb_version,
-            project_dir_path: project_dir_path.as_str().to_owned()
+            project_dir_path: project_dir_path.as_str().to_owned(),
         },
         project_files,
     );
@@ -195,19 +205,26 @@ pub fn verify_project(
     let job_id = match dispatch_response {
         Ok(response) => response,
         Err(e) => {
-            return Err(anyhow::anyhow!("Error while dispatching verification job: {}", e));
+            return Err(anyhow::anyhow!(
+                "Error while dispatching verification job: {}",
+                e
+            ));
         }
     };
 
-    let poll_result = poll_verification_status(network_enum, &job_id, args.max_retries.unwrap_or(10));
+    let poll_result =
+        poll_verification_status(network_enum, &job_id, args.max_retries.unwrap_or(30));
 
     match poll_result {
         Ok(response) => {
             println!("Successfully verified!");
             return Ok(());
-        },
+        }
         Err(e) => {
-            return Err(anyhow::anyhow!("Error while polling verification status: {}", e));
+            return Err(anyhow::anyhow!(
+                "Error while polling verification status: {}",
+                e
+            ));
         }
     }
 }
