@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use std::fs;
 use std::path::PathBuf;
 use std::{str::FromStr, thread::sleep};
 use strum_macros::EnumIter;
@@ -314,7 +313,6 @@ pub fn poll_verification_status(
     // Blocking loop that polls every 2 seconds
     static RETRY_INTERVAL: u64 = 2000; // Ms
     let mut retries: u32 = 0;
-
     let client = Client::new();
 
     let path_with_param = ApiEndpoints::GetJobStatus.to_api_path(job_id.to_owned());

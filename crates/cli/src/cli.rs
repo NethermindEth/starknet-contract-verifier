@@ -77,7 +77,7 @@ fn main() -> anyhow::Result<()> {
             if is_class_hash_valid(input) {
                 Ok(())
             } else {
-                Err("This is not a valid class hash")
+                Err("This is not a class hash")
             }
         })
         .interact()?;

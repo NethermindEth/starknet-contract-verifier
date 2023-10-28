@@ -1,4 +1,10 @@
-use std::{env::current_dir, fs, str::FromStr};
+use std::{
+    env::current_dir,
+    fs::{self, File},
+    slice,
+    str::FromStr,
+    thread
+};
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
@@ -6,6 +12,7 @@ use clap::{arg, builder::PossibleValue, Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 use voyager_resolver_cairo::compiler::scarb_utils::read_additional_scarb_manifest_metadata;
 use walkdir::{DirEntry, WalkDir};
+use indicatif::{ProgressBar, ProgressStyle};
 
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
 
@@ -208,6 +215,18 @@ pub fn verify_project(
         extracted_scarb_toml_data.name.clone(),
         contract_paths[0].as_str()
     );
+    // let spinner = ProgressBar::new_spinner();
+    // spinner.set_style(ProgressStyle::default_spinner());
+    // spinner.set_style(ProgressStyle::with_template("{spinner:2.green/white} {msg} [{elapsed_precise}] ").unwrap());
+    // spinner.set_message("dispatching verification job");
+
+    // let spinner_clone = spinner.clone();
+    // thread::spawn(move || {
+    //     while !spinner_clone.is_finished() {
+    //         spinner_clone.tick();
+    //         thread::sleep(std::time::Duration::from_millis(100));
+    //     }
+    // });
 
     let dispatch_response = dispatch_class_verification_job(
         args.api_key.as_str(),
@@ -242,6 +261,11 @@ pub fn verify_project(
         &job_id,
         args.max_retries.unwrap_or(180),
     );
+    // spinner.set_message("verification in progress");
+    // let poll_result =
+    //     poll_verification_status(network_enum, &job_id, args.max_retries.unwrap_or(30));
+    
+    // spinner.finish();
 
     match poll_result {
         Ok(_response) => {
