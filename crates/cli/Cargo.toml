@@ -19,6 +19,7 @@ tokio = { version = "1.28.2", features = ["full"] }
 url = "2.2.2"
 dialoguer = { version = "0.10.4", features = ["fuzzy-select"] }
 regex = "1"
+indicatif = "0.17.7"
 strum = "0.25.0"
 strum_macros = "0.25.0"
 

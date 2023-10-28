@@ -78,7 +78,7 @@ fn main() -> anyhow::Result<()> {
             if re.is_match(input) {
                 Ok(())
             } else {
-                Err("This is not a valid class hash")
+                Err("This is not a class hash")
             }
         })
         .interact()?;
