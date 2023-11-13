@@ -24,7 +24,7 @@ use crate::compiler::scarb_utils::{
     generate_scarb_updated_files, get_contracts_to_verify, read_scarb_metadata,
     update_crate_roots_from_metadata,
 };
-use crate::graph::{create_graph, display_graphviz, get_required_module_for_contracts, EdgeWeight};
+use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
 use scarb::compiler::{CompilationUnit, Compiler};
 use scarb::core::Workspace;
 use scarb::flock::Filesystem;

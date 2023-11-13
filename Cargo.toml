@@ -2,9 +2,17 @@
 members = [
     "crates/cli",
     "crates/resolver-cli",
+    # "crates/voyager-resolver-cairo-2-0-0",
+    # "crates/voyager-resolver-cairo-2-0-1",
+    # "crates/voyager-resolver-cairo-2-0-2",
+    "crates/voyager-resolver-cairo-2-1-0",
+    "crates/voyager-resolver-cairo-2-1-1",
     "crates/voyager-resolver-cairo-2-2-0",
     "crates/dyn-compiler",
 ]
+
+resolver = "2"
+
 [workspace.package]
 version = "0.1.0"
 edition = "2021"

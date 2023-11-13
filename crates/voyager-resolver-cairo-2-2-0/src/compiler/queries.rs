@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_defs::ids::{
-    FileIndex, GenericTypeId, ModuleFileId, ModuleId, SubmoduleId, TopLevelLanguageElementId,
+    FileIndex, GenericTypeId, ModuleFileId, ModuleId, TopLevelLanguageElementId,
     UseId, UseLongId,
 };
 use cairo_lang_filesystem::db::FilesGroup;
@@ -12,7 +12,7 @@ use cairo_lang_semantic::diagnostic::{NotFoundItemType, SemanticDiagnostics};
 use cairo_lang_semantic::items::us::get_use_segments;
 use cairo_lang_semantic::resolve::{ResolvedGenericItem, Resolver};
 use cairo_lang_semantic::expr::inference::InferenceId;
-use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf, Item, SyntaxFile};
+use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf, SyntaxFile};
 use cairo_lang_syntax::node::{ast, Terminal, TypedSyntaxNode};
 use cairo_lang_utils::ordered_hash_map::OrderedHashMap;
 use cairo_lang_utils::Upcast;
