@@ -19,7 +19,10 @@ pub struct ResolveFileArgs {
     path: Utf8PathBuf,
 }
 
-pub fn resolve_project(args: ResolveProjectArgs, cairo_version: SupportedCairoVersions) -> Result<()> {
+pub fn resolve_project(
+    args: ResolveProjectArgs,
+    cairo_version: SupportedCairoVersions,
+) -> Result<()> {
     let source_dir = match args.path {
         Some(path) => {
             if path.is_absolute() {

@@ -2,14 +2,14 @@ use std::env;
 
 use anyhow::Result;
 use scarb::compiler::CompilerRepository;
-use scarb::core::Config;
+use scarb::core::{Config, TargetKind};
 use scarb::ops;
 use scarb_ui::Verbosity;
 use std::path::PathBuf;
 
-use voyager_resolver_cairo_2_2_0::compiler::scarb_utils::get_contracts_to_verify;
-use voyager_resolver_cairo_2_2_0::compiler::VoyagerGenerator;
-use voyager_resolver_cairo_2_2_0::utils::run_scarb_build;
+use voyager_resolver_cairo_2_4_3::compiler::scarb_utils::get_contracts_to_verify;
+use voyager_resolver_cairo_2_4_3::compiler::VoyagerGenerator;
+use voyager_resolver_cairo_2_4_3::utils::run_scarb_build;
 
 #[test]
 fn test_get_contracts_to_verify() {
@@ -59,9 +59,13 @@ fn test_simple_project() -> Result<()> {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    let resolve = ops::resolve_workspace(&ws)?;
-    let package_ids = resolve.packages.keys().cloned().collect();
-    ops::compile(package_ids, &ws).unwrap();
+    let package_ids = ws.members().map(|p| p.id.clone()).collect();
+    let compile_opts = ops::CompileOpts {
+        include_targets: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_targets: vec![],
+    };
+
+    ops::compile(package_ids, compile_opts, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/local");
     println!(
@@ -93,9 +97,13 @@ fn test_project_with_remap() -> Result<()> {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    let resolve = ops::resolve_workspace(&ws)?;
-    let package_ids = resolve.packages.keys().cloned().collect();
-    ops::compile(package_ids, &ws).unwrap();
+    let package_ids = ws.members().map(|p| p.id.clone()).collect();
+    let compile_opts = ops::CompileOpts {
+        include_targets: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_targets: vec![],
+    };
+
+    ops::compile(package_ids, compile_opts, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/project_with_remap");
     println!(
@@ -127,9 +135,13 @@ fn test_project_w_import_from_attachment() -> Result<()> {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    let resolve = ops::resolve_workspace(&ws)?;
-    let package_ids = resolve.packages.keys().cloned().collect();
-    ops::compile(package_ids, &ws).unwrap();
+    let package_ids = ws.members().map(|p| p.id.clone()).collect();
+    let compile_opts = ops::CompileOpts {
+        include_targets: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_targets: vec![],
+    };
+
+    ops::compile(package_ids, compile_opts, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/local");
     println!(

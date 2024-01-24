@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use cairo_lang_filesystem::ids::Directory;
-use std::collections::{HashSet};
+use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::path::PathBuf;
 

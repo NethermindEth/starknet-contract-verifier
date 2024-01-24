@@ -1,6 +1,5 @@
 use std::fmt::Display;
-use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::{str::FromStr, thread::sleep};
 use strum_macros::EnumIter;
 
@@ -204,7 +203,7 @@ pub fn does_class_exist(network: Network, class_hash: &str) -> Result<bool> {
 pub struct ProjectMetadataInfo {
     pub cairo_version: SupportedCairoVersions,
     pub scarb_version: SupportedScarbVersions,
-    pub project_dir_path: String
+    pub project_dir_path: String,
 }
 
 pub fn dispatch_class_verification_job(
@@ -218,7 +217,10 @@ pub fn dispatch_class_verification_job(
 ) -> Result<String> {
     // Construct form body
     let mut body = multipart::Form::new()
-        .text("compiler-version", project_metadata.cairo_version.to_string())
+        .text(
+            "compiler-version",
+            project_metadata.cairo_version.to_string(),
+        )
         .text("scarb-version", project_metadata.scarb_version.to_string())
         .text("license", license.to_string())
         .text("account-contract", is_account.to_string())
