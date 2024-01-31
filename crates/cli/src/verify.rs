@@ -1,9 +1,4 @@
-use std::{
-    env::current_dir,
-    fs::{self, File},
-    slice,
-    str::FromStr,
-};
+use std::{env::current_dir, str::FromStr};
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
@@ -21,7 +16,7 @@ use crate::{
 };
 
 impl ValueEnum for LicenseType {
-    fn from_str(input: &str, ignore_case: bool) -> std::result::Result<Self, String> {
+    fn from_str(input: &str, _ignore_case: bool) -> std::result::Result<Self, String> {
         match input {
             "NoLicense" => Ok(LicenseType::NoLicense),
             "Unlicense" => Ok(LicenseType::Unlicense),
@@ -216,7 +211,7 @@ pub fn verify_project(
         poll_verification_status(network_enum, &job_id, args.max_retries.unwrap_or(30));
 
     match poll_result {
-        Ok(response) => {
+        Ok(_response) => {
             println!("Successfully verified!");
             return Ok(());
         }

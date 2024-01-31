@@ -5,11 +5,10 @@ mod verify;
 
 use crate::api::LicenseType;
 use crate::utils::detect_local_tools;
-use crate::verify::VerifyFileArgs;
 use crate::verify::VerifyProjectArgs;
 use camino::Utf8PathBuf;
 use clap::{Parser, Subcommand};
-use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input, Select};
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use regex::Regex;
 use strum::IntoEnumIterator;
 

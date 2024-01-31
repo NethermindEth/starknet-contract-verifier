@@ -35,7 +35,12 @@ pub fn update_crate_roots_from_metadata(
             let root = component.source_root();
             if root.exists() {
                 let crate_id = db.intern_crate(CrateLongId::Real(component.name.as_str().into()));
-                db.set_crate_root(crate_id, Some(Directory::Real(root.into())));
+                let mut crate_config = db
+                    .crate_config(crate_id)
+                    .expect("Failed to get crate root directory")
+                    .clone();
+                crate_config.root = Directory::Real(root.into());
+                db.set_crate_config(crate_id, Some(crate_config));
             };
         }
     }
@@ -180,9 +185,9 @@ pub fn generate_updated_scarb_toml(manifest_path: PathBuf, target_path: &Path) -
 /// * The tool metadata is not a table.
 ///
 pub fn get_contracts_to_verify(package: &Package) -> Result<Vec<PathBuf>> {
-    let verify_metadata = package.fetch_tool_metadata("voyager").with_context(|| {
-        "manifest has no [tool.voyager] section which is required"
-    })?;
+    let verify_metadata = package
+        .fetch_tool_metadata("voyager")
+        .with_context(|| "manifest has no [tool.voyager] section which is required")?;
     let table_values = verify_metadata
         .as_table()
         .ok_or_else(|| anyhow!("verify metadata is not a table"))?

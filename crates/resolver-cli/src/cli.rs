@@ -5,7 +5,6 @@ mod utils;
 use crate::build::ResolveProjectArgs;
 use crate::utils::detect_local_tools;
 use clap::{Parser, Subcommand};
-use semver::Version;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -26,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::ResolveProject(args) => {
             if let Some(path) = &args.path {
-                let (local_scarb_version, local_cairo_version) = detect_local_tools(path);
+                let (_local_scarb_version, local_cairo_version) = detect_local_tools(path);
                 build::resolve_project(args, local_cairo_version)?;
             } else {
                 println!("❌ path not provided");

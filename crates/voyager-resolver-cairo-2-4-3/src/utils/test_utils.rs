@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use cairo_lang_compiler::db::RootDatabase;
-use cairo_lang_filesystem::db::FilesGroup;
+use cairo_lang_filesystem::db::{CrateConfiguration, FilesGroup};
 use cairo_lang_filesystem::db::{AsFilesGroupMut, FilesGroupEx};
 use std::sync::Arc;
 
@@ -23,7 +23,7 @@ pub struct TestImport {
 pub fn setup_test_files_with_imports(db: &mut RootDatabase, test_import: TestImport) -> CrateId {
     let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
     let root = Directory::Real("src".into());
-    db.set_crate_root(crate_id, Some(root));
+    db.set_crate_config(crate_id, Some(CrateConfiguration::default_for_root(root)));
 
     // Main module file
     set_file_content(db, "src/lib.cairo", "mod submod;\n mod contract;");
