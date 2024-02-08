@@ -173,7 +173,7 @@ impl Compiler for VoyagerGenerator {
 
         // Generate each of the scarb manifest files for the output directory.
         // The dependencies are updated to include the required modules as local dependencies.
-        generate_scarb_updated_files(metadata, &target_dir)?;
+        generate_scarb_updated_files(metadata, &target_dir, required_modules)?;
 
         let package_name = unit.main_component().package.id.name.to_string();
         let generated_crate_dir = target_dir.path_existent().unwrap().join(package_name);

@@ -125,15 +125,13 @@ pub fn verify_project(
     let network_enum = Network::from_str(args.network.as_str())?;
 
     match does_class_exist(network_enum.clone(), &args.hash) {
-        Ok(true) => {}
-        Ok(false) => {
-            return Err(anyhow::anyhow!("Class does not exist on the network"));
-        }
+        Ok(true) => (),
+        Ok(false) => return Err(anyhow::anyhow!("Class does not exist on the network")),
         Err(e) => {
             return Err(anyhow::anyhow!(
                 "Error while checking if class exists: {}",
                 e
-            ));
+            ))
         }
     }
 
