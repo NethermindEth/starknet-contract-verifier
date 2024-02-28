@@ -136,14 +136,49 @@ impl Display for VerifyJobStatus {
     }
 }
 
-pub fn get_network_api(network: Network) -> String {
+/**
+ * Currently only GetJobStatus and VerifyClass are public available apis.
+ * In the future, the get class api should be moved to using public apis too.
+ */
+pub enum ApiEndpoints {
+    GetClass,
+    GetJobStatus,
+    VerifyClass
+}
+
+impl ApiEndpoints {
+    fn as_str(&self) -> String {
+        match self {
+            ApiEndpoints::GetClass => "/api/class/{class_hash}".to_owned(),
+            ApiEndpoints::GetJobStatus => "/class-verify/job/{job_id}".to_owned(),
+            ApiEndpoints::VerifyClass => "/class-verify/{class_hash}".to_owned()
+        }
+    }
+
+    fn to_api_path(&self, param: String) -> String {
+     match self {
+         ApiEndpoints::GetClass=> self.as_str().replace("{class_hash}", param.as_str()),
+         ApiEndpoints::GetJobStatus=> self.as_str().replace("{job_id}", param.as_str()),
+         ApiEndpoints::VerifyClass => self.as_str().replace("{class_hash}", param.as_str()),
+     }   
+    }
+}
+
+
+pub fn get_network_api(network: Network) -> (String, String) {
     let url = match network {
         Network::Mainnet => "https://voyager.online",
         Network::Goerli => "https://goerli.voyager.online",
         Network::Integration => "http://integration.voyager.online",
     };
 
-    url.into()
+    let public_url = match network {
+        Network::Mainnet => "https://api.voyager.online",
+        Network::Goerli => "https://goerli-api.voyager.online",
+        Network::Integration => "http://integration-api.voyager.online",
+    };
+
+    (url.into(), public_url.into())
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -173,8 +208,10 @@ pub struct FileInfo {
     pub path: PathBuf,
 }
 
+// Currently not dealing with contract based verification and tagging, and focusing on just class verification.
+// TODO: explore this too, might be useful in differentiating contract using the same code.
 pub fn does_contract_exist(network: Network, address: &str) -> Result<bool> {
-    let url = get_network_api(network);
+    let (url, _) = get_network_api(network);
     let result = get(url + "/api/contract/" + address)?;
     match result.status() {
         StatusCode::OK => Ok(true),
@@ -187,8 +224,9 @@ pub fn does_contract_exist(network: Network, address: &str) -> Result<bool> {
 }
 
 pub fn does_class_exist(network: Network, class_hash: &str) -> Result<bool> {
-    let url = get_network_api(network);
-    let result = get(url + "/api/class/" + class_hash)?;
+    let (url, _) = get_network_api(network);
+    let path_with_params = ApiEndpoints::GetClass.to_api_path(class_hash.to_owned());
+    let result = get(url + path_with_params.as_str())?;
     match result.status() {
         StatusCode::OK => Ok(true),
         StatusCode::NOT_FOUND => Ok(false),
@@ -233,11 +271,13 @@ pub fn dispatch_class_verification_job(
         body = body.part(format!("files{}", idx), part);
     }
 
-    let url = get_network_api(network);
+    let (_, public_url) = get_network_api(network);
     let client = Client::new();
 
+    let path_with_param = ApiEndpoints::VerifyClass.to_api_path(address.to_owned());
+
     let response = client
-        .post(url + "/api/class/" + address + "/code")
+        .post(public_url + path_with_param.as_str())
         .multipart(body)
         .send()?;
 
@@ -262,7 +302,7 @@ pub fn poll_verification_status(
     max_retries: u32,
 ) -> Result<VerificationJob> {
     // Get network api url
-    let url = get_network_api(network);
+    let (_, public_url) = get_network_api(network);
 
     // Blocking loop that polls every 2 seconds
     static RETRY_INTERVAL: u64 = 2000; // Ms
@@ -270,10 +310,12 @@ pub fn poll_verification_status(
 
     let client = Client::new();
 
+    let path_with_param = ApiEndpoints::GetJobStatus.to_api_path(job_id.to_owned());
+
     // Retry every 500ms until we hit maxRetries
     while retries < max_retries {
         let result = client
-            .get(url.clone() + "/api/class/job/" + job_id)
+            .get(public_url.clone() + path_with_param.as_str())
             .send()?;
         match result.status() {
             StatusCode::OK => (),
