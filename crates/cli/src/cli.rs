@@ -82,6 +82,7 @@ fn main() -> anyhow::Result<()> {
         .interact()?;
 
     // Path entry
+    // TODO: Auto completion
     let path: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Enter Contracts Path :")
         .interact_text()

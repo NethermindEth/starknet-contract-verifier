@@ -10,6 +10,8 @@ use cairo_lang_filesystem::ids::{CrateLongId, Directory};
 use cairo_lang_semantic::db::SemanticGroup;
 use scarb::core::Package;
 
+use crate::model::CairoModule;
+
 /// Reads Scarb project metadata from manifest file.
 pub fn read_scarb_metadata(manifest_path: &PathBuf) -> anyhow::Result<scarb_metadata::Metadata> {
     scarb_metadata::MetadataCommand::new()
@@ -77,6 +79,7 @@ pub fn get_table_mut<'a>(doc: &'a mut Document, path: &[&str]) -> Result<&'a mut
 ///
 /// * `scarb_metadata` - A `scarb_metadata::Metadata` object containing information about Scarb packages.
 /// * `target_dir` - A `Filesystem` object representing the target directory where updated Scarb.toml files will be generated.
+/// * `required_modules` - A `Vec` of `CairoModule` objects representing the modules required by the compiler.
 ///
 /// # Errors
 ///
@@ -87,15 +90,29 @@ pub fn get_table_mut<'a>(doc: &'a mut Document, path: &[&str]) -> Result<&'a mut
 pub fn generate_scarb_updated_files(
     scarb_metadata: scarb_metadata::Metadata,
     target_dir: &Filesystem,
+    required_modules: Vec<&CairoModule>,
 ) -> Result<()> {
-    for package in scarb_metadata.packages {
-        // core and starknet are builtin dependencies of the compiler
-        if package.name == "core" || package.name == "starknet" {
-            continue;
-        }
+    let mut metadata = scarb_metadata.clone();
+    let required_packages = required_modules
+        .iter()
+        .map(|m| m.path.get_crate())
+        .collect::<Vec<_>>();
+
+    // Delete all unused packages from metadata
+    // This include "core", "starknet" and scarb's "test_plugin"
+    // and any other external dependencies not used in target contracts
+    metadata
+        .packages
+        .retain(|package| required_packages.contains(&package.name));
+
+    for package in metadata.packages {
         let manifest_path = package.manifest_path;
         let target_path = target_dir.path_existent()?.join(package.name);
-        generate_updated_scarb_toml(manifest_path.into_std_path_buf(), target_path.as_std_path())?;
+        generate_updated_scarb_toml(
+            manifest_path.into_std_path_buf(),
+            target_path.as_std_path(),
+            &required_packages,
+        )?;
     }
     Ok(())
 }
@@ -107,6 +124,7 @@ pub fn generate_scarb_updated_files(
  *
  * * `manifest_path` - A `PathBuf` of the Scarb.toml file to be updated.
  * * `target_path` - A `Path` to the target directory for the updated Scarb.toml file.
+ * * `required_packages` - A `Vec` of `String`s representing the names of the packages required by the compiler.
  *
  * # Errors
  *
@@ -118,7 +136,11 @@ pub fn generate_scarb_updated_files(
  * * The specified target_path cannot be created.
  * * The updated Scarb.toml file cannot be written to the specified target_path.
  */
-pub fn generate_updated_scarb_toml(manifest_path: PathBuf, target_path: &Path) -> Result<()> {
+pub fn generate_updated_scarb_toml(
+    manifest_path: PathBuf,
+    target_path: &Path,
+    required_packages: &Vec<String>,
+) -> Result<()> {
     let manifest_path = fs::canonicalize(manifest_path)?;
     let original_raw_manifest = fs::read_to_string(&manifest_path)?;
 
@@ -140,10 +162,15 @@ pub fn generate_updated_scarb_toml(manifest_path: PathBuf, target_path: &Path) -
         .map(|(k, _)| k[0].get())
         .collect::<Vec<_>>();
 
-    table_keys.iter().for_each(|k| {
-        // starkent package dependency is builtin
-        // within the compiler
+    table_keys.iter()
+    .for_each(|k| {
+        // starknet package dependency is builtin within the compiler
         if *k == "starknet" {
+            return;
+        }
+        // remove unused dependencies
+        if !required_packages.contains(&k.to_string()) && *k != "starknet" {
+            tab.as_table_like_mut().unwrap().remove(k);
             return;
         }
 
