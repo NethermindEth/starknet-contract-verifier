@@ -143,7 +143,7 @@ impl Display for VerifyJobStatus {
 pub enum ApiEndpoints {
     GetClass,
     GetJobStatus,
-    VerifyClass
+    VerifyClass,
 }
 
 impl ApiEndpoints {
@@ -151,19 +151,18 @@ impl ApiEndpoints {
         match self {
             ApiEndpoints::GetClass => "/api/class/{class_hash}".to_owned(),
             ApiEndpoints::GetJobStatus => "/class-verify/job/{job_id}".to_owned(),
-            ApiEndpoints::VerifyClass => "/class-verify/{class_hash}".to_owned()
+            ApiEndpoints::VerifyClass => "/class-verify/{class_hash}".to_owned(),
         }
     }
 
     fn to_api_path(&self, param: String) -> String {
-     match self {
-         ApiEndpoints::GetClass=> self.as_str().replace("{class_hash}", param.as_str()),
-         ApiEndpoints::GetJobStatus=> self.as_str().replace("{job_id}", param.as_str()),
-         ApiEndpoints::VerifyClass => self.as_str().replace("{class_hash}", param.as_str()),
-     }   
+        match self {
+            ApiEndpoints::GetClass => self.as_str().replace("{class_hash}", param.as_str()),
+            ApiEndpoints::GetJobStatus => self.as_str().replace("{job_id}", param.as_str()),
+            ApiEndpoints::VerifyClass => self.as_str().replace("{class_hash}", param.as_str()),
+        }
     }
 }
-
 
 pub fn get_network_api(network: Network) -> (String, String) {
     let url = match network {

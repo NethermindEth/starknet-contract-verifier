@@ -162,8 +162,7 @@ pub fn generate_updated_scarb_toml(
         .map(|(k, _)| k[0].get())
         .collect::<Vec<_>>();
 
-    table_keys.iter()
-    .for_each(|k| {
+    table_keys.iter().for_each(|k| {
         // starknet package dependency is builtin within the compiler
         if *k == "starknet" {
             return;

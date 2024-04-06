@@ -31,7 +31,8 @@ pub fn detect_local_tools(path: &Utf8PathBuf) -> (SupportedScarbVersions, Suppor
             // "0.5.1" => SupportedScarbVersions::V0_5_1,
             // "0.5.2" => SupportedScarbVersions::V0_5_2,
             // "0.7.0" => SupportedScarbVersions::V0_7_0,
-            "2.4.3" => SupportedScarbVersions::V2_4_3,
+            // "2.4.3" => SupportedScarbVersions::V2_4_3,
+            "2.6.4" => SupportedScarbVersions::V2_6_4,
             _ => panic!("Unsupported scarb version: {}", scarb_ver_string),
         };
         println!("scarb ver: {:?}", scarb_version);
@@ -45,7 +46,8 @@ pub fn detect_local_tools(path: &Utf8PathBuf) -> (SupportedScarbVersions, Suppor
             // "2.0.1" => SupportedCairoVersions::V2_0_1,
             // "2.0.2" => SupportedCairoVersions::V2_0_2,
             // "2.2.0" => SupportedCairoVersions::V2_2_0,
-            "2.4.3" => SupportedCairoVersions::V2_4_3,
+            // "2.4.3" => SupportedCairoVersions::V2_4_3,
+            "2.6.3" => SupportedCairoVersions::V2_6_3,
             _ => panic!("Unsupported cairo version: {}", cairo_ver_string),
         };
         println!("cairo ver: {:?}", cairo_version);
