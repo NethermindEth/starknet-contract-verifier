@@ -19,10 +19,10 @@ pub struct VoyagerGeneratorWrapper;
 
 impl DynamicCompiler for VoyagerGeneratorWrapper {
     fn get_supported_scarb_versions(&self) -> Vec<SupportedScarbVersions> {
-        vec![SupportedScarbVersions::V2_4_3]
+        vec![SupportedScarbVersions::V2_6_4]
     }
     fn get_supported_cairo_versions(&self) -> Vec<SupportedCairoVersions> {
-        vec![SupportedCairoVersions::V2_4_3]
+        vec![SupportedCairoVersions::V2_6_3]
     }
 
     fn get_contracts_to_verify_path(&self, project_path: &Utf8PathBuf) -> Result<Vec<Utf8PathBuf>> {
@@ -69,6 +69,12 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
         let compile_opts = ops::CompileOpts {
             include_targets: vec![TargetKind::STARKNET_CONTRACT],
             exclude_targets: vec![],
+            features: scarb_ui::args::FeaturesSpec {
+                features: vec![],
+                all_features: true,
+                no_default_features: false,
+            }
+            .try_into()?,
         };
 
         ops::compile(package_ids, compile_opts, &ws)

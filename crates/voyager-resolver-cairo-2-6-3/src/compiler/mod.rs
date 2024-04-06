@@ -26,7 +26,7 @@ use crate::compiler::scarb_utils::{
 };
 use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
 // use crate::graph::display_graphviz;
-use scarb::compiler::{CompilationUnit, Compiler};
+use scarb::compiler::{CairoCompilationUnit, CompilationUnitAttributes, Compiler};
 use scarb::core::{TargetKind, Workspace};
 use scarb::flock::Filesystem;
 
@@ -76,8 +76,8 @@ impl Compiler for VoyagerGenerator {
     /// - There is a problem generating the Scarb manifest files for the output directory.
     fn compile(
         &self,
-        unit: CompilationUnit,
-        db: &mut RootDatabase,
+        unit: CairoCompilationUnit,
+        db: &mut cairo_lang_compiler::db::RootDatabase,
         ws: &Workspace<'_>,
     ) -> Result<()> {
         // TODO: Do we still need this check?!
@@ -293,9 +293,9 @@ mod tests {
     use crate::model::{CairoAttachmentModule, ModulePath};
     use crate::utils::test_utils::set_file_content;
     use cairo_lang_compiler::db::RootDatabase;
-    use cairo_lang_defs::plugin::PluginSuite;
     use cairo_lang_filesystem::db::{CrateConfiguration, FilesGroup, FilesGroupEx};
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
+    use cairo_lang_semantic::plugin::PluginSuite;
     use cairo_lang_starknet::plugin::StarkNetPlugin;
     use std::collections::HashSet;
     use std::path::PathBuf;

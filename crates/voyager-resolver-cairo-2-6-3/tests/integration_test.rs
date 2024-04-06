@@ -7,9 +7,9 @@ use scarb::ops;
 use scarb_ui::Verbosity;
 use std::path::PathBuf;
 
-use voyager_resolver_cairo_2_4_3::compiler::scarb_utils::get_contracts_to_verify;
-use voyager_resolver_cairo_2_4_3::compiler::VoyagerGenerator;
-use voyager_resolver_cairo_2_4_3::utils::run_scarb_build;
+use voyager_resolver_cairo_2_6_3::compiler::scarb_utils::get_contracts_to_verify;
+use voyager_resolver_cairo_2_6_3::compiler::VoyagerGenerator;
+use voyager_resolver_cairo_2_6_3::utils::run_scarb_build;
 
 #[test]
 fn test_get_contracts_to_verify() {
@@ -63,6 +63,12 @@ fn test_simple_project() -> Result<()> {
     let compile_opts = ops::CompileOpts {
         include_targets: vec![TargetKind::STARKNET_CONTRACT],
         exclude_targets: vec![],
+        features: scarb_ui::args::FeaturesSpec {
+            all_features: true,
+            features: vec![],
+            no_default_features: false,
+        }
+        .try_into()?,
     };
 
     ops::compile(package_ids, compile_opts, &ws).unwrap();
@@ -101,6 +107,12 @@ fn test_project_with_remap() -> Result<()> {
     let compile_opts = ops::CompileOpts {
         include_targets: vec![TargetKind::STARKNET_CONTRACT],
         exclude_targets: vec![],
+        features: scarb_ui::args::FeaturesSpec {
+            all_features: true,
+            features: vec![],
+            no_default_features: false,
+        }
+        .try_into()?,
     };
 
     ops::compile(package_ids, compile_opts, &ws).unwrap();
@@ -139,6 +151,12 @@ fn test_project_w_import_from_attachment() -> Result<()> {
     let compile_opts = ops::CompileOpts {
         include_targets: vec![TargetKind::STARKNET_CONTRACT],
         exclude_targets: vec![],
+        features: scarb_ui::args::FeaturesSpec {
+            all_features: true,
+            features: vec![],
+            no_default_features: false,
+        }
+        .try_into()?,
     };
 
     ops::compile(package_ids, compile_opts, &ws).unwrap();
