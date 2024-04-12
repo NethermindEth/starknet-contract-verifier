@@ -173,9 +173,9 @@ pub fn get_network_api(network: Network) -> (String, String) {
     };
 
     let public_url = match network {
-        Network::Mainnet => "https://dev-api.voyager.online",
-        Network::Sepolia => "https://dev-sepolia-api.voyager.online",
-        Network::Integration => "http://integration-api.voyager.online",
+        Network::Mainnet => "https://dev-api.voyager.online/beta",
+        Network::Sepolia => "https://dev-sepolia-api.voyager.online/beta",
+        Network::Integration => "http://integration-api.voyager.online/beta",
     };
 
     (url.into(), public_url.into())
