@@ -33,7 +33,7 @@ enum Commands {
 }
 
 fn main() -> anyhow::Result<()> {
-    let network_items = vec!["Mainnet", "Goerli"];
+    let network_items = vec!["Mainnet", "Sepolia"];
 
     let network_index: Option<usize> = Select::with_theme(&ColorfulTheme::default())
         .items(&network_items)

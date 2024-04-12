@@ -75,7 +75,7 @@ impl ToString for LicenseType {
 #[derive(Debug, Clone)]
 pub enum Network {
     Mainnet,
-    Goerli,
+    Sepolia,
     Integration,
 }
 
@@ -83,7 +83,7 @@ impl Display for Network {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Network::Mainnet => write!(f, "mainnet"),
-            Network::Goerli => write!(f, "goerli"),
+            Network::Sepolia => write!(f, "sepolia"),
             Network::Integration => write!(f, "integration"),
         }
     }
@@ -95,7 +95,7 @@ impl FromStr for Network {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "mainnet" => Ok(Network::Mainnet),
-            "goerli" => Ok(Network::Goerli),
+            "sepolia" => Ok(Network::Sepolia),
             "integration" => Ok(Network::Integration),
             _ => Err(anyhow!("Unknown network: {}", s)),
         }
@@ -167,14 +167,14 @@ impl ApiEndpoints {
 
 pub fn get_network_api(network: Network) -> (String, String) {
     let url = match network {
-        Network::Mainnet => "https://voyager.online",
-        Network::Goerli => "https://goerli.voyager.online",
+        Network::Mainnet => "https://dev.voyager.online",
+        Network::Sepolia => "https://dev-sepolia.voyager.online",
         Network::Integration => "http://integration.voyager.online",
     };
 
     let public_url = match network {
-        Network::Mainnet => "https://api.voyager.online",
-        Network::Goerli => "https://goerli-api.voyager.online",
+        Network::Mainnet => "https://dev-api.voyager.online",
+        Network::Sepolia => "https://dev-sepolia-api.voyager.online",
         Network::Integration => "http://integration-api.voyager.online",
     };
 
