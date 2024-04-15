@@ -77,6 +77,7 @@ pub enum Network {
     Mainnet,
     Sepolia,
     Integration,
+    Local
 }
 
 impl Display for Network {
@@ -85,6 +86,7 @@ impl Display for Network {
             Network::Mainnet => write!(f, "mainnet"),
             Network::Sepolia => write!(f, "sepolia"),
             Network::Integration => write!(f, "integration"),
+            Network::Local => write!(f, "integration"),
         }
     }
 }
@@ -97,6 +99,7 @@ impl FromStr for Network {
             "mainnet" => Ok(Network::Mainnet),
             "sepolia" => Ok(Network::Sepolia),
             "integration" => Ok(Network::Integration),
+            "localhost" => Ok(Network::Local),
             _ => Err(anyhow!("Unknown network: {}", s)),
         }
     }
@@ -169,13 +172,15 @@ pub fn get_network_api(network: Network) -> (String, String) {
     let url = match network {
         Network::Mainnet => "https://dev.voyager.online",
         Network::Sepolia => "https://dev-sepolia.voyager.online",
-        Network::Integration => "http://integration.voyager.online",
+        Network::Integration => "https://int-sepolia.voyager.online",
+        Network::Local => "http://localhost:30380",
     };
 
     let public_url = match network {
         Network::Mainnet => "https://dev-api.voyager.online/beta",
         Network::Sepolia => "https://dev-sepolia-api.voyager.online/beta",
-        Network::Integration => "http://integration-api.voyager.online/beta",
+        Network::Integration => "http://int-sepolia-api.voyager.online/beta",
+        Network::Local => "http://localhost:30380",
     };
 
     (url.into(), public_url.into())
@@ -190,7 +195,7 @@ pub struct VerificationJobDispatch {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VerificationJob {
-    job_id: String,
+    jobid: String,
     status: String,
     class_hash: String,
     created_timestamp: u64,

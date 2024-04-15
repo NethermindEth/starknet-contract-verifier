@@ -10,6 +10,7 @@ use camino::Utf8PathBuf;
 use clap::{Parser, Subcommand};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use regex::Regex;
+use std::env;
 use strum::IntoEnumIterator;
 
 #[derive(Parser)]
@@ -33,7 +34,13 @@ enum Commands {
 }
 
 fn main() -> anyhow::Result<()> {
-    let network_items = vec!["Mainnet", "Sepolia"];
+    let is_debug_network = env::var("DEBUG_NETWORK").is_ok();
+
+    let network_items = if is_debug_network {
+        vec!["Mainnet", "Sepolia", "Integration", "Local"]
+    } else {
+        vec!["Mainnet", "Sepolia"]
+    };
 
     let network_index: Option<usize> = Select::with_theme(&ColorfulTheme::default())
         .items(&network_items)

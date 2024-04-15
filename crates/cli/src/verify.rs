@@ -113,7 +113,7 @@ pub fn verify_project(
     let contract_paths = compiler.get_contracts_to_verify_path(&source_dir)?;
 
     // TODO: maybe support multiple contracts in one verification?
-    if contract_paths.len() == 0 {
+    if contract_paths.is_empty() {
         return Err(anyhow::anyhow!("No contracts to verify"));
     }
     if contract_paths.len() > 1 {
@@ -211,14 +211,12 @@ pub fn verify_project(
     match poll_result {
         Ok(_response) => {
             println!("Successfully verified!");
-            return Ok(());
+            Ok(())
         }
-        Err(e) => {
-            return Err(anyhow::anyhow!(
-                "Error while polling verification status: {}",
-                e
-            ));
-        }
+        Err(e) => Err(anyhow::anyhow!(
+            "Error while polling verification status: {}",
+            e
+        )),
     }
 }
 
