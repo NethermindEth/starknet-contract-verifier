@@ -10,7 +10,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-repository = "https://github.com/NethermindEth/voyager-verifier-cairo1"
+repository = "https://github.com/NethermindEth/starknet-contract-verifier"
 license = "Apache-2.0"
 license-file = "LICENSE"
 

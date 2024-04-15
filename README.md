@@ -1,6 +1,6 @@
-# voyager-verifier
+# starknet-contract-verifier
 
-`voyager-verifier` is a contract class verification cli that allows you to verify your contract on the [Voyager Starknet block explorer](https://voyager.online).
+`starknet-contract-verifier` is a contract class verification cli that allows you to verify your contract on the [Voyager Starknet block explorer](https://voyager.online).
 
 ## Getting started
 
