@@ -86,6 +86,8 @@ pub struct VerifyProjectArgs {
 
     #[arg(long, help = "Max retries")]
     pub max_retries: Option<u32>,
+
+    pub api_key: String,
 }
 
 #[derive(Args, Debug)]
@@ -156,7 +158,7 @@ pub fn verify_project(
             f.path().extension().unwrap() == "cairo"
                 || f.path()
                     .file_name()
-                    .map(|f| f.to_string_lossy().to_owned())
+                    .map(|f| f.to_string_lossy().into_owned())
                     .unwrap_or("".into())
                     .to_lowercase()
                     == "scarb.toml"

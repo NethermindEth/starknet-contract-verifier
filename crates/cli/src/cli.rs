@@ -34,6 +34,20 @@ enum Commands {
 }
 
 fn main() -> anyhow::Result<()> {
+    let api_key = match env::var("API_KEY") {
+        Ok(api_key) => Some(api_key),
+        Err(_) => 
+            None
+    };
+
+    let api_key = match api_key {
+        Some(key_values) => key_values,
+        None => {
+            println!("API_KEY not detected in environment variables. You can get one at https://forms.gle/34RE6d4aiiv16HoW6");
+            return Ok(());
+        }        
+    };
+
     let is_debug_network = env::var("DEBUG_NETWORK").is_ok();
 
     let network_items = if is_debug_network {
@@ -109,6 +123,7 @@ fn main() -> anyhow::Result<()> {
         path: utf8_path,
         is_account_contract: Some(is_account_contract),
         max_retries: Some(10),
+        api_key
     };
 
     match verify_args {
