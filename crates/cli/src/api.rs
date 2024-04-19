@@ -77,7 +77,7 @@ pub enum Network {
     Mainnet,
     Sepolia,
     Integration,
-    Local
+    Local,
 }
 
 impl Display for Network {
@@ -146,7 +146,7 @@ impl Display for VerifyJobStatus {
 pub enum ApiEndpoints {
     GetClass,
     GetJobStatus,
-    VerifyClass
+    VerifyClass,
 }
 
 impl ApiEndpoints {
@@ -154,19 +154,18 @@ impl ApiEndpoints {
         match self {
             ApiEndpoints::GetClass => "/api/class/{class_hash}".to_owned(),
             ApiEndpoints::GetJobStatus => "/class-verify/job/{job_id}".to_owned(),
-            ApiEndpoints::VerifyClass => "/class-verify/{class_hash}".to_owned()
+            ApiEndpoints::VerifyClass => "/class-verify/{class_hash}".to_owned(),
         }
     }
 
     fn to_api_path(&self, param: String) -> String {
-     match self {
-         ApiEndpoints::GetClass=> self.as_str().replace("{class_hash}", param.as_str()),
-         ApiEndpoints::GetJobStatus=> self.as_str().replace("{job_id}", param.as_str()),
-         ApiEndpoints::VerifyClass => self.as_str().replace("{class_hash}", param.as_str()),
-     }   
+        match self {
+            ApiEndpoints::GetClass => self.as_str().replace("{class_hash}", param.as_str()),
+            ApiEndpoints::GetJobStatus => self.as_str().replace("{job_id}", param.as_str()),
+            ApiEndpoints::VerifyClass => self.as_str().replace("{class_hash}", param.as_str()),
+        }
     }
 }
-
 
 pub fn get_network_api(network: Network) -> (String, String) {
     let url = match network {
@@ -184,6 +183,11 @@ pub fn get_network_api(network: Network) -> (String, String) {
     };
 
     (url.into(), public_url.into())
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ApiError {
+    error: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -250,6 +254,7 @@ pub struct ProjectMetadataInfo {
 }
 
 pub fn dispatch_class_verification_job(
+    api_key: &str,
     network: Network,
     address: &str,
     license: &str,
@@ -283,6 +288,7 @@ pub fn dispatch_class_verification_job(
 
     let response = client
         .post(public_url + path_with_param.as_str())
+        .header("x-api-key", api_key)
         .multipart(body)
         .send()?;
 
@@ -291,8 +297,14 @@ pub fn dispatch_class_verification_job(
         StatusCode::NOT_FOUND => {
             return Err(anyhow!("Job not found"));
         }
-        _ => {
-            return Err(anyhow!("Unexpected status code: {}", response.status()));
+        status_code => {
+            let err_response = response.json::<ApiError>()?;
+
+            return Err(anyhow!(
+                "Failed to dispatch verification job with status {}: {}",
+                status_code,
+                err_response.error
+            ));
         }
     }
 
@@ -302,6 +314,7 @@ pub fn dispatch_class_verification_job(
 }
 
 pub fn poll_verification_status(
+    api_key: &str,
     network: Network,
     job_id: &str,
     max_retries: u32,
@@ -321,6 +334,7 @@ pub fn poll_verification_status(
     while retries < max_retries {
         let result = client
             .get(public_url.clone() + path_with_param.as_str())
+            .header("x-api-key", api_key)
             .send()?;
         match result.status() {
             StatusCode::OK => (),

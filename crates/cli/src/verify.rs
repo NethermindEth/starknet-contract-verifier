@@ -184,6 +184,7 @@ pub fn verify_project(
         .collect::<Vec<FileInfo>>();
 
     let dispatch_response = dispatch_class_verification_job(
+        args.api_key.as_str(),
         network_enum.clone(),
         &args.hash,
         args.license.to_long_string().as_str(),
@@ -207,8 +208,12 @@ pub fn verify_project(
         }
     };
 
-    let poll_result =
-        poll_verification_status(network_enum, &job_id, args.max_retries.unwrap_or(30));
+    let poll_result = poll_verification_status(
+        args.api_key.as_str(),
+        network_enum,
+        &job_id,
+        args.max_retries.unwrap_or(30),
+    );
 
     match poll_result {
         Ok(_response) => {
