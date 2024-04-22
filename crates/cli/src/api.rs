@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::fs;
 use std::path::PathBuf;
 use std::{str::FromStr, thread::sleep};
 use strum_macros::EnumIter;
@@ -86,7 +87,7 @@ impl Display for Network {
             Network::Mainnet => write!(f, "mainnet"),
             Network::Sepolia => write!(f, "sepolia"),
             Network::Integration => write!(f, "integration"),
-            Network::Local => write!(f, "integration"),
+            Network::Local => write!(f, "local"),
         }
     }
 }
@@ -99,7 +100,7 @@ impl FromStr for Network {
             "mainnet" => Ok(Network::Mainnet),
             "sepolia" => Ok(Network::Sepolia),
             "integration" => Ok(Network::Integration),
-            "localhost" => Ok(Network::Local),
+            "local" => Ok(Network::Local),
             _ => Err(anyhow!("Unknown network: {}", s)),
         }
     }
@@ -172,7 +173,7 @@ pub fn get_network_api(network: Network) -> (String, String) {
         Network::Mainnet => "https://dev.voyager.online",
         Network::Sepolia => "https://dev-sepolia.voyager.online",
         Network::Integration => "https://int-sepolia.voyager.online",
-        Network::Local => "http://localhost:30380",
+        Network::Local => "http://localhost:8899",
     };
 
     let public_url = match network {
@@ -264,21 +265,21 @@ pub fn dispatch_class_verification_job(
     files: Vec<FileInfo>,
 ) -> Result<String> {
     // Construct form body
-    let mut body = multipart::Form::new()
+    let mut body = multipart::Form::new().percent_encode_noop()
         .text(
-            "compiler-version",
+            "compiler_version",
             project_metadata.cairo_version.to_string(),
         )
-        .text("scarb-version", project_metadata.scarb_version.to_string())
+        .text("scarb_version", project_metadata.scarb_version.to_string())
         .text("license", license.to_string())
-        .text("account-contract", is_account.to_string())
+        .text("account_contract", is_account.to_string())
         .text("name", name.to_string())
-        .text("contract-name", address.to_string())
-        .text("project-dir-path", project_metadata.project_dir_path);
+        .text("contract_name", address.to_string())
+        .text("project_dir_path", project_metadata.project_dir_path);
 
-    for (idx, file) in files.iter().enumerate() {
-        let part = multipart::Part::file(file.path.clone())?.file_name(file.name.clone());
-        body = body.part(format!("files{}", idx), part);
+    for file in files.iter() {
+        let file_content = fs::read_to_string(file.path.as_path())?;
+        body = body.text(format!("files__{}", file.name.clone()), file_content);
     }
 
     let (_, public_url) = get_network_api(network);
