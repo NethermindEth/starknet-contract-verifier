@@ -215,7 +215,7 @@ pub fn verify_project(
         args.api_key.as_str(),
         network_enum,
         &job_id,
-        args.max_retries.unwrap_or(30),
+        args.max_retries.unwrap_or(60),
     );
 
     match poll_result {

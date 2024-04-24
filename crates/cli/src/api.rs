@@ -170,8 +170,8 @@ impl ApiEndpoints {
 
 pub fn get_network_api(network: Network) -> (String, String) {
     let url = match network {
-        Network::Mainnet => "https://dev.voyager.online",
-        Network::Sepolia => "https://dev-sepolia.voyager.online",
+        Network::Mainnet => "https://voyager.online",
+        Network::Sepolia => "https://sepolia.voyager.online",
         Network::Integration => "https://int-sepolia.voyager.online",
         Network::Local => "http://localhost:8899",
     };
