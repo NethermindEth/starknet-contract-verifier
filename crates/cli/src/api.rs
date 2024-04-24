@@ -116,13 +116,13 @@ pub enum VerifyJobStatus {
 }
 
 impl VerifyJobStatus {
-    fn from_string(status: &str) -> Self {
+    fn from_u8(status: u8) -> Self {
         match status {
-            "0" => Self::Submitted,
-            "1" => Self::Compiled,
-            "2" => Self::CompileFailed,
-            "3" => Self::Fail,
-            "4" => Self::Success,
+            0 => Self::Submitted,
+            1 => Self::Compiled,
+            2 => Self::CompileFailed,
+            3 => Self::Fail,
+            4 => Self::Success,
             _ => panic!("Unknown status: {}", status),
         }
     }
@@ -192,20 +192,18 @@ pub struct ApiError {
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct VerificationJobDispatch {
     job_id: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct VerificationJob {
-    jobid: String,
-    status: String,
+    job_id: String,
+    status: u8,
     class_hash: String,
-    created_timestamp: u64,
-    updated_timestamp: Option<u64>,
-    address: String,
+    created_timestamp: Option<f64>,
+    updated_timestamp: Option<f64>,
+    address: Option<String>,
     contract_name: Option<String>,
     name: Option<String>,
     version: Option<String>,
@@ -349,7 +347,7 @@ pub fn poll_verification_status(
 
         // Go through the possible status
         let data = result.json::<VerificationJob>().unwrap();
-        match VerifyJobStatus::from_string(data.status.as_str()) {
+        match VerifyJobStatus::from_u8(data.status) {
             VerifyJobStatus::Success => return Ok(data),
             VerifyJobStatus::Fail => return Err(anyhow!("Failed to verify")),
             VerifyJobStatus::CompileFailed => return Err(anyhow!("Compilation failed")),

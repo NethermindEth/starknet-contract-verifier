@@ -145,6 +145,9 @@ pub fn verify_project(
     let extracted_files_dir = source_dir.join("voyager-verify");
 
     // Since we also know that the dir of main project to be verified will be the same name, extract relative path
+    // TODO: currently this takes the name from the path but when we finished extracting,
+    // the new extracted directory contains the name of the crate. This causes error when submitting
+    // Project directory.
     let project_dir_path = source_dir
         .strip_prefix(source_dir.parent().unwrap())
         .unwrap();
