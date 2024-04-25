@@ -2,5 +2,5 @@
 version = 1
 
 [[package]]
-name = "scarb_v0_7_0"
+name = "cairo_v2_6"
 version = "0.1.0"
