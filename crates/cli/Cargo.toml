@@ -29,5 +29,5 @@ voyager-resolver-cairo-2-4-3 = { path = "../voyager-resolver-cairo-2-4-3" }
 walkdir = "2.3.3"
 
 [[bin]]
-name = "voyager-verify"
+name = "starknet-contract-verifier"
 path = "src/cli.rs"

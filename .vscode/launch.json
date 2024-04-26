@@ -8,7 +8,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "Cargo launch",
-            "program": "${workspaceRoot}/target/debug/voyager-verify",
+            "program": "${workspaceRoot}/target/debug/starknet-contract-verifier",
             "args": [],
             "cwd": "${workspaceRoot}/target/debug/",
             "sourceLanguages": ["rust"],

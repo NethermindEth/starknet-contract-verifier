@@ -7,7 +7,7 @@
 To get started on the verification of your cairo project, simply do the command
 
 ```bash
-voyager-verify
+starknet-contract-verifier
 ```
 
 You should be greeted with prompts that asks for the details of your cairo project & contracts, and will be guided step by step through the verification process.
@@ -16,7 +16,7 @@ You should be greeted with prompts that asks for the details of your cairo proje
 If you are instead building from source and running it on your machine, you might want to do this instead:
 
 ```bash
-cargo run --bin voyager-verify
+cargo run --bin starknet-contract-verifier
 ```
 
 ## Building from source
@@ -36,5 +36,3 @@ cargo build
 ```
 
 and the project should start building.
-
-You might also want to look at [`voyager-resolver`](./voyager-resolver.md), which is a component for the verifier.

@@ -28,7 +28,7 @@ struct Cli {
 //          - multiple contracts in project
 #[derive(Subcommand)]
 enum Commands {
-    #[command(about = "Builds the voyager-verify output")]
+    #[command(about = "Builds the starknet-contract-verifier output")]
     VerifyProject(VerifyProjectArgs),
     // VerifyFile(VerifyFileArgs),
 }
