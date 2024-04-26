@@ -1,0 +1,24 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Cargo launch",
+            "program": "${workspaceRoot}/target/debug/voyager-verify",
+            "args": [],
+            "cwd": "${workspaceRoot}/target/debug/",
+            "sourceLanguages": ["rust"],
+            "env": {
+                "RUST_BACKTRACE": "1",
+                "DEBUG_NETWORK": "1",
+                "API_KEY": "NVDQRFEJ9E7eaV8CBV37J5lK3QrMkX4W792Ex0VU",
+
+            }
+        }
+
+    ]
+}

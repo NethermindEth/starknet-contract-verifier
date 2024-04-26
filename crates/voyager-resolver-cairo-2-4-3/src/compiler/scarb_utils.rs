@@ -32,10 +32,18 @@ pub fn update_crate_roots_from_metadata(
     db: &mut dyn SemanticGroup,
     scarb_metadata: scarb_metadata::Metadata,
 ) {
+    println!("{:?}", scarb_metadata.compilation_units);
     for unit in scarb_metadata.compilation_units {
+        // Filter out test crates since these causes error when attempting
+        // to load the configurations below from the db.
+        // TODO: Investigate inherent reason why test crates causes this issue.
+        if unit.target.kind.eq("test"){
+            continue
+        }
         for component in unit.components {
             let root = component.source_root();
-            if root.exists() {
+
+            if root.exists(){
                 let crate_id = db.intern_crate(CrateLongId::Real(component.name.as_str().into()));
                 let mut crate_config = db
                     .crate_config(crate_id)
