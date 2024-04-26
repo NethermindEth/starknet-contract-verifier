@@ -32,7 +32,6 @@ pub fn update_crate_roots_from_metadata(
     db: &mut dyn SemanticGroup,
     scarb_metadata: scarb_metadata::Metadata,
 ) {
-    println!("{:?}", scarb_metadata.compilation_units);
     for unit in scarb_metadata.compilation_units {
         // Filter out test crates since these causes error when attempting
         // to load the configurations below from the db.

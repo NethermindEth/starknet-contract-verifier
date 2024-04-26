@@ -1,8 +1,9 @@
-use std::{env::current_dir, str::FromStr};
+use std::{env::current_dir, fs, str::FromStr};
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::{arg, builder::PossibleValue, Args, ValueEnum};
+use serde::{Deserialize, Serialize};
 use walkdir::{DirEntry, WalkDir};
 
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
@@ -96,6 +97,17 @@ pub struct VerifyFileArgs {
     path: Utf8PathBuf,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct ScarbTomlRawPackageData {
+    name: String,
+    version: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ScarbTomlRawData {
+    package: ScarbTomlRawPackageData,
+}
+
 pub fn verify_project(
     args: VerifyProjectArgs,
     cairo_version: SupportedCairoVersions,
@@ -137,6 +149,11 @@ pub fn verify_project(
         }
     }
 
+    // Read the scarb metadata to get more information
+    let scarb_toml_content = fs::read_to_string(source_dir.join("Scarb.toml"))?;
+    let scarb_metadata_package_name = toml::from_str::<ScarbTomlRawData>(&scarb_toml_content)?.package.name;
+
+
     // Compiler and extract the necessary files
     compiler.compile_project(&source_dir)?;
 
@@ -144,13 +161,12 @@ pub fn verify_project(
     // we'll read the files from there.
     let extracted_files_dir = source_dir.join("voyager-verify");
 
-    // Since we also know that the dir of main project to be verified will be the same name, extract relative path
-    // TODO: currently this takes the name from the path but when we finished extracting,
-    // the new extracted directory contains the name of the crate. This causes error when submitting
-    // Project directory.
-    let project_dir_path = source_dir
-        .strip_prefix(source_dir.parent().unwrap())
-        .unwrap();
+    // The compiler compiles into the original scarb package name
+    // As such we have to craft the correct path to the main package
+    let project_dir_path = extracted_files_dir.join(scarb_metadata_package_name);
+    let project_dir_path = project_dir_path.strip_prefix(extracted_files_dir.clone())
+    .unwrap();
+    println!("project_dir_path: {:?}", project_dir_path);
 
     // Read project directory
     let project_files = WalkDir::new(extracted_files_dir.as_path())

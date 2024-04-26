@@ -200,6 +200,7 @@ pub struct VerificationJobDispatch {
 pub struct VerificationJob {
     job_id: String,
     status: u8,
+    status_description: Option<String>,
     class_hash: String,
     created_timestamp: Option<f64>,
     updated_timestamp: Option<f64>,
@@ -349,8 +350,8 @@ pub fn poll_verification_status(
         let data = result.json::<VerificationJob>().unwrap();
         match VerifyJobStatus::from_u8(data.status) {
             VerifyJobStatus::Success => return Ok(data),
-            VerifyJobStatus::Fail => return Err(anyhow!("Failed to verify")),
-            VerifyJobStatus::CompileFailed => return Err(anyhow!("Compilation failed")),
+            VerifyJobStatus::Fail => return Err(anyhow!("Failed to verify: {:?}", data.status_description.unwrap_or("unknown failure".to_owned()))),
+            VerifyJobStatus::CompileFailed => return Err(anyhow!("Compilation failed: {:?}", data.status_description.unwrap_or("unknown failure".to_owned()))),
             _ => (),
         }
         retries += 1;

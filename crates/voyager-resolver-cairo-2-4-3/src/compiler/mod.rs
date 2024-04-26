@@ -177,7 +177,6 @@ impl Compiler for VoyagerGenerator {
 
         let package_name = unit.main_component().package.id.name.to_string();
         let generated_crate_dir = target_dir.path_existent().unwrap().join(package_name);
-
         //Locally run scarb build to make sure that everything compiles correctly before sending the files to voyager.
         run_scarb_build(generated_crate_dir.as_str())?;
 
