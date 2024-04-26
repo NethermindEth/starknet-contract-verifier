@@ -1,7 +1,6 @@
 [workspace]
 members = [
   "crates/cli",
-  "crates/resolver-cli",
   "crates/voyager-resolver-cairo-2-4-3",
   "crates/dyn-compiler",
 ]

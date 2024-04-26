@@ -1074,7 +1074,6 @@ dependencies = [
  "reqwest",
  "serde",
  "smol_str",
- "starknet",
  "strum 0.25.0",
  "strum_macros 0.25.2",
  "thiserror",
@@ -4188,27 +4187,6 @@ dependencies = [
  "web-sys",
  "webpki-roots",
  "winreg",
-]
-
-[[package]]
-name = "resolver-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "camino",
- "clap",
- "comfy-table",
- "dyn-compiler",
- "scarb-metadata 1.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "semver",
- "serde",
- "smol_str",
- "starknet",
- "thiserror",
- "tokio",
- "toml 0.4.10",
- "url",
- "voyager-resolver-cairo-2-4-3",
 ]
 
 [[package]]
