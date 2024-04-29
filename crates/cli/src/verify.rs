@@ -166,7 +166,6 @@ pub fn verify_project(
     let project_dir_path = extracted_files_dir.join(scarb_metadata_package_name);
     let project_dir_path = project_dir_path.strip_prefix(extracted_files_dir.clone())
     .unwrap();
-    println!("project_dir_path: {:?}", project_dir_path);
 
     // Read project directory
     let project_files = WalkDir::new(extracted_files_dir.as_path())
