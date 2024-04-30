@@ -264,7 +264,8 @@ pub fn dispatch_class_verification_job(
     files: Vec<FileInfo>,
 ) -> Result<String> {
     // Construct form body
-    let mut body = multipart::Form::new().percent_encode_noop()
+    let mut body = multipart::Form::new()
+        .percent_encode_noop()
         .text(
             "compiler_version",
             project_metadata.cairo_version.to_string(),
@@ -350,8 +351,20 @@ pub fn poll_verification_status(
         let data = result.json::<VerificationJob>().unwrap();
         match VerifyJobStatus::from_u8(data.status) {
             VerifyJobStatus::Success => return Ok(data),
-            VerifyJobStatus::Fail => return Err(anyhow!("Failed to verify: {:?}", data.status_description.unwrap_or("unknown failure".to_owned()))),
-            VerifyJobStatus::CompileFailed => return Err(anyhow!("Compilation failed: {:?}", data.status_description.unwrap_or("unknown failure".to_owned()))),
+            VerifyJobStatus::Fail => {
+                return Err(anyhow!(
+                    "Failed to verify: {:?}",
+                    data.status_description
+                        .unwrap_or("unknown failure".to_owned())
+                ))
+            }
+            VerifyJobStatus::CompileFailed => {
+                return Err(anyhow!(
+                    "Compilation failed: {:?}",
+                    data.status_description
+                        .unwrap_or("unknown failure".to_owned())
+                ))
+            }
             _ => (),
         }
         retries += 1;

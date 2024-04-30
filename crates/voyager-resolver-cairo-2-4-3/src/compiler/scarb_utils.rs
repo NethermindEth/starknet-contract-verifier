@@ -36,13 +36,13 @@ pub fn update_crate_roots_from_metadata(
         // Filter out test crates since these causes error when attempting
         // to load the configurations below from the db.
         // TODO: Investigate inherent reason why test crates causes this issue.
-        if unit.target.kind.eq("test"){
-            continue
+        if unit.target.kind.eq("test") {
+            continue;
         }
         for component in unit.components {
             let root = component.source_root();
 
-            if root.exists(){
+            if root.exists() {
                 let crate_id = db.intern_crate(CrateLongId::Real(component.name.as_str().into()));
                 let mut crate_config = db
                     .crate_config(crate_id)
@@ -169,8 +169,7 @@ pub fn generate_updated_scarb_toml(
         .map(|(k, _)| k[0].get())
         .collect::<Vec<_>>();
 
-    table_keys.iter()
-    .for_each(|k| {
+    table_keys.iter().for_each(|k| {
         // starknet package dependency is builtin within the compiler
         if *k == "starknet" {
             return;

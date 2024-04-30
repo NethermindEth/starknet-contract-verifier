@@ -151,8 +151,9 @@ pub fn verify_project(
 
     // Read the scarb metadata to get more information
     let scarb_toml_content = fs::read_to_string(source_dir.join("Scarb.toml"))?;
-    let scarb_metadata_package_name = toml::from_str::<ScarbTomlRawData>(&scarb_toml_content)?.package.name;
-
+    let scarb_metadata_package_name = toml::from_str::<ScarbTomlRawData>(&scarb_toml_content)?
+        .package
+        .name;
 
     // Compiler and extract the necessary files
     compiler.compile_project(&source_dir)?;
@@ -164,8 +165,9 @@ pub fn verify_project(
     // The compiler compiles into the original scarb package name
     // As such we have to craft the correct path to the main package
     let project_dir_path = extracted_files_dir.join(scarb_metadata_package_name);
-    let project_dir_path = project_dir_path.strip_prefix(extracted_files_dir.clone())
-    .unwrap();
+    let project_dir_path = project_dir_path
+        .strip_prefix(extracted_files_dir.clone())
+        .unwrap();
 
     // Read project directory
     let project_files = WalkDir::new(extracted_files_dir.as_path())
