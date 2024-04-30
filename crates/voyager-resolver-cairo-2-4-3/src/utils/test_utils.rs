@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use cairo_lang_compiler::db::RootDatabase;
-use cairo_lang_filesystem::db::{CrateConfiguration, FilesGroup};
 use cairo_lang_filesystem::db::{AsFilesGroupMut, FilesGroupEx};
+use cairo_lang_filesystem::db::{CrateConfiguration, FilesGroup};
 use std::sync::Arc;
 
 use crate::model::{CairoImport, CairoImportType, CairoModule, ModulePath};

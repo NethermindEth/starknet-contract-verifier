@@ -36,8 +36,7 @@ enum Commands {
 fn main() -> anyhow::Result<()> {
     let api_key = match env::var("API_KEY") {
         Ok(api_key) => Some(api_key),
-        Err(_) => 
-            None
+        Err(_) => None,
     };
 
     let api_key = match api_key {
@@ -45,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         None => {
             println!("API_KEY not detected in environment variables. You can get one at https://forms.gle/34RE6d4aiiv16HoW6");
             return Ok(());
-        }        
+        }
     };
 
     let is_debug_network = env::var("DEBUG_NETWORK").is_ok();
@@ -111,9 +110,9 @@ fn main() -> anyhow::Result<()> {
 
     // Get name that you want to use for the contract
     let class_name: String = Input::with_theme(&ColorfulTheme::default())
-    .with_prompt("Enter your desired class name: ")
-    .interact_text()
-    .unwrap();
+        .with_prompt("Enter your desired class name: ")
+        .interact_text()
+        .unwrap();
 
     let class_name = class_name.trim().to_string();
 
@@ -121,7 +120,6 @@ fn main() -> anyhow::Result<()> {
     let is_account_contract: bool = Confirm::new()
         .with_prompt("Is this an Account Class?")
         .interact()?;
-
 
     let (local_scarb_version, local_cairo_version) = detect_local_tools();
 
@@ -134,7 +132,7 @@ fn main() -> anyhow::Result<()> {
         path: utf8_path,
         is_account_contract: Some(is_account_contract),
         max_retries: Some(10),
-        api_key
+        api_key,
     };
 
     match verify_args {
