@@ -2,14 +2,29 @@
 
 `starknet-contract-verifier` is a contract class verification cli that allows you to verify your starknet classes on a block explorer.
 
-The list of the block explorer we currently support are:
+#### The list of the block explorer we currently support are:
 - [Voyager Starknet block explorer](https://voyager.online).
 
+
+#### We currently support the following cairo version & scarb version.
+- [ ] Cairo 2.0.2 (Scarb v0.5.2)
+- [ ] Cairo 2.1.1 (Scarb v0.6.2)
+- [ ] Cairo 2.2.0 (Scarb v0.7.0)
+- [ ] Cairo & Scarb  2.3.1
+- [x] Cairo & Scarb 2.4.3
+- [x] Cairo & Scarb 2.5.4
+- [ ] Cairo & Scarb 2.6.3 
 
 
 ## Getting started
 
 ### Prerequisite
+
+#### Installing Scarb
+
+This CLI relies upon Scarb for dependencies resolving during compilation and thus require you to have Scarb installed for it to work properly. You can install Scarb following the instruction on their documentation at https://docs.swmansion.com/scarb.
+
+Note that CLI version that you install should follow the version of the Scarb you have installed for it to work as expected.
 
 #### Getting an api key
 
@@ -86,3 +101,10 @@ cargo build
 ```
 
 and the project should start building.
+
+
+## Contributing
+
+We welcome any form of contribution to this project! 
+
+To start, you can take a look at the issues that's available for taking and work on whichever you might be interested in. Do leave a comment so we can assign the issue to you!
