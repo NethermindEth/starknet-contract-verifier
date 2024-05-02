@@ -3,10 +3,13 @@ use std::process::Command;
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
 
 pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) {
-    let versioning = Command::new("scarb")
-        .arg("--version")
-        .output()
-        .expect("Failed to detect local scarb.");
+    let versioning = Command::new("scarb").arg("--version").output().expect(
+        "
+            Unable to detect local Scarb installation. 
+            This CLI depends on Scarb and thus require it to be installed in the local machine.
+            You can install Scarb at https://docs.swmansion.com/scarb/. 
+        ",
+    );
 
     let versioning_str = String::from_utf8(versioning.stdout).unwrap();
     let scarb_version = versioning_str.split('\n').collect::<Vec<&str>>()[0]
