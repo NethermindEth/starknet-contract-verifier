@@ -331,7 +331,7 @@ pub fn poll_verification_status(
 
     let path_with_param = ApiEndpoints::GetJobStatus.to_api_path(job_id.to_owned());
 
-    // Retry every 500ms until we hit maxRetries
+    // Retry every 2000ms until we hit maxRetries
     while retries < max_retries {
         let result = client
             .get(public_url.clone() + path_with_param.as_str())

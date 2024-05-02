@@ -228,11 +228,12 @@ pub fn verify_project(
         }
     };
 
+    // Retry for 5 minutes
     let poll_result = poll_verification_status(
         args.api_key.as_str(),
         network_enum,
         &job_id,
-        args.max_retries.unwrap_or(60),
+        args.max_retries.unwrap_or(180),
     );
 
     match poll_result {
