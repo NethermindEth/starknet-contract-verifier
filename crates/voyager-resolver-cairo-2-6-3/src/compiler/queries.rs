@@ -177,6 +177,7 @@ pub fn collect_crate_module_files(
             return Err(anyhow!("Virtual directories are not supported"));
         }
     };
+    log::debug!("Extracting imports/modules for crate {:?}", crate_root_dir);
 
     for module_id in &*defs_db.crate_modules(crate_id) {
         let module_file = defs_db
@@ -193,9 +194,12 @@ pub fn collect_crate_module_files(
 
         // A module without a file means that it's a submodule inside a file module.
         if let Some(file) = module_file_data {
+            log::debug!("- Module file: {:?}", file.path);
+
             // Skip files that have already been visited.
             // This happens when a file defines multiple modules.
             if visited_files.contains_key(&file) {
+                log::debug!("-- File already visited, skipping...");
                 continue;
             }
             visited_files.insert(file.clone(), true);
@@ -312,6 +316,7 @@ pub fn extract_file_imports(
     module_id: ModuleId,
     file_data: &FileData,
 ) -> Result<Vec<CairoImport>> {
+    log::debug!("-- Extracting imports for {:?}", file_data.name);
     let file_syntax = db
         .file_syntax(file_data.id)
         .to_option()
@@ -327,9 +332,11 @@ pub fn extract_file_imports(
         // Top level items
         match item_ast {
             ast::ModuleItem::Use(item_use) => {
+                // log::debug!("--- Processing item_use");
                 capture_imports(db, module_file_id, &mut module_uses, item_use.use_path(db))
             }
             ast::ModuleItem::Module(item_module) => {
+                // log::debug!("--- Processing item_module");
                 extract_child_module_imports(db, &item_module, module_file_id, &mut module_uses);
             }
             _ => {}
@@ -337,7 +344,9 @@ pub fn extract_file_imports(
     }
 
     let file_module_name = module_id.full_path(db);
+    log::debug!("-- file_module_name: {:?}", file_module_name);
     let submodules_declarations = collect_submodule_declarations(db, &module_id, &file_module_name);
+    log::debug!("-- submodules_declarations: {:?}", submodules_declarations);
     imports.extend(submodules_declarations);
 
     // Resolve the module's imports
@@ -346,6 +355,11 @@ pub fn extract_file_imports(
     let mut diagnostics = SemanticDiagnostics::new(file_data.id);
 
     for (use_id, use_path) in module_uses.iter() {
+        log::debug!(
+            "--- Processing (use_id: {:?}, use_path: {:?})",
+            use_id,
+            use_path.as_syntax_node().get_text(db.upcast())
+        );
         // let resolved_item_maybe = db.use_resolved_item(*use_id);
         // diagnostics.diagnostics.extend(db.use_semantic_diagnostics(*use_id));
         let syntax_db = db.upcast();
@@ -365,8 +379,18 @@ pub fn extract_file_imports(
             .map(|x| x.as_syntax_node().get_text(db))
             .join("::");
 
+        log::debug!("--- We need to resolve: {:?}", import_path);
+        log::debug!(
+            "---- Segments: {:?}",
+            segments
+                .clone()
+                .iter()
+                .map(|x| x.as_syntax_node().get_text(db))
+                .collect::<Vec<String>>()
+        );
         let resolved_item_maybe =
             resolver.resolve_generic_path(&mut diagnostics, segments, NotFoundItemType::Identifier);
+        log::debug!("---- Diagnostics: {:#?}", diagnostics.diagnostics);
 
         // If the import is resolved, get the full path
         if let Ok(resolved_item) = resolved_item_maybe {

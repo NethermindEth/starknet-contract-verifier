@@ -24,6 +24,8 @@ dyn-compiler = { path = "../dyn-compiler" }
 
 # All resolver versions, based on scarb + cairo
 voyager-resolver-cairo-2-6-3 = { path = "../voyager-resolver-cairo-2-6-3" }
+log = "0.4.21"
+env_logger.workspace = true
 
 [[bin]]
 name = "voyager-resolver"

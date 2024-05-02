@@ -4,6 +4,7 @@ use cairo_lang_defs::ids::ModuleId;
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, CrateLongId, FileLongId};
 use camino::Utf8PathBuf;
+use petgraph::dot::{Config, Dot};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -25,7 +26,6 @@ use crate::compiler::scarb_utils::{
     update_crate_roots_from_metadata,
 };
 use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
-// use crate::graph::display_graphviz;
 use scarb::compiler::{CairoCompilationUnit, CompilationUnitAttributes, Compiler};
 use scarb::core::{TargetKind, Workspace};
 use scarb::flock::Filesystem;
@@ -113,6 +113,7 @@ impl Compiler for VoyagerGenerator {
 
         // Get a vector of CairoCrate, which contain the crate root directory, main file and modules for each crate in the project.
         let project_crates = self.get_project_crates(db, project_crate_ids)?;
+        log::debug!("Project crates: {:#?}", project_crates);
 
         // Collect all modules from all crates in the project.
         let project_modules = project_crates
@@ -120,10 +121,13 @@ impl Compiler for VoyagerGenerator {
             .flat_map(|c| c.modules.iter().cloned())
             .collect::<Vec<CairoModule>>();
 
+        log::debug!("Project modules: {:#?}", project_modules);
+
         // Creates a graph where nodes are cairo modules, and edges are the dependencies between modules.
         let graph = create_graph(&project_modules);
-        // println!("Graph is:\n");
-        // display_graphviz(&graph);
+        // Show the graph in the logs.
+        log::debug!("{:#?}", Dot::with_config(&graph, &[Config::EdgeNoLabel]));
+        panic!("Stop here");
 
         // Read Scarb manifest file to get the list of contracts to verify from the [tool.voyager] section.
         // This returns the relative file paths of the contracts to verify.
@@ -200,6 +204,7 @@ impl VoyagerGenerator {
         db: &mut RootDatabase,
         project_crate_ids: Vec<CrateId>,
     ) -> Result<Vec<CairoCrate>> {
+      log::debug!("Getting project crates");
         let project_crates = project_crate_ids
             .iter()
             .map(|crate_id| -> Result<CairoCrate> {

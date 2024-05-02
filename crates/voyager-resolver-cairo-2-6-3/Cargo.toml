@@ -39,6 +39,8 @@ cairo-lang-utils = { git = "https://github.com/starkware-libs/cairo", rev = "c06
 
 scarb = { git = "https://github.com/software-mansion/scarb", rev = "dac9a59" } # Waiting for >2.6.4 to support rust >1.77
 scarb-ui = { git = "https://github.com/software-mansion/scarb", rev = "dac9a59" } # Waiting for >2.6.4 to support rust >1.77
+env_logger.workspace = true
+log = "0.4.21"
 # scarb-ui = { git = "https://github.com/software-mansion/scarb", version = "0.1.2", rev = "5dbab1f" }
 
 [dev-dependencies]

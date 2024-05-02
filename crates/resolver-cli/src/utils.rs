@@ -15,7 +15,6 @@ pub fn format_version(version: Version) -> String {
 
 pub fn detect_local_tools(path: &Utf8PathBuf) -> (SupportedScarbVersions, SupportedCairoVersions) {
     // init metadata command
-    println!("init metadata from scarb-metadata");
     let mut cmd = MetadataCommand::new();
     let mut scarb_path = path.clone();
     scarb_path.push("Scarb.toml");
@@ -35,7 +34,6 @@ pub fn detect_local_tools(path: &Utf8PathBuf) -> (SupportedScarbVersions, Suppor
             "2.6.4" => SupportedScarbVersions::V2_6_4,
             _ => panic!("Unsupported scarb version: {}", scarb_ver_string),
         };
-        println!("scarb ver: {:?}", scarb_version);
         let cairo_ver_data = metadata.app_version_info.cairo.version;
         let cairo_ver_string = format_version(cairo_ver_data);
 
@@ -50,7 +48,10 @@ pub fn detect_local_tools(path: &Utf8PathBuf) -> (SupportedScarbVersions, Suppor
             "2.6.3" => SupportedCairoVersions::V2_6_3,
             _ => panic!("Unsupported cairo version: {}", cairo_ver_string),
         };
+
+        println!("scarb ver: {:?}", scarb_version);
         println!("cairo ver: {:?}", cairo_version);
+
         (scarb_version, cairo_version)
     } else {
         println!("scarb-metadata execution failure");
