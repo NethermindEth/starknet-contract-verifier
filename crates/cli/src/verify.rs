@@ -132,7 +132,7 @@ pub fn verify_project(
     }
     if contract_paths.len() > 1 {
         return Err(anyhow::anyhow!(
-            "Only one contract can be verified at a time. Make sure your [tool.voyager] section in Scarb.toml only have one entry."
+            "Only one contract can be verified at a time"
         ));
     }
 
