@@ -7,13 +7,15 @@
 
 
 #### We currently support the following cairo version & scarb version.
-- [ ] Cairo 2.0.2 (Scarb v0.5.2)
-- [ ] Cairo 2.1.1 (Scarb v0.6.2)
-- [ ] Cairo 2.2.0 (Scarb v0.7.0)
-- [ ] Cairo & Scarb  2.3.1
-- [x] Cairo & Scarb 2.4.3
-- [x] Cairo & Scarb 2.5.4
-- [ ] Cairo & Scarb 2.6.3 
+- [ ] Cairo 2.0.* (Scarb v0.5.2)
+- [ ] Cairo 2.1.* (Scarb v0.6.2)
+- [ ] Cairo 2.2.* (Scarb v0.7.0)
+- [ ] Cairo & Scarb  2.3.*
+- [x] Cairo & Scarb 2.4.*
+- [x] Cairo & Scarb 2.5.*
+- [ ] Cairo & Scarb 2.6.*
+
+The source code release for each version is available at their respective branch at `release/2.<version>`. For example, the release for `2.4.*` would live at `release/2.4`.
 
 
 ## Getting started
@@ -26,7 +28,7 @@ This CLI relies upon Scarb for dependencies resolving during compilation and thu
 
 Note that CLI version that you install should follow the version of the Scarb you have installed for it to work as expected.
 
-#### Getting an api key
+<!-- #### Getting an api key
 
 The verification CLI uses the public API of the block explorer under the hood, as such you will have to obtain your API key in order to start using the verifier.
 
@@ -42,7 +44,7 @@ If you want to set the api key manually on each verifier call, you can also atta
 
 ```
 API_KEY=<Your api key> starknet-contract-verifier
-```
+``` -->
 
 #### Adding configuration for the verification
 
@@ -61,22 +63,37 @@ sierra = true
 
 # Add the following section
 [tool.voyager]
-my_contract = { path= "main.cairo" }
+my_contract = { path = "main.cairo" }
 ```
 
-The path should be set to the path of whichever contract you would like to verify.
+The path should be set to the path of whichever contract you would like to verify, relative to your `src` directory. For the example above, the cairo contract is located at `src/main.cairo` and as such the path should be set to `main.cairo`.
 
 Note that only one contract should be provided in this section as multi contract verification is not supported yet.
 
 ### Verification
 
-To get started on the verification of your cairo project, simply do the command
+First do a clone of this repository.
 
 ```bash
-starknet-contract-verifier
+git clone git@github.com:NethermindEth/starknet-contract-verifier.git
 ```
 
-If you are instead building from source and running it on your machine, you might want to do this instead:
+After cloning the repository, checkout to the release branch corresponding to the cairo version that your contract uses. For example, if you write your contract in `cairo 2.5.4`, you would do the following:
+
+```bash
+cd starknet-contract-verifier
+git checkout release/2.5
+```
+
+<!-- To get started on the verification of your cairo project, simply do the command -->
+
+<!-- ```bash
+starknet-contract-verifier
+``` -->
+<!-- 
+If you are instead building from source and running it on your machine, you might want to do this instead: -->
+
+To start the verifier, you can do the following command, and a prompt should guide you through the verification process.
 
 ```bash
 cargo run --bin starknet-contract-verifier
