@@ -7,13 +7,17 @@
 
 
 #### We currently support the following cairo version & scarb version.
-- [ ] Cairo 2.0.* (Scarb v0.5.2)
-- [ ] Cairo 2.1.* (Scarb v0.6.2)
-- [ ] Cairo 2.2.* (Scarb v0.7.0)
-- [ ] Cairo & Scarb  2.3.*
-- [x] Cairo & Scarb 2.4.*
-- [x] Cairo & Scarb 2.5.*
-- [ ] Cairo & Scarb 2.6.*
+- [ ] Cairo 2.0.2 (Scarb v0.5.2)
+- [ ] Cairo 2.1.1 (Scarb v0.6.2)
+- [ ] Cairo 2.2.0 (Scarb v0.7.0)
+- [ ] Cairo & Scarb  2.3.0
+- [ ] Cairo & Scarb 2.4.0
+- [ ] Cairo & Scarb 2.4.1
+- [ ] Cairo & Scarb 2.4.2
+- [x] Cairo & Scarb 2.4.3
+- [ ] Cairo & Scarb 2.4.4
+- [x] Cairo & Scarb 2.5.4
+- [ ] Cairo & Scarb 2.6.4
 
 The source code release for each version is available at their respective branch at `release/2.<version>`. For example, the release for `2.4.*` would live at `release/2.4`.
 

@@ -133,7 +133,7 @@ fn main() -> anyhow::Result<()> {
         path: utf8_path,
         is_account_contract: Some(is_account_contract),
         max_retries: Some(10),
-        api_key: "",
+        api_key: "".to_string(),
     };
 
     match verify_args {
