@@ -37,7 +37,7 @@ pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) 
         "2.4.2" => SupportedCairoVersions::V2_4_2,
         "2.4.3" => SupportedCairoVersions::V2_4_3,
         _ => {
-            println!("Unsupported scarb version {}. We thus do not guarantee compatibility and compilation might fail as a result.", scarb_version);
+            println!("Unsupported cairo version {}. We thus do not guarantee compatibility and compilation might fail as a result.", cairo_version);
             // Use latest Scarb version as default.
             SupportedCairoVersions::V2_4_3
         }
