@@ -289,7 +289,7 @@ pub fn dispatch_class_verification_job(
 
     let response = client
         .post(public_url + path_with_param.as_str())
-        .header("x-api-key", api_key)
+        // .header("x-api-key", api_key)
         .multipart(body)
         .send()?;
 
@@ -335,7 +335,7 @@ pub fn poll_verification_status(
     while retries < max_retries {
         let result = client
             .get(public_url.clone() + path_with_param.as_str())
-            .header("x-api-key", api_key)
+            // .header("x-api-key", api_key)
             .send()?;
         match result.status() {
             StatusCode::OK => (),
