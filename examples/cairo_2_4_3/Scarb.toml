@@ -1,5 +1,5 @@
 [package]
-name = "cairo_2_4_3"
+name = "cairo_2_5_1"
 version = "0.1.0"
 
 # See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest
