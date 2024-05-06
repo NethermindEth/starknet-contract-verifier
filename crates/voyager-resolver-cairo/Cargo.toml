@@ -27,30 +27,29 @@ camino.workspace = true
 dyn-compiler = { path = "../dyn-compiler" }
 
 # All version dependent dependencies
-cairo-lang-casm = "=2.4.3"
-cairo-lang-compiler = "=2.4.3"
-cairo-lang-debug = "=2.4.3"
-cairo-lang-defs = "=2.4.3"
-cairo-lang-diagnostics = "=2.4.3"
-cairo-lang-filesystem = "=2.4.3"
-cairo-lang-language-server = "=2.4.3"
-cairo-lang-lowering = "=2.4.3"
-cairo-lang-parser = "=2.4.3"
-cairo-lang-plugins = "=2.4.3"
-cairo-lang-project = "=2.4.3"
-cairo-lang-semantic = "=2.4.3"
-cairo-lang-sierra-generator = "=2.4.3"
-cairo-lang-starknet = "=2.4.3"
-cairo-lang-syntax = "=2.4.3"
-cairo-lang-utils = "=2.4.3"
-scarb = { git = "https://github.com/software-mansion/scarb", version = "2.4.3", rev = "5dbab1f" }
-scarb-ui = { git = "https://github.com/software-mansion/scarb", version = "0.1.2", rev = "5dbab1f" }
+cairo-lang-casm = "=2.0.2"
+cairo-lang-compiler = "=2.0.2"
+cairo-lang-debug = "=2.0.2"
+cairo-lang-defs = "=2.0.2"
+cairo-lang-diagnostics = "=2.0.2"
+cairo-lang-filesystem = "=2.0.2"
+cairo-lang-language-server = "=2.0.2"
+cairo-lang-lowering = "=2.0.2"
+cairo-lang-parser = "=2.0.2"
+cairo-lang-plugins = "=2.0.2"
+cairo-lang-project = "=2.0.2"
+cairo-lang-semantic = "=2.0.2"
+cairo-lang-sierra-generator = "=2.0.2"
+cairo-lang-starknet = "=2.0.2"
+cairo-lang-syntax = "=2.0.2"
+cairo-lang-utils = "=2.0.2"
+scarb = { git = "https://github.com/software-mansion/scarb", version = "0.5.2", rev = "f4b62ad" }
 
 [dev-dependencies]
 env_logger.workspace = true
-cairo-lang-formatter = "=2.4.3"
-cairo-lang-semantic = "=2.4.3"
-cairo-lang-test-utils = "=2.4.3"
+cairo-lang-formatter = "=2.0.2"
+cairo-lang-semantic = "=2.0.2"
+cairo-lang-test-utils = "=2.0.2"
 pretty_assertions.workspace = true
 test-case = "2.2.2"
 test-case-macros = "2.2.2"
