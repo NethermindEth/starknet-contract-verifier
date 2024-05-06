@@ -28,7 +28,7 @@ pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) 
         // "0.6.1" => SupportedScarbVersions::V0_6_1,
         // "0.6.2" => SupportedScarbVersions::V0_6_2,
         // "0.7.0" => SupportedScarbVersions::V0_7_0,
-        "2.4.3" => SupportedScarbVersions::V2_4_3,
+        "0.6.2" => SupportedScarbVersions::V0_6_2,
         _ => panic!("Unsupported scarb version: {}", scarb_version),
     };
 
@@ -37,15 +37,14 @@ pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) 
         // "1.1.1" => SupportedCairoVersions::V1_1_1,
         // "2.0.0" => SupportedCairoVersions::V2_0_0,
         // "2.0.1" => SupportedCairoVersions::V2_0_1,
-        // "2.0.2" => SupportedCairoVersions::V2_0_2,
-        // "2.1.0" => SupportedCairoVersions::V2_1_0,
         // "2.1.1" => SupportedCairoVersions::V2_1_1,
+        // "2.1.0" => SupportedCairoVersions::V2_1_0,
         // "2.2.0" => SupportedCairoVersions::V2_2_0,
-        "2.4.3" => SupportedCairoVersions::V2_4_3,
+        "2.1.1" => SupportedCairoVersions::V2_1_1,
         _ => {
             println!("Unsupported cairo version {}. We thus do not guarantee compatibility and compilation might fail as a result.", cairo_version);
             // Use latest Scarb version as default.
-            SupportedCairoVersions::V2_4_3
+            SupportedCairoVersions::V2_1_1
         }
     };
 

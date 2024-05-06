@@ -4,11 +4,7 @@ use anyhow::Result;
 use camino::Utf8PathBuf;
 use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions, SupportedScarbVersions};
 use itertools::Itertools;
-use scarb::{
-    compiler::CompilerRepository,
-    core::{Config, TargetKind},
-    ops,
-};
+use scarb::{compiler::CompilerRepository, core::Config, ops, ui::Verbosity};
 
 use crate::{
     compiler::{scarb_utils::get_contracts_to_verify, VoyagerGenerator},
@@ -19,10 +15,10 @@ pub struct VoyagerGeneratorWrapper;
 
 impl DynamicCompiler for VoyagerGeneratorWrapper {
     fn get_supported_scarb_versions(&self) -> Vec<SupportedScarbVersions> {
-        vec![SupportedScarbVersions::V2_4_3]
+        vec![SupportedScarbVersions::V0_6_2]
     }
     fn get_supported_cairo_versions(&self) -> Vec<SupportedCairoVersions> {
-        vec![SupportedCairoVersions::V2_4_3]
+        vec![SupportedCairoVersions::V2_1_1]
     }
 
     fn get_contracts_to_verify_path(&self, project_path: &Utf8PathBuf) -> Result<Vec<Utf8PathBuf>> {
@@ -58,7 +54,7 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
         compilers.add(Box::new(VoyagerGenerator)).unwrap();
 
         let config = Config::builder(manifest_path)
-            .ui_verbosity(scarb_ui::Verbosity::Verbose)
+            .ui_verbosity(Verbosity::Verbose)
             .log_filter_directive(env::var_os("SCARB_LOG"))
             .compilers(compilers)
             .build()
@@ -66,12 +62,8 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
 
         let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
         let package_ids = ws.members().map(|p| p.id).collect();
-        let compile_opts = ops::CompileOpts {
-            include_targets: vec![TargetKind::STARKNET_CONTRACT],
-            exclude_targets: vec![],
-        };
-
-        ops::compile(package_ids, compile_opts, &ws)
+        
+        ops::compile(package_ids, &ws)
     }
 
     fn compile_file(&self, file_path: &Utf8PathBuf) -> Result<()> {
