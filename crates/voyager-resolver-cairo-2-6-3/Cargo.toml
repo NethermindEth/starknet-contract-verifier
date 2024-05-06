@@ -27,25 +27,22 @@ camino.workspace = true
 dyn-compiler = { path = "../dyn-compiler" }
 
 # All version dependent dependencies
-cairo-lang-compiler = { git = "https://github.com/starkware-libs/cairo", rev = "c064d5e789d5bf194691eca9bd0f3b508caf83fc" } # patch for upcoming cairo/scarb release
-cairo-lang-defs = { git = "https://github.com/starkware-libs/cairo", rev = "c064d5e789d5bf194691eca9bd0f3b508caf83fc" }
-cairo-lang-diagnostics = { git = "https://github.com/starkware-libs/cairo", rev = "c064d5e789d5bf194691eca9bd0f3b508caf83fc" }
-cairo-lang-filesystem = { git = "https://github.com/starkware-libs/cairo", rev = "c064d5e789d5bf194691eca9bd0f3b508caf83fc" }
-cairo-lang-parser = { git = "https://github.com/starkware-libs/cairo", rev = "c064d5e789d5bf194691eca9bd0f3b508caf83fc" }
-cairo-lang-semantic = { git = "https://github.com/starkware-libs/cairo", rev = "c064d5e789d5bf194691eca9bd0f3b508caf83fc" }
-cairo-lang-starknet = { git = "https://github.com/starkware-libs/cairo", rev = "c064d5e789d5bf194691eca9bd0f3b508caf83fc" }
-cairo-lang-syntax = { git = "https://github.com/starkware-libs/cairo", rev = "c064d5e789d5bf194691eca9bd0f3b508caf83fc" }
-cairo-lang-utils = { git = "https://github.com/starkware-libs/cairo", rev = "c064d5e789d5bf194691eca9bd0f3b508caf83fc" }
+cairo-lang-compiler = "2.6.3"
+cairo-lang-defs = "2.6.3"
+cairo-lang-diagnostics = "2.6.3"
+cairo-lang-filesystem = "2.6.3"
+cairo-lang-parser = "2.6.3"
+cairo-lang-semantic = "2.6.3"
+cairo-lang-starknet = "2.6.3"
+cairo-lang-syntax = "2.6.3"
+cairo-lang-utils = "2.6.3"
 
-scarb = { git = "https://github.com/software-mansion/scarb", rev = "dac9a59" } # Waiting for >2.6.4 to support rust >1.77
-scarb-ui = { git = "https://github.com/software-mansion/scarb", rev = "dac9a59" } # Waiting for >2.6.4 to support rust >1.77
-# scarb-ui = { git = "https://github.com/software-mansion/scarb", version = "0.1.2", rev = "5dbab1f" }
+scarb = { git = "https://github.com/software-mansion/scarb", tag = "v2.6.4" }
+scarb-ui = { git = "https://github.com/software-mansion/scarb", tag = "v2.6.4" }
+deno_task_shell = "0.15.0" # Patch for scarb v2.6.4
 
 [dev-dependencies]
 env_logger.workspace = true
-# cairo-lang-formatter = "=2.6.3"
-# cairo-lang-semantic = "=2.6.3"
-# cairo-lang-test-utils = "=2.6.3"
 pretty_assertions.workspace = true
 test-case = "2.2.2"
 test-case-macros = "2.2.2"

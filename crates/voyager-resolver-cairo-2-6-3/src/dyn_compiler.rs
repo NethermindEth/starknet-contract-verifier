@@ -69,12 +69,6 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
         let compile_opts = ops::CompileOpts {
             include_targets: vec![TargetKind::STARKNET_CONTRACT],
             exclude_targets: vec![],
-            features: scarb_ui::args::FeaturesSpec {
-                features: vec![],
-                all_features: true,
-                no_default_features: false,
-            }
-            .try_into()?,
         };
 
         ops::compile(package_ids, compile_opts, &ws)
