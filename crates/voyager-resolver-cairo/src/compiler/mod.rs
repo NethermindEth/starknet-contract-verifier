@@ -293,7 +293,7 @@ mod tests {
     use crate::model::{CairoAttachmentModule, ModulePath};
     use crate::utils::test_utils::set_file_content;
     use cairo_lang_compiler::db::RootDatabase;
-    use cairo_lang_defs::plugin::PluginSuite;
+    use cairo_lang_semantic::plugin::PluginSuite;
     use cairo_lang_filesystem::db::{CrateConfiguration, FilesGroup, FilesGroupEx};
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
     use cairo_lang_starknet::plugin::StarkNetPlugin;
