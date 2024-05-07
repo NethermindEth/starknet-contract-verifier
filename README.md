@@ -140,10 +140,14 @@ There's a few known issue with the current implementation of this verifier.
 
 If you use `super` import in your source code, the verifier would fail to resolve it and cause an `IMPORT ERROR`. This is an expected issue and we are in the process of fixing it.
 
-### 2. Scarb.toml specified starknet versioning affects which binaries work with the verifier
+### 2. Rearranging and restructure of the resulting verified files
+
+It's possible that your modules get re-arranged after verification as the verifier tries to resolve your dependencies from the main contract and re-generate them into a new project. This is known and we are working towards making the generated project look as closely as possible with the original module structure.
+
+
+### 3. Scarb.toml specified starknet versioning affects which binaries work with the verifier
 
 The verifier would usually work cairo compiler versions that are lower than its version given no breaking changes between compiler versions, meaning using a `2.4.3` verifier with a compiler version of less than 2.4.3 would work as long as you specify in your `Scarb.toml` file the starknet version with a range including the verifier version (for example, `>=2.4.0` & `2.2.0` usually works for verifier `2.4.3`) If you use strict versioning for your starknet version in form of `=2.4.3` for example, it would stop working with verifier of other versions.
-
 
 ## Contributing
 
