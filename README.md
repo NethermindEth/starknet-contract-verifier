@@ -94,7 +94,7 @@ After cloning the repository, checkout to the release branch corresponding to th
 
 ```bash
 cd starknet-contract-verifier
-git checkout release/2.5
+git checkout release/2.5.4
 ```
 
 <!-- To get started on the verification of your cairo project, simply do the command -->
