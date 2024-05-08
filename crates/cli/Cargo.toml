@@ -17,7 +17,6 @@ tokio = { version = "1.28.2", features = ["full"] }
 url = "2.2.2"
 dialoguer = { version = "0.10", features = ["fuzzy-select", "completion"] }
 console = "0.15.8"
-text-completions = "0.1.0"
 regex = "1"
 indicatif = "0.17.7"
 strum = "0.25.0"

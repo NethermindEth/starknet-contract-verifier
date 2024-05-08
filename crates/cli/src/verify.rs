@@ -1,8 +1,13 @@
-use std::{env::current_dir, fs, str::FromStr, time::Instant};
+use std::{
+    env::current_dir,
+    fs,
+    str::FromStr,
+    time::Instant,
+};
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
-use clap::{arg, Args};
+use clap::{arg, builder::PossibleValue, Args, ValueEnum};
 use console::{style, Emoji};
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
@@ -126,7 +131,6 @@ pub fn verify_project(
     let scarb_toml_content = fs::read_to_string(source_dir.join("Scarb.toml"))?;
     let extracted_scarb_toml_data =
         read_additional_scarb_manifest_metadata(scarb_toml_content.as_str())?;
-    pb.inc(1);
 
     // Compiler and extract the necessary files
     compiler.compile_project(&source_dir)?;
@@ -194,11 +198,18 @@ pub fn verify_project(
         extracted_scarb_toml_data.name.clone(),
         contract_paths[0].as_str()
     );
-    println!(
-        "{} {}Verification in progress...",
-        style("[4/4]").bold().dim(),
-        Emoji("✨ ", ":)")
-    );
+    // let spinner = ProgressBar::new_spinner();
+    // spinner.set_style(ProgressStyle::default_spinner());
+    // spinner.set_style(ProgressStyle::with_template("{spinner:2.green/white} {msg} [{elapsed_precise}] ").unwrap());
+    // spinner.set_message("dispatching verification job");
+
+    // let spinner_clone = spinner.clone();
+    // thread::spawn(move || {
+    //     while !spinner_clone.is_finished() {
+    //         spinner_clone.tick();
+    //         thread::sleep(std::time::Duration::from_millis(100));
+    //     }
+    // });
 
     let dispatch_response = dispatch_class_verification_job(
         args.api_key.as_str(),

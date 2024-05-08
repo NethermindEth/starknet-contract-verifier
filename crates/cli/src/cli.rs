@@ -7,72 +7,69 @@ mod verify;
 
 use crate::license::LicenseType;
 use crate::utils::detect_local_tools;
-use crate::validation::is_class_hash_valid;
-use crate::verify::VerifyProjectArgs;
 use camino::Utf8PathBuf;
-use clap::{Parser, Subcommand};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use std::env;
 use strum::IntoEnumIterator;
-use text_completions::PathCompletion;
+use verify::VerifyProjectArgs;
 
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-#[command(propagate_version = true)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-// TODO 1: There's a need of refactoring all this to reduce repetition.
-// TODO 2: support other types of project/file configurations
-//          - single file
-//          - non scarb
-//          - multiple contracts in project
-#[derive(Subcommand)]
-enum Commands {
-    #[command(about = "Builds the starknet-contract-verifier output")]
-    VerifyProject(VerifyProjectArgs),
-    // VerifyFile(VerifyFileArgs),
+enum TargetType {
+    ScarbProject,
+    File,
 }
 
 fn main() -> anyhow::Result<()> {
-    // TODO: make this cli use a secure api
-    // let api_key = match env::var("API_KEY") {
-    //     Ok(api_key) => Some(api_key),
-    //     Err(_) => None,
-    // };
-
-    // let api_key = match api_key {
-    //     Some(key_values) => key_values,
-    //     None => {
-    //         println!("API_KEY not detected in environment variables. You can get one at https://forms.gle/34RE6d4aiiv16HoW6");
-    //         return Ok(());
-    //     }
-    // };
-
+    // Network selection
     let is_debug_network = env::var("DEBUG_NETWORK").is_ok();
-
     let network_items = if is_debug_network {
         vec!["Mainnet", "Sepolia", "Integration", "Local"]
     } else {
         vec!["Mainnet", "Sepolia"]
     };
-
-    let network_index: Option<usize> = Select::with_theme(&ColorfulTheme::default())
+    let network_index = Select::with_theme(&ColorfulTheme::default())
         .items(&network_items)
         .with_prompt("Which network would you like to verify on : ")
         .default(0)
-        .interact_opt()?;
+        .interact_opt()
+        .expect("Aborted at network selection, terminating...")
+        .expect("Aborted at network selection, terminating...");
 
-    match network_index {
-        Some(_) => (),
-        None => {
-            println!("Aborted at network selection, terminating...");
-            std::process::exit(1);
-        }
+    // Project type + Path entry
+    let target_type = TargetType::ScarbProject; // by default we assume the user is in a scarb project
+
+    let is_current_dir_scarb = env::current_dir()?.join("scarb.toml").exists();
+    let path = if is_current_dir_scarb {
+        env::current_dir()?.to_str().unwrap().trim().to_string()
+    } else {
+        // TODO, add TargetType::File path input here
+        Input::<String>::with_theme(&ColorfulTheme::default())
+            .with_prompt("Enter Path to scarb project root:")
+            .interact_text()
+            .expect("Aborted at path input, terminating...")
+            .trim()
+            .to_string()
+    };
+    let utf8_path: Utf8PathBuf = Utf8PathBuf::from(path);
+    if !utf8_path.exists() {
+        panic!("Path does not exist");
     }
 
+    // Resolve project
+    let (project_files, project_metadata) = match target_type {
+        TargetType::File => {
+            panic!("Single contract file verification is not yet implemented, please use a scarb project instead.");
+        }
+        TargetType::ScarbProject => {
+            let (local_scarb_version, local_cairo_version) = detect_local_tools();
+            // TODO: do a first pass to find all the contracts in the project
+            // For now we keep using the hardcoded value in the scarb.toml file
+
+            resolver::resolve_scarb(utf8_path, local_cairo_version, local_scarb_version)?
+        }
+    };
+
+    // TODO: try to calculate the class hash automatically later after contract selection?
+    let re = Regex::new(r"^0x[a-fA-F0-9]{64}$").unwrap();
     let class_hash: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Input class hash to verify : ")
         .validate_with(|input: &String| -> Result<(), &str> {
@@ -83,34 +80,6 @@ fn main() -> anyhow::Result<()> {
             }
         })
         .interact()?;
-
-    // Path entry
-    // TODO: skip if already in scarb project
-    let completion = PathCompletion::default();
-    let path: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enter Path to scarb project root:")
-        .completion_with(&completion)
-        .interact_text()
-        .unwrap();
-    // Remove whitespace here since a whitespace causes the path to be incorrect.
-    let path = path.trim().to_string();
-
-    let utf8_path: Utf8PathBuf = Utf8PathBuf::from(path);
-
-    // Set license for your contract code
-    let licenses: Vec<LicenseType> = LicenseType::iter().collect();
-    let license_index: Option<usize> = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select license you'd like to verify under :")
-        .items(&licenses)
-        .default(0)
-        .interact_opt()?;
-
-    match license_index {
-        Some(_) => (),
-        None => {
-            println!("Aborted at license version selection, terminating... ");
-        }
-    }
 
     // Get name that you want to use for the contract
     let class_name: String = Input::with_theme(&ColorfulTheme::default())
@@ -123,32 +92,41 @@ fn main() -> anyhow::Result<()> {
             }
         })
         .interact_text()
-        .unwrap();
-
-    let class_name = class_name.trim().to_string();
+        .expect("Aborted at class name input, terminating...")
+        .trim()
+        .to_string();
 
     // Check if account contract
+    // TODO: Is there a way to detect this automatically?
     let is_account_contract: bool = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Is this an Account Class?")
         .interact()?;
 
-    let (local_scarb_version, local_cairo_version) = detect_local_tools();
+    // Set license for your contract code
+    let licenses: Vec<LicenseType> = LicenseType::iter().collect();
+    let license_index = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select license you'd like to verify under :")
+        .items(&licenses)
+        .default(0)
+        .interact_opt()
+        .expect("Aborted at license version selection, terminating...")
+        .expect("Aborted at license version selection, terminating...");
 
     // Parse args into VerifyProjectArgs
     let verify_args = VerifyProjectArgs {
-        network: network_items[network_index.unwrap()].to_string(),
+        network: network_items[network_index].to_string(),
         hash: class_hash,
-        license: licenses[license_index.unwrap()],
+        license: licenses[license_index],
         name: class_name,
-        path: utf8_path,
         is_account_contract: Some(is_account_contract),
         max_retries: Some(10),
         api_key: "".to_string(),
+        project_files,
+        project_metadata,
     };
 
-    match verify_args {
-        args => verify::verify_project(args, local_cairo_version, local_scarb_version),
-        // Commands::VerifyFile(args) => build::verify_file(args, local_cairo_version),
-    }?;
-    Ok(())
+    match target_type {
+        TargetType::ScarbProject => verify::verify_project(verify_args),
+        TargetType::File => panic!("Single contract file verification is not yet implemented"),
+    }
 }
