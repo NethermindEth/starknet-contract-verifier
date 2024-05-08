@@ -1,10 +1,11 @@
 mod api;
+mod license;
 mod resolver;
 mod utils;
 mod validation;
 mod verify;
 
-use crate::api::LicenseType;
+use crate::license::LicenseType;
 use crate::utils::detect_local_tools;
 use crate::validation::is_class_hash_valid;
 use crate::verify::VerifyProjectArgs;

@@ -1,13 +1,8 @@
-use std::{
-    env::current_dir,
-    fs,
-    str::FromStr,
-    time::Instant,
-};
+use std::{env::current_dir, fs, str::FromStr, time::Instant};
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
-use clap::{arg, builder::PossibleValue, Args, ValueEnum};
+use clap::{arg, Args};
 use console::{style, Emoji};
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
@@ -19,55 +14,11 @@ use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions}
 use crate::{
     api::{
         dispatch_class_verification_job, does_class_exist, poll_verification_status, FileInfo,
-        LicenseType, Network, ProjectMetadataInfo,
+        Network, ProjectMetadataInfo,
     },
+    license::LicenseType,
     resolver::get_dynamic_compiler,
 };
-
-impl ValueEnum for LicenseType {
-    fn from_str(input: &str, _ignore_case: bool) -> std::result::Result<Self, String> {
-        match input {
-            "NoLicense" => Ok(LicenseType::NoLicense),
-            "Unlicense" => Ok(LicenseType::Unlicense),
-            "MIT" => Ok(LicenseType::MIT),
-            "GPLv2" => Ok(LicenseType::GPLv2),
-            "GPLc3" => Ok(LicenseType::GPLv3),
-            "LGPLv2_1" => Ok(LicenseType::LGPLv2_1),
-            "LGPLv3" => Ok(LicenseType::LGPLv3),
-            "BSD2Clause" => Ok(LicenseType::BSD2Clause),
-            "BSD3Clause" => Ok(LicenseType::BSD3Clause),
-            "MPL2" => Ok(LicenseType::MPL2),
-            "OSL3" => Ok(LicenseType::OSL3),
-            "Apache2" => Ok(LicenseType::Apache2),
-            "AGPLv3" => Ok(LicenseType::AGPLv3),
-            "BSL1_1" => Ok(LicenseType::BSL1_1),
-            _ => Err(format!("Unknown license type: {}", input)),
-        }
-    }
-
-    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
-        PossibleValue::new(self.to_string()).into()
-    }
-
-    fn value_variants<'a>() -> &'a [Self] {
-        &[
-            Self::NoLicense,
-            Self::Unlicense,
-            Self::MIT,
-            Self::GPLv2,
-            Self::GPLv3,
-            Self::LGPLv2_1,
-            Self::LGPLv3,
-            Self::BSD2Clause,
-            Self::BSD3Clause,
-            Self::MPL2,
-            Self::OSL3,
-            Self::Apache2,
-            Self::AGPLv3,
-            Self::BSL1_1,
-        ]
-    }
-}
 
 #[derive(Args, Debug)]
 pub struct VerifyProjectArgs {
