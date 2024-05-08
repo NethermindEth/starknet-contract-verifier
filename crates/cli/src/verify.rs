@@ -1,18 +1,18 @@
 use std::{
     env::current_dir,
-    fs::{self, File},
-    slice,
+    fs,
     str::FromStr,
-    thread
+    time::Instant,
 };
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::{arg, builder::PossibleValue, Args, ValueEnum};
+use console::{style, Emoji};
+use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
 use voyager_resolver_cairo::compiler::scarb_utils::read_additional_scarb_manifest_metadata;
 use walkdir::{DirEntry, WalkDir};
-use indicatif::{ProgressBar, ProgressStyle};
 
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
 
@@ -110,6 +110,17 @@ pub fn verify_project(
     cairo_version: SupportedCairoVersions,
     scarb_version: SupportedScarbVersions,
 ) -> Result<()> {
+    // Start a spinner for the verification process
+    let started = Instant::now();
+    let spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}")
+        .unwrap()
+        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈");
+
+    println!(
+        "{} {}Extracting files from the Scarb project...",
+        style("[1/4]").bold().dim(),
+        Emoji("📃  ", "")
+    );
     // Extract necessary files from the Scarb project for the verified contract
     let source_dir = if args.path.is_absolute() {
         args.path
@@ -133,8 +144,13 @@ pub fn verify_project(
         ));
     }
 
+    println!(
+        "{} {}Checking if the class is already declared...",
+        style("[2/4]").bold().dim(),
+        Emoji("🔍  ", "")
+    );
+    // Check if the class exists on the network
     let network_enum = Network::from_str(args.network.as_str())?;
-
     match does_class_exist(network_enum.clone(), &args.hash) {
         Ok(true) => (),
         Ok(false) => return Err(anyhow::anyhow!("Class does not exist on the network")),
@@ -146,14 +162,24 @@ pub fn verify_project(
         }
     }
 
+    println!(
+        "{} {}Resolving contract dependencies...",
+        style("[3/4]").bold().dim(),
+        Emoji("🔗  ", "")
+    );
+    let steps = 4;
+    let pb = ProgressBar::new(steps);
+
     // Read the scarb metadata to get more information
     // TODO: switch this to using scarb-metadata
     let scarb_toml_content = fs::read_to_string(source_dir.join("Scarb.toml"))?;
     let extracted_scarb_toml_data =
         read_additional_scarb_manifest_metadata(scarb_toml_content.as_str())?;
+    pb.inc(1);
 
     // Compiler and extract the necessary files
     compiler.compile_project(&source_dir)?;
+    pb.inc(2);
 
     // Since we know that we extract the files into the `voyager-verify` directory,
     // we'll read the files from there.
@@ -208,6 +234,8 @@ pub fn verify_project(
             }
         })
         .collect::<Vec<FileInfo>>();
+    pb.inc(1);
+    pb.finish_and_clear();
 
     // We already know the contract file specified in Scarb.toml is relative to src/
     let contract_file = format!(
@@ -215,18 +243,11 @@ pub fn verify_project(
         extracted_scarb_toml_data.name.clone(),
         contract_paths[0].as_str()
     );
-    // let spinner = ProgressBar::new_spinner();
-    // spinner.set_style(ProgressStyle::default_spinner());
-    // spinner.set_style(ProgressStyle::with_template("{spinner:2.green/white} {msg} [{elapsed_precise}] ").unwrap());
-    // spinner.set_message("dispatching verification job");
-
-    // let spinner_clone = spinner.clone();
-    // thread::spawn(move || {
-    //     while !spinner_clone.is_finished() {
-    //         spinner_clone.tick();
-    //         thread::sleep(std::time::Duration::from_millis(100));
-    //     }
-    // });
+    println!(
+        "{} {}Verification in progress...",
+        style("[4/4]").bold().dim(),
+        Emoji("✨ ", ":)")
+    );
 
     let dispatch_response = dispatch_class_verification_job(
         args.api_key.as_str(),
@@ -261,15 +282,14 @@ pub fn verify_project(
         &job_id,
         args.max_retries.unwrap_or(180),
     );
-    // spinner.set_message("verification in progress");
-    // let poll_result =
-    //     poll_verification_status(network_enum, &job_id, args.max_retries.unwrap_or(30));
-    
-    // spinner.finish();
 
     match poll_result {
         Ok(_response) => {
-            println!("Successfully verified!");
+            println!(
+                "{} Successfully verified in {}",
+                Emoji("✅ ", ""),
+                HumanDuration(started.elapsed())
+            );
             Ok(())
         }
         Err(e) => Err(anyhow::anyhow!(
