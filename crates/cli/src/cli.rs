@@ -12,6 +12,7 @@ use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use regex::Regex;
 use std::env;
 use strum::IntoEnumIterator;
+use text_completions::PathCompletion;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -84,9 +85,11 @@ fn main() -> anyhow::Result<()> {
         .interact()?;
 
     // Path entry
-    // TODO: Auto completion
+    // TODO: skip if already in scarb project
+    let completion = PathCompletion::default();
     let path: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enter Class Contract Path :")
+        .with_prompt("Enter Path to scarb project root:")
+        .completion_with(&completion)
         .interact_text()
         .unwrap();
     // Remove whitespace here since a whitespace causes the path to be incorrect.
@@ -125,7 +128,7 @@ fn main() -> anyhow::Result<()> {
     let class_name = class_name.trim().to_string();
 
     // Check if account contract
-    let is_account_contract: bool = Confirm::new()
+    let is_account_contract: bool = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Is this an Account Class?")
         .interact()?;
 
