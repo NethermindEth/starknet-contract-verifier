@@ -4,11 +4,7 @@ use anyhow::Result;
 use camino::Utf8PathBuf;
 use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions, SupportedScarbVersions};
 use itertools::Itertools;
-use scarb::{
-    compiler::CompilerRepository,
-    core::{Config, TargetKind},
-    ops,
-};
+use scarb::{compiler::CompilerRepository, core::{Config, TargetKind}, ops};
 
 use crate::{
     compiler::{scarb_utils::get_contracts_to_verify, VoyagerGenerator},
@@ -19,10 +15,10 @@ pub struct VoyagerGeneratorWrapper;
 
 impl DynamicCompiler for VoyagerGeneratorWrapper {
     fn get_supported_scarb_versions(&self) -> Vec<SupportedScarbVersions> {
-        vec![SupportedScarbVersions::V2_4_3]
+        vec![SupportedScarbVersions::V2_3_0]
     }
     fn get_supported_cairo_versions(&self) -> Vec<SupportedCairoVersions> {
-        vec![SupportedCairoVersions::V2_4_3]
+        vec![SupportedCairoVersions::V2_3_0]
     }
 
     fn get_contracts_to_verify_path(&self, project_path: &Utf8PathBuf) -> Result<Vec<Utf8PathBuf>> {
