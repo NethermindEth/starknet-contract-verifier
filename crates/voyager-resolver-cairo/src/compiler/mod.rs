@@ -27,7 +27,7 @@ use crate::compiler::scarb_utils::{
 use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
 // use crate::graph::display_graphviz;
 use scarb::compiler::{CompilationUnit, Compiler};
-use scarb::core::{TargetKind, Workspace};
+use scarb::core::Workspace;
 use scarb::flock::Filesystem;
 
 pub struct VoyagerGenerator;
@@ -36,8 +36,8 @@ pub mod queries;
 pub mod scarb_utils;
 
 impl Compiler for VoyagerGenerator {
-    fn target_kind(&self) -> TargetKind {
-        TargetKind::STARKNET_CONTRACT
+    fn target_kind(&self) -> &str {
+        "starknet-contract"
     }
 
     /// This function does not actually compile the code. Rather, it extracts
@@ -108,7 +108,7 @@ impl Compiler for VoyagerGenerator {
             .components
             .iter()
             .filter(|component| component.cairo_package_name() != "core")
-            .map(|component| db.intern_crate(CrateLongId::Real(component.cairo_package_name())))
+            .map(|component| db.intern_crate(CrateLongId(component.cairo_package_name())))
             .collect();
 
         // Get a vector of CairoCrate, which contain the crate root directory, main file and modules for each crate in the project.
@@ -207,16 +207,13 @@ impl VoyagerGenerator {
                 // Get the root directory and main file (lib.cairo) for the crate.
                 // The main file is expected to be an OnDisk file.
                 let defs_db = db.upcast();
-                let crate_root_dir = defs_db
-                    .crate_config(crate_id)
-                    .expect(
-                        format!(
-                            "Failed to get crate root directory for crate ID {:?}",
-                            crate_id
-                        )
-                        .as_str(),
+
+                let crate_root_dir = defs_db.crate_root_dir(crate_id).with_context(|| {
+                    format!(
+                        "Failed to get crate root directory for crate ID {:?}",
+                        crate_id
                     )
-                    .root;
+                })?;
 
                 let main_file = defs_db
                     .module_main_file(ModuleId::CrateRoot(crate_id))
@@ -293,27 +290,24 @@ mod tests {
     use crate::model::{CairoAttachmentModule, ModulePath};
     use crate::utils::test_utils::set_file_content;
     use cairo_lang_compiler::db::RootDatabase;
-    use cairo_lang_defs::plugin::PluginSuite;
-    use cairo_lang_filesystem::db::{CrateConfiguration, FilesGroup, FilesGroupEx};
+    use cairo_lang_filesystem::db::FilesGroup;
+    use cairo_lang_filesystem::db::FilesGroupEx;
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
     use cairo_lang_starknet::plugin::StarkNetPlugin;
     use std::collections::HashSet;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     #[test]
     fn test_reduced_project_no_remap() {
         let db = &mut RootDatabase::builder()
-            .with_plugin_suite(
-                PluginSuite::default()
-                    .add_plugin::<StarkNetPlugin>()
-                    .to_owned(),
-            )
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
-        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
-        let root = Directory::Real("src".into());
-        db.set_crate_config(crate_id, Some(CrateConfiguration::default_for_root(root)));
+        let crate_id = db.intern_crate(CrateLongId("test".into()));
+        let root = Directory("src".into());
+        db.set_crate_root(crate_id, Some(root));
 
         // Main module file
         set_file_content(db, "src/lib.cairo", "mod submod;\n mod contract;");
@@ -370,18 +364,13 @@ mod tests {
     #[test]
     fn test_reduced_project_with_remap() {
         let db = &mut RootDatabase::builder()
-            .with_plugin_suite(
-                PluginSuite::default()
-                    .add_plugin::<StarkNetPlugin>()
-                    .to_owned(),
-            )
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
-        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
-
-        let root = Directory::Real("src".into());
-        db.set_crate_config(crate_id, Some(CrateConfiguration::default_for_root(root)));
+        let crate_id = db.intern_crate(CrateLongId("test".into()));
+        let root = Directory("src".into());
+        db.set_crate_root(crate_id, Some(root));
 
         // Main module file
         set_file_content(
@@ -469,17 +458,13 @@ mod tests {
     #[test]
     fn test_reduced_project_import_from_attachment() {
         let db = &mut RootDatabase::builder()
-            .with_plugin_suite(
-                PluginSuite::default()
-                    .add_plugin::<StarkNetPlugin>()
-                    .to_owned(),
-            )
+            .with_semantic_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
-        let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
-        let root = Directory::Real("src".into());
-        db.set_crate_config(crate_id, Some(CrateConfiguration::default_for_root(root)));
+        let crate_id = db.intern_crate(CrateLongId("test".into()));
+        let root = Directory("src".into());
+        db.set_crate_root(crate_id, Some(root));
 
         // Main module file
         set_file_content(db, "src/lib.cairo", "mod submod;\n mod contract;");
