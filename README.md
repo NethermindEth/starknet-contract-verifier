@@ -10,7 +10,7 @@
 - [x] Cairo 2.0.2 (Scarb v0.5.2)
 - [x] Cairo 2.1.1 (Scarb v0.6.2)
 - [ ] Cairo 2.2.0 (Scarb v0.7.0)
-- [ ] Cairo & Scarb  2.3.0
+- [ ] Cairo & Scarb  2.3.1
 - [x] Cairo & Scarb 2.4.0
 - [x] Cairo & Scarb 2.4.1
 - [x] Cairo & Scarb 2.4.2

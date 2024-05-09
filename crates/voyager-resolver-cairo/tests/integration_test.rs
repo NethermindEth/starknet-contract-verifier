@@ -59,7 +59,9 @@ fn test_simple_project() -> Result<()> {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    let package_ids = ws.members().map(|p| p.id.clone()).collect();
+
+    let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
+    let package_ids = ws.members().map(|p| p.id).collect();
     let compile_opts = ops::CompileOpts {
         include_targets: vec![TargetKind::STARKNET_CONTRACT],
         exclude_targets: vec![],
@@ -97,7 +99,7 @@ fn test_project_with_remap() -> Result<()> {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    let package_ids = ws.members().map(|p| p.id.clone()).collect();
+    let package_ids = ws.members().map(|p| p.id).collect();
     let compile_opts = ops::CompileOpts {
         include_targets: vec![TargetKind::STARKNET_CONTRACT],
         exclude_targets: vec![],
@@ -135,7 +137,8 @@ fn test_project_w_import_from_attachment() -> Result<()> {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    let package_ids = ws.members().map(|p| p.id.clone()).collect();
+
+    let package_ids = ws.members().map(|p| p.id).collect();
     let compile_opts = ops::CompileOpts {
         include_targets: vec![TargetKind::STARKNET_CONTRACT],
         exclude_targets: vec![],
