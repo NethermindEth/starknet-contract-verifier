@@ -2,9 +2,9 @@ use std::env;
 
 use anyhow::Result;
 use scarb::compiler::CompilerRepository;
-use scarb::core::{Config, TargetKind};
+use scarb::core::Config;
 use scarb::ops;
-use scarb_ui::Verbosity;
+use scarb::ui::Verbosity;
 use std::path::PathBuf;
 
 use voyager_resolver_cairo::compiler::scarb_utils::get_contracts_to_verify;
@@ -59,13 +59,11 @@ fn test_simple_project() -> Result<()> {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    let package_ids = ws.members().map(|p| p.id.clone()).collect();
-    let compile_opts = ops::CompileOpts {
-        include_targets: vec![TargetKind::STARKNET_CONTRACT],
-        exclude_targets: vec![],
-    };
 
-    ops::compile(package_ids, compile_opts, &ws).unwrap();
+    let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
+    let package_ids = ws.members().map(|p| p.id).collect();
+
+    ops::compile(package_ids, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/local");
     println!(
@@ -97,13 +95,9 @@ fn test_project_with_remap() -> Result<()> {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    let package_ids = ws.members().map(|p| p.id.clone()).collect();
-    let compile_opts = ops::CompileOpts {
-        include_targets: vec![TargetKind::STARKNET_CONTRACT],
-        exclude_targets: vec![],
-    };
+    let package_ids = ws.members().map(|p| p.id).collect();
 
-    ops::compile(package_ids, compile_opts, &ws).unwrap();
+    ops::compile(package_ids, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/project_with_remap");
     println!(
@@ -135,13 +129,10 @@ fn test_project_w_import_from_attachment() -> Result<()> {
         eprintln!("error: {}", err);
         std::process::exit(1);
     });
-    let package_ids = ws.members().map(|p| p.id.clone()).collect();
-    let compile_opts = ops::CompileOpts {
-        include_targets: vec![TargetKind::STARKNET_CONTRACT],
-        exclude_targets: vec![],
-    };
 
-    ops::compile(package_ids, compile_opts, &ws).unwrap();
+    let package_ids = ws.members().map(|p| p.id).collect();
+
+    ops::compile(package_ids, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/local");
     println!(
