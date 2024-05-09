@@ -2,7 +2,8 @@ use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_defs::ids::{
-    FileIndex, GenericTypeId, ModuleFileId, ModuleId, TopLevelLanguageElementId, UseId, UseLongId,
+    FileIndex, GenericTypeId, ModuleFileId, ModuleId, SubmoduleId, TopLevelLanguageElementId,
+    UseId, UseLongId,
 };
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, Directory, FileId, FileLongId};
@@ -161,7 +162,7 @@ pub fn collect_crate_module_files(
     let mut visited_files = HashMap::new();
 
     let crate_root_dir = match db
-        .crate_config(crate_id)
+        .crate_root_dir(crate_id)
         .expect(
             format!(
                 "Failed to get crate root directory for crate ID {:?}",
@@ -169,7 +170,6 @@ pub fn collect_crate_module_files(
             )
             .as_str(),
         )
-        .root
     {
         Directory::Real(path) => path.display().to_string(),
         Directory::Virtual { .. } => {
@@ -200,18 +200,14 @@ pub fn collect_crate_module_files(
             visited_files.insert(file.clone(), true);
 
             let defs_group: &dyn DefsGroup = db.upcast();
-            let module_dir =
-                match defs_group
-                    .module_dir(*module_id)
-                    .to_option()
-                    .with_context(|| {
-                        format!("Could not get module directory for module {:?}", module_id)
-                    })? {
-                    Directory::Real(path) => path.display().to_string(),
-                    Directory::Virtual { .. } => {
-                        return Err(anyhow!("Virtual directories are not supported"));
-                    }
-                };
+            let module_dir = match defs_group.module_dir(*module_id).to_option().with_context(|| {
+                format!("Could not get module directory for module {:?}", module_id)
+            })? {
+                Directory::Real(path) => path.display().to_string(),
+                Directory::Virtual { .. } => {
+                    return Err(anyhow!("Virtual directories are not supported"));
+                }
+            };
             let module_imports = HashSet::from_iter(extract_file_imports(db, *module_id, &file)?);
             let cairo_module_data = CairoModule {
                 dir: module_dir.into(),
@@ -438,11 +434,12 @@ fn get_full_path(db: &RootDatabase, resolved_item: &ResolvedGenericItem) -> Stri
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::utils::test_utils::{set_file_content, setup_test_files_with_imports, TestImport};
     use cairo_lang_defs::db::DefsGroup;
-    use cairo_lang_defs::plugin::PluginSuite;
-    use cairo_lang_filesystem::db::{CrateConfiguration, FilesGroup, FilesGroupEx};
+    use cairo_lang_filesystem::db::{FilesGroup, FilesGroupEx};
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
     use cairo_lang_starknet::plugin::StarkNetPlugin;
 
@@ -452,11 +449,7 @@ mod tests {
         _import_type: CairoImportType,
     ) -> Result<(RootDatabase, ModuleId, FileData, CrateId)> {
         let db = &mut RootDatabase::builder()
-            .with_plugin_suite(
-                PluginSuite::default()
-                    .add_plugin::<StarkNetPlugin>()
-                    .to_owned(),
-            )
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()?;
 
         let test_import = TestImport {
@@ -507,16 +500,12 @@ mod tests {
     #[test]
     fn test_extract_declared_module() -> Result<(), Box<dyn std::error::Error>> {
         let db = &mut RootDatabase::builder()
-            .with_plugin_suite(
-                PluginSuite::default()
-                    .add_plugin::<StarkNetPlugin>()
-                    .to_owned(),
-            )
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()?;
 
         let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
         let root = Directory::Real("src".into());
-        db.set_crate_config(crate_id, Some(CrateConfiguration::default_for_root(root)));
+        db.set_crate_root(crate_id, Some(root));
         set_file_content(db, "src/lib.cairo", "mod submod;");
         set_file_content(db, "src/submod.cairo", "fn foo{}");
         let path: PathBuf = "src/lib.cairo".into();
@@ -537,16 +526,12 @@ mod tests {
     #[test]
     fn test_extract_declared_module_nested() -> Result<()> {
         let db = &mut RootDatabase::builder()
-            .with_plugin_suite(
-                PluginSuite::default()
-                    .add_plugin::<StarkNetPlugin>()
-                    .to_owned(),
-            )
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()?;
 
         let crate_id = db.intern_crate(CrateLongId::Real("test".into()));
         let root = Directory::Real("src".into());
-        db.set_crate_config(crate_id, Some(CrateConfiguration::default_for_root(root)));
+        db.set_crate_root(crate_id, Some(root));
         set_file_content(
             db,
             "src/lib.cairo",
@@ -658,12 +643,8 @@ mod tests {
 
     #[test]
     fn test_extract_crate_modules() {
-        let db = &mut RootDatabase::builder()
-            .with_plugin_suite(
-                PluginSuite::default()
-                    .add_plugin::<StarkNetPlugin>()
-                    .to_owned(),
-            )
+        let db: &mut RootDatabase = &mut RootDatabase::builder()
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
@@ -756,11 +737,7 @@ mod tests {
     #[test]
     fn test_get_module_file() {
         let db = &mut RootDatabase::builder()
-            .with_plugin_suite(
-                PluginSuite::default()
-                    .add_plugin::<StarkNetPlugin>()
-                    .to_owned(),
-            )
+            .with_macro_plugin(Arc::new(StarkNetPlugin::default()))
             .build()
             .unwrap();
 
