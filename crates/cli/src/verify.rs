@@ -164,7 +164,7 @@ pub fn verify_project(
 
     // The compiler compiles into the original scarb package name
     // As such we have to craft the correct path to the main package
-    let project_dir_path = extracted_files_dir.join(scarb_metadata_package_name);
+    let project_dir_path = extracted_files_dir.join(scarb_metadata_package_name.clone());
     let project_dir_path = project_dir_path
         .strip_prefix(extracted_files_dir.clone())
         .unwrap();
@@ -203,6 +203,13 @@ pub fn verify_project(
         })
         .collect::<Vec<FileInfo>>();
 
+    // We already know the contract file specified in Scarb.toml is relative to src/
+    let contract_file = format!(
+        "{}/src/{}",
+        scarb_metadata_package_name.clone(),
+        contract_paths[0].as_str()
+    );
+
     let dispatch_response = dispatch_class_verification_job(
         args.api_key.as_str(),
         network_enum.clone(),
@@ -213,6 +220,7 @@ pub fn verify_project(
         ProjectMetadataInfo {
             cairo_version,
             scarb_version,
+            contract_file,
             project_dir_path: project_dir_path.as_str().to_owned(),
         },
         project_files,
