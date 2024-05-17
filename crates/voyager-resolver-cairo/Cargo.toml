@@ -43,8 +43,8 @@ cairo-lang-sierra-generator = "=2.4.3"
 cairo-lang-starknet = "=2.4.3"
 cairo-lang-syntax = "=2.4.3"
 cairo-lang-utils = "=2.4.3"
-scarb = { git = "https://github.com/software-mansion/scarb", version = "2.4.3", rev = "5dbab1f" }
-scarb-ui = { git = "https://github.com/software-mansion/scarb", version = "0.1.2", rev = "5dbab1f" }
+scarb = { git = "https://github.com/software-mansion/scarb", version = "=2.4.3", rev = "5dbab1f" }
+scarb-ui = { git = "https://github.com/software-mansion/scarb", version = "=0.1.2", rev = "5dbab1f" }
 
 [dev-dependencies]
 env_logger.workspace = true

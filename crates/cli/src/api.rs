@@ -200,7 +200,7 @@ pub struct VerificationJob {
     created_timestamp: Option<f64>,
     updated_timestamp: Option<f64>,
     address: Option<String>,
-    contract_name: Option<String>,
+    contract_file: Option<String>,
     name: Option<String>,
     version: Option<String>,
     license: Option<String>,
@@ -246,6 +246,7 @@ pub struct ProjectMetadataInfo {
     pub cairo_version: SupportedCairoVersions,
     pub scarb_version: SupportedScarbVersions,
     pub project_dir_path: String,
+    pub contract_file: String,
 }
 
 pub fn dispatch_class_verification_job(
@@ -269,7 +270,7 @@ pub fn dispatch_class_verification_job(
         .text("license", license.to_string())
         .text("account_contract", is_account.to_string())
         .text("name", name.to_string())
-        .text("contract_name", address.to_string())
+        .text("contract_file", project_metadata.contract_file)
         .text("project_dir_path", project_metadata.project_dir_path);
 
     for file in files.iter() {
