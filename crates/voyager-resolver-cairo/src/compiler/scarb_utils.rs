@@ -146,7 +146,7 @@ pub fn generate_scarb_updated_files(
 pub fn generate_updated_scarb_toml(
     manifest_path: PathBuf,
     target_path: &Path,
-    required_packages: &Vec<String>,
+    required_packages: &[String],
 ) -> Result<()> {
     let manifest_path = fs::canonicalize(manifest_path)?;
     let original_raw_manifest = fs::read_to_string(&manifest_path)?;

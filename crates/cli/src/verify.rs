@@ -230,7 +230,7 @@ pub fn verify_project(
         Ok(response) => response,
         Err(e) => {
             return Err(anyhow::anyhow!(
-                "Error while dispatching verification job: {}",
+                "Failed to dispatch verification job: {}",
                 e
             ));
         }
