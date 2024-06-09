@@ -1,9 +1,4 @@
-use std::{
-    env::current_dir,
-    fs,
-    str::FromStr,
-    time::Instant,
-};
+use std::{env::current_dir, fs, str::FromStr, time::Instant};
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
