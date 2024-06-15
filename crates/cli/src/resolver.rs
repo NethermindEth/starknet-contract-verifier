@@ -1,8 +1,6 @@
 use camino::Utf8PathBuf;
-use console::{style, Emoji};
-use indicatif::ProgressStyle;
 use serde::{Deserialize, Serialize};
-use std::{fs, time::Instant};
+use std::fs;
 use walkdir::{DirEntry, WalkDir};
 
 use crate::api::{FileInfo, ProjectMetadataInfo};
@@ -32,17 +30,6 @@ pub fn resolve_scarb(
     cairo_version: SupportedCairoVersions,
     scarb_version: SupportedScarbVersions,
 ) -> anyhow::Result<(Vec<FileInfo>, ProjectMetadataInfo)> {
-    // Start a spinner for the resolving process
-    let started = Instant::now();
-    let spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}")
-        .unwrap()
-        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈");
-
-    println!(
-        "{} {} Resolving contract: Extracting files from the Scarb project...",
-        style("[1/3]").bold().dim(),
-        Emoji("📃  ", "")
-    );
     // Extract necessary files from the Scarb project for the verified contract
     let source_dir = if path.is_absolute() {
         path
@@ -65,12 +52,6 @@ pub fn resolve_scarb(
             "Only one contract can be verified at a time"
         ));
     }
-
-    println!(
-        "{} {}Resolving contract: minimizing dependencies...",
-        style("[2/3]").bold().dim(),
-        Emoji("🔗  ", "")
-    );
 
     // Read the scarb metadata to get more information
     // TODO: switch this to using scarb-metadata

@@ -1,10 +1,8 @@
-use std::{env::current_dir, fs, str::FromStr, time::Instant};
+use std::{env::current_dir, str::FromStr};
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::{arg, Args};
-use console::Emoji;
-use indicatif::{HumanDuration, ProgressStyle};
 
 use dyn_compiler::dyn_compiler::SupportedCairoVersions;
 
@@ -58,18 +56,6 @@ pub fn verify_project(
     metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
 ) -> Result<()> {
-    // Start a spinner for the verification process
-    let started = Instant::now();
-    let spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}")
-        .unwrap()
-        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈");
-
-    // println!(
-    //     "{} {}Checking if the class is already declared...",
-    //     style("[2/4]").bold().dim(),
-    //     Emoji("🔍  ", "")
-    // );
-
     // Check if the class exists on the network
     let network_enum = Network::from_str(args.network.as_str())?;
     match does_class_exist(network_enum.clone(), &args.hash) {
@@ -113,14 +99,7 @@ pub fn verify_project(
     );
 
     match poll_result {
-        Ok(_response) => {
-            println!(
-                "{} Successfully verified in {}",
-                Emoji("✅ ", ""),
-                HumanDuration(started.elapsed())
-            );
-            Ok(())
-        }
+        Ok(_response) => Ok(()),
         Err(e) => Err(anyhow::anyhow!(
             "Error while polling verification status: {}",
             e
@@ -128,7 +107,7 @@ pub fn verify_project(
     }
 }
 
-pub fn verify_file(args: VerifyFileArgs, cairo_version: SupportedCairoVersions) -> Result<()> {
+pub fn _verify_file(args: VerifyFileArgs, cairo_version: SupportedCairoVersions) -> Result<()> {
     let file_dir: Utf8PathBuf = match args.path.is_absolute() {
         true => args.path.clone(),
         false => {

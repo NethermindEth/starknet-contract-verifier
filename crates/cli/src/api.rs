@@ -128,6 +128,7 @@ pub struct VerificationJobDispatch {
     job_id: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, serde::Deserialize)]
 pub struct VerificationJob {
     job_id: String,
@@ -173,7 +174,7 @@ pub struct ProjectMetadataInfo {
 }
 
 pub fn dispatch_class_verification_job(
-    api_key: &str,
+    _api_key: &str,
     network: Network,
     address: &str,
     license: &str,
@@ -240,7 +241,7 @@ pub fn dispatch_class_verification_job(
 }
 
 pub fn poll_verification_status(
-    api_key: &str,
+    _api_key: &str,
     network: Network,
     job_id: &str,
     max_retries: u32,
