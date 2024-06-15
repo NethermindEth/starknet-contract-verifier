@@ -64,7 +64,7 @@ fn main() -> anyhow::Result<()> {
             // TODO: do a first pass to find all the contracts in the project
             // For now we keep using the hardcoded value in the scarb.toml file
 
-            resolver::resolve_scarb(utf8_path, local_cairo_version, local_scarb_version)?
+            resolver::resolve_scarb(utf8_path.clone(), local_cairo_version, local_scarb_version)?
         }
     };
 
@@ -121,12 +121,13 @@ fn main() -> anyhow::Result<()> {
         is_account_contract: Some(is_account_contract),
         max_retries: Some(10),
         api_key: "".to_string(),
-        project_files,
-        project_metadata,
+        path: utf8_path
     };
 
     match target_type {
-        TargetType::ScarbProject => verify::verify_project(verify_args),
+        TargetType::ScarbProject => {
+            verify::verify_project(verify_args, project_metadata, project_files)
+        }
         TargetType::File => panic!("Single contract file verification is not yet implemented"),
     }
 }
