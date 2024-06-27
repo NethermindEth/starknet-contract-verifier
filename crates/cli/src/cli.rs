@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    let re = Regex::new(r"^0x[a-fA-F0-9]{64}$").unwrap();
+    let re = Regex::new(r"^0x[a-fA-F0-9]").unwrap();
 
     let class_hash: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Input class hash to verify : ")
