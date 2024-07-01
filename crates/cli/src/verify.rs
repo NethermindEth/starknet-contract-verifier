@@ -4,6 +4,7 @@ use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::{arg, builder::PossibleValue, Args, ValueEnum};
 use serde::{Deserialize, Serialize};
+use voyager_resolver_cairo::compiler::scarb_utils::read_additional_scarb_manifest_metadata;
 use walkdir::{DirEntry, WalkDir};
 
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
@@ -97,17 +98,6 @@ pub struct VerifyFileArgs {
     path: Utf8PathBuf,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-struct ScarbTomlRawPackageData {
-    name: String,
-    version: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct ScarbTomlRawData {
-    package: ScarbTomlRawPackageData,
-}
-
 pub fn verify_project(
     args: VerifyProjectArgs,
     cairo_version: SupportedCairoVersions,
@@ -150,10 +140,10 @@ pub fn verify_project(
     }
 
     // Read the scarb metadata to get more information
+    // TODO: switch this to using scarb-metadata
     let scarb_toml_content = fs::read_to_string(source_dir.join("Scarb.toml"))?;
-    let scarb_metadata_package_name = toml::from_str::<ScarbTomlRawData>(&scarb_toml_content)?
-        .package
-        .name;
+    let extracted_scarb_toml_data =
+        read_additional_scarb_manifest_metadata(scarb_toml_content.as_str())?;
 
     // Compiler and extract the necessary files
     compiler.compile_project(&source_dir)?;
@@ -164,7 +154,7 @@ pub fn verify_project(
 
     // The compiler compiles into the original scarb package name
     // As such we have to craft the correct path to the main package
-    let project_dir_path = extracted_files_dir.join(scarb_metadata_package_name.clone());
+    let project_dir_path = extracted_files_dir.join(extracted_scarb_toml_data.name.clone());
     let project_dir_path = project_dir_path
         .strip_prefix(extracted_files_dir.clone())
         .unwrap();
@@ -175,13 +165,22 @@ pub fn verify_project(
         .filter_map(|f| f.ok())
         .filter(|f| f.file_type().is_file())
         .filter(|f| {
-            f.path().extension().unwrap() == "cairo"
-                || f.path()
-                    .file_name()
-                    .map(|f| f.to_string_lossy().into_owned())
-                    .unwrap_or("".into())
-                    .to_lowercase()
-                    == "scarb.toml"
+            let file_path = f.path();
+
+            let is_cairo_file = match file_path.extension() {
+                Some(ext) => ext == "cairo",
+                None => false,
+            };
+            let file_entry_name = file_path
+                .file_name()
+                .map(|f| f.to_string_lossy().into_owned())
+                .unwrap_or("".into());
+
+            let is_supplementary_file = file_entry_name.to_lowercase() == "scarb.toml"
+                || file_entry_name == extracted_scarb_toml_data.license_file
+                || file_entry_name == extracted_scarb_toml_data.readme;
+
+            is_cairo_file || is_supplementary_file
         })
         .collect::<Vec<DirEntry>>();
 
@@ -206,7 +205,7 @@ pub fn verify_project(
     // We already know the contract file specified in Scarb.toml is relative to src/
     let contract_file = format!(
         "{}/src/{}",
-        scarb_metadata_package_name.clone(),
+        extracted_scarb_toml_data.name.clone(),
         contract_paths[0].as_str()
     );
 
@@ -230,7 +229,7 @@ pub fn verify_project(
         Ok(response) => response,
         Err(e) => {
             return Err(anyhow::anyhow!(
-                "Error while dispatching verification job: {}",
+                "Failed to dispatch verification job: {}",
                 e
             ));
         }
