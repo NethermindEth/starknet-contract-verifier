@@ -101,18 +101,27 @@ cd starknet-contract-verifier
 git checkout release/2.5.4
 ```
 
-<!-- To get started on the verification of your cairo project, simply do the command -->
-
-<!-- ```bash
-starknet-contract-verifier
-``` -->
-<!-- 
-If you are instead building from source and running it on your machine, you might want to do this instead: -->
-
 To start the verifier, you can do the following command, and a prompt should guide you through the verification process.
 
 ```bash
 cargo run --bin starknet-contract-verifier
+```
+
+If you are using `asdf` for the management of scarb binary on a project basis, you should make sure that the verifier runs in the directory of the project so that the verifier will detect and use the correct `scarb` binary for that project.
+
+You can build the binaries and add it to path to make it easier to use the verifier.
+
+```bash
+# build all binaries
+cargo build --all --release
+
+# then add build target directory to path 
+# depending on your shell this might be different.
+# Add the following to the end of your shell configuration file
+export PATH="$PATH:/path/to/starknet-contract-verifier/target/release"
+
+# you should now be able to call the verifier directly if build succeeds.
+starknet-contract-verifier
 ```
 
 You should be greeted with prompts that asks for the details of your cairo project & contracts, and will be guided step by step through the verification process.
