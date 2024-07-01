@@ -1,5 +1,6 @@
 use anyhow::{anyhow, ensure, Context, Result};
 use scarb::flock::Filesystem;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -11,6 +12,44 @@ use cairo_lang_semantic::db::SemanticGroup;
 use scarb::core::Package;
 
 use crate::model::CairoModule;
+
+#[derive(Debug, Deserialize)]
+struct ScarbTomlRawPackageData {
+    name: String,
+    license_file: Option<String>,
+    readme: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ScarbTomlRawData {
+    package: ScarbTomlRawPackageData,
+}
+
+#[derive(Debug)]
+pub struct AdditionalScarbManifestMetadata {
+    pub name: String,
+    pub license_file: String,
+    pub readme: String,
+}
+
+// Get the MetadataManifest from the Scarb.toml
+// TODO: replace this with the scarb-metadata as an alternative.
+pub fn read_additional_scarb_manifest_metadata(
+    scarb_toml_content: &str,
+) -> Result<AdditionalScarbManifestMetadata> {
+    let scarb_metadata = toml::from_str::<ScarbTomlRawData>(scarb_toml_content)?;
+
+    let scarb_metadata_package_name = scarb_metadata.package.name;
+    let scarb_metadata_package_license_file =
+        scarb_metadata.package.license_file.unwrap_or("".into());
+    let scarb_metadata_package_readme = scarb_metadata.package.readme.unwrap_or("".into());
+
+    Ok(AdditionalScarbManifestMetadata {
+        name: scarb_metadata_package_name,
+        license_file: scarb_metadata_package_license_file,
+        readme: scarb_metadata_package_readme,
+    })
+}
 
 /// Reads Scarb project metadata from manifest file.
 pub fn read_scarb_metadata(manifest_path: &PathBuf) -> anyhow::Result<scarb_metadata::Metadata> {
@@ -146,7 +185,7 @@ pub fn generate_scarb_updated_files(
 pub fn generate_updated_scarb_toml(
     manifest_path: PathBuf,
     target_path: &Path,
-    required_packages: &Vec<String>,
+    required_packages: &[String],
 ) -> Result<()> {
     let manifest_path = fs::canonicalize(manifest_path)?;
     let original_raw_manifest = fs::read_to_string(&manifest_path)?;
@@ -229,4 +268,57 @@ pub fn get_contracts_to_verify(package: &Package) -> Result<Vec<PathBuf>> {
         .collect::<Vec<_>>();
 
     Ok(table_values)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_correctly_extract_the_scarb_toml_metadata() {
+        let scarb_toml_content = r#"
+        [package]
+        name = "test_data"
+        version = "0.1.0"
+        license_file = "LICENSE"
+        readme = "README.md"
+        "#;
+
+        let data = read_additional_scarb_manifest_metadata(scarb_toml_content).unwrap();
+
+        assert_eq!(data.name, "test_data");
+        assert_eq!(data.license_file, "LICENSE");
+        assert_eq!(data.readme, "README.md");
+    }
+
+    #[test]
+    fn should_correctly_extract_empty_scarb_toml_metadata() {
+        let scarb_toml_content = r#"
+        [package]
+        name = "test_data_2"
+        version = "0.1.0"
+        "#;
+
+        let data = read_additional_scarb_manifest_metadata(scarb_toml_content).unwrap();
+
+        assert_eq!(data.name, "test_data_2");
+        assert_eq!(data.license_file, "");
+        assert_eq!(data.readme, "");
+    }
+
+    #[test]
+    fn should_correctly_extract_existing_scarb_toml_metadata() {
+        let scarb_toml_content = r#"
+        [package]
+        name = "test_data_2"
+        version = "0.1.0"
+        readme = "README.md"
+        "#;
+
+        let data = read_additional_scarb_manifest_metadata(scarb_toml_content).unwrap();
+
+        assert_eq!(data.name, "test_data_2");
+        assert_eq!(data.license_file, "");
+        assert_eq!(data.readme, "README.md");
+    }
 }
