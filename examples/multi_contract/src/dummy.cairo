@@ -1,4 +1,4 @@
-#[starknet::contract]
+#[contract]
 mod Dummy {
     // Core Library Imports
     use starknet::ContractAddress;

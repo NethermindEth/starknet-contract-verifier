@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::ids::ModuleId;
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, CrateLongId, FileLongId};
@@ -27,6 +26,7 @@ use crate::compiler::scarb_utils::{
 use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
 // use crate::graph::display_graphviz;
 use scarb::compiler::{CompilationUnit, Compiler};
+use cairo_lang_compiler::db::RootDatabase;
 use scarb::core::Workspace;
 use scarb::flock::Filesystem;
 
@@ -77,7 +77,7 @@ impl Compiler for VoyagerGenerator {
     fn compile(
         &self,
         unit: CompilationUnit,
-        db: &mut RootDatabase,
+        db: &mut cairo_lang_compiler::db::RootDatabase,
         ws: &Workspace<'_>,
     ) -> Result<()> {
         // TODO: Do we still need this check?!
