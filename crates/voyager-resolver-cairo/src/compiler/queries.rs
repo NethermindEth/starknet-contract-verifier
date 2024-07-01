@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_defs::ids::{
-    FileIndex, GenericTypeId, ModuleFileId, ModuleId, TopLevelLanguageElementId, UseId, UseLongId,
+    FileIndex, GenericTypeId, ModuleFileId, ModuleId, NamedLanguageElementId, TopLevelLanguageElementId, UseId, UseLongId
 };
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, Directory, FileId, FileLongId};
@@ -82,13 +82,13 @@ fn extract_child_module_imports(
             .elements(db.upcast())
             .iter()
             .for_each(|el| match el {
-                ast::Item::Use(item_use) => capture_imports(
+                ast::ModuleItem::Use(item_use) => capture_imports(
                     db,
                     module_file_id,
                     module_uses,
                     item_use.use_path(db.upcast()),
                 ),
-                ast::Item::Module(item_module) => {
+                ast::ModuleItem::Module(item_module) => {
                     extract_child_module_imports(db, item_module, module_file_id, module_uses);
                 }
                 _ => {}
@@ -325,10 +325,10 @@ pub fn extract_file_imports(
     for item_ast in file_ast.elements(db) {
         // Top level items
         match item_ast {
-            ast::Item::Use(item_use) => {
+            ast::ModuleItem::Use(item_use) => {
                 capture_imports(db, module_file_id, &mut module_uses, item_use.use_path(db))
             }
-            ast::Item::Module(item_module) => {
+            ast::ModuleItem::Module(item_module) => {
                 extract_child_module_imports(db, &item_module, module_file_id, &mut module_uses);
             }
             _ => {}
@@ -441,9 +441,9 @@ mod tests {
     use super::*;
     use crate::utils::test_utils::{set_file_content, setup_test_files_with_imports, TestImport};
     use cairo_lang_defs::db::DefsGroup;
-    use cairo_lang_defs::plugin::PluginSuite;
     use cairo_lang_filesystem::db::{CrateConfiguration, FilesGroup, FilesGroupEx};
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
+    use cairo_lang_semantic::plugin::PluginSuite;
     use cairo_lang_starknet::plugin::StarkNetPlugin;
 
     fn setup_default_environment(
