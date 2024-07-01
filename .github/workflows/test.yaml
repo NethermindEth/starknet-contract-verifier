@@ -38,6 +38,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Install Scarb
-        run: curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh -s -- -v 2.0.0 || true
+        run: curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh -s -- -v 1.1.1 || true
       
       - run: cargo test --all-features
