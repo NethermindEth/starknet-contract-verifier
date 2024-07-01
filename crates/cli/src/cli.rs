@@ -2,14 +2,15 @@ mod api;
 mod resolver;
 mod utils;
 mod verify;
+mod validation;
 
 use crate::api::LicenseType;
 use crate::utils::detect_local_tools;
 use crate::verify::VerifyProjectArgs;
+use crate::validation::is_class_hash_valid;
 use camino::Utf8PathBuf;
 use clap::{Parser, Subcommand};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
-use regex::Regex;
 use std::env;
 use strum::IntoEnumIterator;
 
@@ -70,12 +71,10 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    let re = Regex::new(r"^0x[a-fA-F0-9]").unwrap();
-
     let class_hash: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Input class hash to verify : ")
         .validate_with(|input: &String| -> Result<(), &str> {
-            if re.is_match(input) {
+            if is_class_hash_valid(input) {
                 Ok(())
             } else {
                 Err("This is not a valid class hash")
