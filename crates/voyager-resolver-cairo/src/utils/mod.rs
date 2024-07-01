@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::compiler::scarb_utils::read_additional_scarb_manifest_metadata;
 use crate::model::{CairoAttachmentModule, CairoImport, CairoModule, ModulePath};
 
 use scarb::core::Workspace;
@@ -135,6 +136,7 @@ pub fn create_attachment_files(
 /// # Errors
 ///
 /// Returns an error if the function encounters an error while copying files or creating directories.
+/// TODO: add comprehensive test for this.
 pub fn copy_required_files(
     required_modules: &Vec<&CairoModule>,
     target_dir: &Filesystem,
@@ -164,12 +166,17 @@ pub fn copy_required_files(
             }
         }
 
-        // Construct the destination path for the .cairo file
+        // Construct the destination path for the .cairo & readme & license file
         let root_dir = module.get_root_dir()?;
-        let filepath_relative = filepath.strip_prefix(root_dir)?;
+        let filepath_relative = filepath.strip_prefix(root_dir.clone())?;
         let dest_path = Path::new(target_path)
-            .join(crate_name)
+            .join(crate_name.clone())
             .join(filepath_relative);
+
+        let manifest_path = root_dir.clone().join("Scarb.toml");
+        let scarb_toml_content = fs::read_to_string(&manifest_path)?;
+        let additional_metadata =
+            read_additional_scarb_manifest_metadata(scarb_toml_content.as_str())?;
 
         // Create the parent directories for the destination file if they don't exist
         if let Some(parent) = dest_path.parent() {
@@ -179,6 +186,26 @@ pub fn copy_required_files(
         // Copy the .cairo file to the destination path
         let source_path = Path::new(&module.filepath);
         copy(source_path, &dest_path)?;
+
+        // Attempt to copy the readme and license files to the target directory
+        let root_dir_clone = root_dir.clone();
+        let base_source_root_path = Path::new(&root_dir_clone);
+        let base_dest_root_path = Path::new(target_path).join(crate_name);
+
+        let readme_source_path = base_source_root_path.join(&additional_metadata.readme);
+        let readme_dest_path = base_dest_root_path.join(&additional_metadata.readme);
+        let license_file_source_path =
+            base_source_root_path.join(&additional_metadata.license_file);
+        let license_file_dest_path = base_dest_root_path.join(&additional_metadata.license_file);
+
+        // Only copy if there is a readme or license file
+        if !additional_metadata.readme.is_empty() && readme_source_path.exists() {
+            copy(readme_source_path, readme_dest_path)?;
+        }
+
+        if !additional_metadata.license_file.is_empty() && license_file_source_path.exists() {
+            copy(license_file_source_path, license_file_dest_path)?;
+        }
     }
 
     Ok(())

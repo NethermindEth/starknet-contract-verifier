@@ -30,8 +30,8 @@ pub enum LicenseType {
 }
 
 impl LicenseType {
-    pub fn to_long_string(&self) -> String {
-        let string_repr = match *self {
+    pub fn to_long_string(self) -> String {
+        let string_repr = match self {
             Self::NoLicense => "No License (None)",
             Self::Unlicense => "The Unlicense (Unlicense)",
             Self::MIT => "MIT License (MIT)",
@@ -212,21 +212,6 @@ pub struct FileInfo {
     pub path: PathBuf,
 }
 
-// Currently not dealing with contract based verification and tagging, and focusing on just class verification.
-// TODO: explore this too, might be useful in differentiating contract using the same code.
-pub fn does_contract_exist(network: Network, address: &str) -> Result<bool> {
-    let (url, _) = get_network_api(network);
-    let result = get(url + "/api/contract/" + address)?;
-    match result.status() {
-        StatusCode::OK => Ok(true),
-        StatusCode::NOT_FOUND => Ok(false),
-        _ => Err(anyhow::anyhow!(
-            "Unexpected status code: {}",
-            result.status()
-        )),
-    }
-}
-
 pub fn does_class_exist(network: Network, class_hash: &str) -> Result<bool> {
     let (url, _) = get_network_api(network);
     let path_with_params = ApiEndpoints::GetClass.to_api_path(class_hash.to_owned());
@@ -235,8 +220,9 @@ pub fn does_class_exist(network: Network, class_hash: &str) -> Result<bool> {
         StatusCode::OK => Ok(true),
         StatusCode::NOT_FOUND => Ok(false),
         _ => Err(anyhow::anyhow!(
-            "Unexpected status code: {}",
-            result.status()
+            "Unexpected status code {} when trying to get class hash with error {}",
+            result.status(),
+            result.text()?
         )),
     }
 }
@@ -294,13 +280,19 @@ pub fn dispatch_class_verification_job(
         StatusCode::NOT_FOUND => {
             return Err(anyhow!("Job not found"));
         }
-        status_code => {
+        StatusCode::BAD_REQUEST => {
             let err_response = response.json::<ApiError>()?;
 
             return Err(anyhow!(
-                "Failed to dispatch verification job with status {}: {}",
-                status_code,
+                "Failed to dispatch verification job with status 400: {}",
                 err_response.error
+            ));
+        }
+        unknown_status_code => {
+            return Err(anyhow!(
+                "Failed to dispatch verification job with status {}: {}",
+                unknown_status_code,
+                response.text()?
             ));
         }
     }
@@ -338,13 +330,17 @@ pub fn poll_verification_status(
             StatusCode::NOT_FOUND => {
                 return Err(anyhow!("Job not found"));
             }
-            _ => {
-                return Err(anyhow!("Unexpected status code: {}", result.status()));
+            unknown_status_code => {
+                return Err(anyhow!(
+                    "Unexpected status code: {}, with error message: {}",
+                    unknown_status_code,
+                    result.text()?
+                ));
             }
         }
 
         // Go through the possible status
-        let data = result.json::<VerificationJob>().unwrap();
+        let data = result.json::<VerificationJob>()?;
         match VerifyJobStatus::from_u8(data.status) {
             VerifyJobStatus::Success => return Ok(data),
             VerifyJobStatus::Fail => {
