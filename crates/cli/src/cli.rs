@@ -1,13 +1,13 @@
 mod api;
 mod resolver;
 mod utils;
-mod verify;
 mod validation;
+mod verify;
 
 use crate::api::LicenseType;
 use crate::utils::detect_local_tools;
-use crate::verify::VerifyProjectArgs;
 use crate::validation::is_class_hash_valid;
+use crate::verify::VerifyProjectArgs;
 use camino::Utf8PathBuf;
 use clap::{Parser, Subcommand};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};

@@ -7,7 +7,7 @@ pub fn is_class_hash_valid(hash: &str) -> bool {
     let re = Regex::new(CLASS_HASH_PATTERN).unwrap();
 
     if hash.len() <= NORMALIZED_HASH_LENGTH && re.is_match(hash) {
-        return true
+        return true;
     }
 
     false
@@ -23,10 +23,11 @@ mod tests {
         assert!(is_class_hash_valid(valid_hash));
     }
 
+    #[test]
     fn test_valid_class_hash_without_leading_zeros() {
         let valid_hash = "0x44dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18";
         assert!(is_class_hash_valid(valid_hash));
-    }    
+    }
 
     #[test]
     fn test_invalid_class_hash_pattern() {
