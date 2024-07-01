@@ -19,10 +19,10 @@ pub struct VoyagerGeneratorWrapper;
 
 impl DynamicCompiler for VoyagerGeneratorWrapper {
     fn get_supported_scarb_versions(&self) -> Vec<SupportedScarbVersions> {
-        vec![SupportedScarbVersions::V2_4_3]
+        vec![SupportedScarbVersions::V2_6_0]
     }
     fn get_supported_cairo_versions(&self) -> Vec<SupportedCairoVersions> {
-        vec![SupportedCairoVersions::V2_4_3]
+        vec![SupportedCairoVersions::V2_6_0]
     }
 
     fn get_contracts_to_verify_path(&self, project_path: &Utf8PathBuf) -> Result<Vec<Utf8PathBuf>> {

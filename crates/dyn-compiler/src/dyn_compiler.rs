@@ -11,7 +11,7 @@ pub enum SupportedCairoVersions {
     // V2_1_0,
     // V2_1_1,
     // V2_2_0,
-    V2_4_3,
+    V2_6_0,
 }
 
 impl ToString for SupportedCairoVersions {
@@ -25,7 +25,7 @@ impl ToString for SupportedCairoVersions {
             // SupportedCairoVersions::V2_1_0 => "2.1.0".into(),
             // SupportedCairoVersions::V2_1_1 => "2.1.1".into(),
             // SupportedCairoVersions::V2_2_0 => "2.2.0".into(),
-            SupportedCairoVersions::V2_4_3 => "2.4.3".into(),
+            SupportedCairoVersions::V2_6_0 => "2.6.0".into(),
         }
     }
 }
@@ -40,7 +40,7 @@ pub enum SupportedScarbVersions {
     // V0_6_1,
     // V0_6_2,
     // V0_7_0,
-    V2_4_3,
+    V2_6_0,
 }
 
 impl ToString for SupportedScarbVersions {
@@ -54,7 +54,7 @@ impl ToString for SupportedScarbVersions {
             // SupportedScarbVersions::V0_6_1 => "0.6.1".into(),
             // SupportedScarbVersions::V0_6_2 => "0.6.2".into(),
             // SupportedScarbVersions::V0_7_0 => "0.7.0".into(),
-            SupportedScarbVersions::V2_4_3 => "2.4.3".into(),
+            SupportedScarbVersions::V2_6_0 => "2.6.0".into(),
         }
     }
 }

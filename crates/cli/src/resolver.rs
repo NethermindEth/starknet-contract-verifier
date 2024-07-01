@@ -20,6 +20,6 @@ pub fn get_dynamic_compiler(cairo_version: SupportedCairoVersions) -> Box<dyn Dy
         // SupportedCairoVersions::V2_1_0 => Box::new(VoyagerGeneratorV2_1_0),
         // SupportedCairoVersions::V2_1_1 => Box::new(VoyagerGeneratorV2_1_1),
         // SupportedCairoVersions::V2_2_0 => Box::new(VoyagerGeneratorV2_2_0),
-        SupportedCairoVersions::V2_4_3 => Box::new(VoyagerGenerator),
+        SupportedCairoVersions::V2_6_0 => Box::new(VoyagerGenerator),
     }
 }
