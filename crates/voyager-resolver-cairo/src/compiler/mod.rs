@@ -169,6 +169,7 @@ impl Compiler for VoyagerGenerator {
             .filter(|m| required_modules_paths.contains(&m.path))
             .collect::<Vec<_>>();
         // Copy these modules in the target directory.
+        // Copy readme files and license files over too
         copy_required_files(&required_modules, &target_dir, ws)?;
 
         // Generate each of the scarb manifest files for the output directory.
