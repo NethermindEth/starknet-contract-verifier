@@ -1,6 +1,8 @@
 target/
 .idea/
 **/*.tool-versions
+**/*key
+**/*test
 
 .DS_Store
 bin/

@@ -1,6 +1,6 @@
 use anyhow::{anyhow, ensure, Context, Result};
 use scarb::flock::Filesystem;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;

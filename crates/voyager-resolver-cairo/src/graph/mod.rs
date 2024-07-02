@@ -65,7 +65,7 @@ pub fn create_graph(modules: &Vec<CairoModule>) -> Graph<ModulePath, EdgeWeight>
     graph
 }
 
-pub fn display_graphviz(graph: &Graph<ModulePath, EdgeWeight>) {
+pub fn _display_graphviz(graph: &Graph<ModulePath, EdgeWeight>) {
     println!("{:#?}", Dot::with_config(&graph, &[Config::EdgeNoLabel]));
 }
 
@@ -80,6 +80,7 @@ pub fn display_graphviz(graph: &Graph<ModulePath, EdgeWeight>) {
 /// # Returns
 ///
 /// A vector of unique `String` node labels representing the required files for compilation.
+#[allow(dead_code)]
 pub fn get_required_project_modules(
     graph: &Graph<ModulePath, EdgeWeight>,
 ) -> Result<Vec<ModulePath>> {
