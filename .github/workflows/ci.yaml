@@ -1,4 +1,4 @@
-name: test suite
+name: ci
 on:
   push:
     branches:
@@ -6,7 +6,6 @@ on:
   pull_request:
 
 jobs:
-
   fmt:
     runs-on: ubuntu-latest
     steps:
@@ -27,17 +26,29 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --all-targets --all-features
 
-  test:
+  build:
     runs-on: ubuntu-latest
+    needs: [fmt, clippy]
     steps:
       - uses: actions/checkout@v4
       
       - uses: dtolnay/rust-toolchain@1.76
-        with:
-            components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install Scarb
-        run: curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh -s -- -v 2.0.1 || true
+      - run: cargo build --all --release
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dtolnay/rust-toolchain@1.76
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Setup Scarb
+        uses: software-mansion/setup-scarb@v1
+        with:
+          scarb-version: "2.0.1"
       
       - run: cargo test --all-features
