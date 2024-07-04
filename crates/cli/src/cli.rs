@@ -14,6 +14,7 @@ use indicatif::{HumanDuration, ProgressStyle};
 use regex::Regex;
 use std::{env, time::Instant};
 use strum::IntoEnumIterator;
+use validation::is_class_hash_valid;
 use verify::VerifyProjectArgs;
 
 #[allow(dead_code)]
@@ -23,26 +24,24 @@ enum TargetType {
 }
 
 fn main() -> anyhow::Result<()> {
+    // TODO: make this cli use a secure api
+    // let api_key = match env::var("API_KEY") {
+    //     Ok(api_key) => Some(api_key),
+    //     Err(_) => None,
+    // };
+
+    // let api_key = match api_key {
+    //     Some(key_values) => key_values,
+    //     None => {
+    //         println!("API_KEY not detected in environment variables. You can get one at https://forms.gle/34RE6d4aiiv16HoW6");
+    //         return Ok(());
+    //     }
+    // };
     println!(
         "{} {} Getting project information...",
         style("[1/3]").bold().dim(),
         Emoji("📝", "")
     );
-
-    // Network selection
-    let is_debug_network = env::var("DEBUG_NETWORK").is_ok();
-    let network_items = if is_debug_network {
-        vec!["Mainnet", "Sepolia", "Integration", "Local"]
-    } else {
-        vec!["Mainnet", "Sepolia"]
-    };
-    let network_index = Select::with_theme(&ColorfulTheme::default())
-        .items(&network_items)
-        .with_prompt("Which network would you like to verify on : ")
-        .default(0)
-        .interact_opt()
-        .expect("Aborted at network selection, terminating...")
-        .expect("Aborted at network selection, terminating...");
 
     // Project type + Path entry
     let target_type = TargetType::ScarbProject; // by default we assume the user is in a scarb project
@@ -94,6 +93,11 @@ fn main() -> anyhow::Result<()> {
     //     style("[x/x]").bold().dim(),
     //     Emoji("🔍  ", "")
     // );
+    println!(
+        "{} {} Getting verification information...",
+        style("[3/4]").bold().dim(),
+        Emoji("🔍  ", "")
+    );
     let re = Regex::new(r"^0x[a-fA-F0-9]{64}$").unwrap();
     let class_hash: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Input class hash to verify : ")
@@ -142,10 +146,25 @@ fn main() -> anyhow::Result<()> {
         .expect("Aborted at license version selection, terminating...")
         .expect("Aborted at license version selection, terminating...");
 
+    // Network selection
+    let is_debug_network = env::var("DEBUG_NETWORK").is_ok();
+    let network_items = if is_debug_network {
+        vec!["Mainnet", "Sepolia", "Integration", "Local"]
+    } else {
+        vec!["Mainnet", "Sepolia"]
+    };
+    let network_index = Select::with_theme(&ColorfulTheme::default())
+        .items(&network_items)
+        .with_prompt("Which network would you like to verify on : ")
+        .default(0)
+        .interact_opt()
+        .expect("Aborted at network selection, terminating...")
+        .expect("Aborted at network selection, terminating...");
+
     let verification_start = Instant::now();
     println!(
         "{} {} Verifying project...",
-        style("[3/3]").bold().dim(),
+        style("[4/4]").bold().dim(),
         Emoji("🔍", "")
     );
 
