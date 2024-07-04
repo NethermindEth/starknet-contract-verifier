@@ -5,6 +5,7 @@ mod verify;
 
 use crate::api::LicenseType;
 use crate::utils::detect_local_tools;
+use crate::validation::{is_class_hash_valid, expand_tilde};
 use crate::verify::VerifyProjectArgs;
 use camino::Utf8PathBuf;
 use clap::{Parser, Subcommand};
@@ -92,7 +93,7 @@ fn main() -> anyhow::Result<()> {
     // Remove whitespace here since a whitespace causes the path to be incorrect.
     let path = path.trim().to_string();
 
-    let utf8_path: Utf8PathBuf = Utf8PathBuf::from(path);
+    let utf8_path: Utf8PathBuf = expand_tilde(&path);
 
     // Set license for your contract code
     let licenses: Vec<LicenseType> = LicenseType::iter().collect();
