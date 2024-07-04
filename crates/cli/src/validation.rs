@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
-use regex::Regex;
 use dirs::home_dir;
+use regex::Regex;
 
 const NORMALIZED_HASH_LENGTH: usize = 66;
 const CLASS_HASH_PATTERN: &str = r"^0x[a-fA-F0-9]+$";
@@ -60,7 +60,9 @@ mod tests {
     fn test_expand_tilde() {
         let path = String::from("~/cairo_2_4_3");
         let expanded_path: Utf8PathBuf = expand_tilde(&path);
-        let expected_path: Utf8PathBuf = Utf8PathBuf::from_path_buf(home_dir().unwrap()).unwrap().join("cairo_2_4_3");
+        let expected_path: Utf8PathBuf = Utf8PathBuf::from_path_buf(home_dir().unwrap())
+            .unwrap()
+            .join("cairo_2_4_3");
         assert_eq!(expanded_path, expected_path);
     }
 }

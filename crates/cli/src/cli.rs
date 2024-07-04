@@ -14,7 +14,7 @@ use indicatif::{HumanDuration, ProgressStyle};
 use regex::Regex;
 use std::{env, time::Instant};
 use strum::IntoEnumIterator;
-use validation::{is_class_hash_valid, expand_tilde};
+use validation::{expand_tilde, is_class_hash_valid};
 use verify::VerifyProjectArgs;
 
 #[allow(dead_code)]
