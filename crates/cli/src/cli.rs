@@ -14,7 +14,7 @@ use indicatif::{HumanDuration, ProgressStyle};
 use regex::Regex;
 use std::{env, time::Instant};
 use strum::IntoEnumIterator;
-use validation::is_class_hash_valid;
+use validation::{is_class_hash_valid, expand_tilde};
 use verify::VerifyProjectArgs;
 
 #[allow(dead_code)]
@@ -57,7 +57,7 @@ fn main() -> anyhow::Result<()> {
             .trim()
             .to_string()
     };
-    let utf8_path: Utf8PathBuf = Utf8PathBuf::from(path);
+    let utf8_path: Utf8PathBuf = expand_tilde(&path);
     if !utf8_path.exists() {
         panic!("Path does not exist");
     }
