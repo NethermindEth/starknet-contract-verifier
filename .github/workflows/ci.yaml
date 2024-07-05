@@ -48,7 +48,5 @@ jobs:
 
       - name: Setup Scarb
         uses: software-mansion/setup-scarb@v1
-        with:
-          scarb-version: "2.6.2"
       
       - run: cargo test --all-features
