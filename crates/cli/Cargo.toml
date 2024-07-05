@@ -21,6 +21,7 @@ regex = "1"
 indicatif = "0.17.7"
 strum = "0.25.0"
 strum_macros = "0.25.0"
+dirs = "4.0"
 
 dyn-compiler = { path = "../dyn-compiler" }
 
