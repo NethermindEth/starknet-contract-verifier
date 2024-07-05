@@ -1,6 +1,5 @@
-use std::process::Command;
-
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
+use std::process::Command;
 
 pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) {
     let versioning = Command::new("scarb").arg("--version").output().expect(
