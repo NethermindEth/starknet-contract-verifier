@@ -10,6 +10,7 @@ use crate::utils::detect_local_tools;
 use camino::Utf8PathBuf;
 use console::{style, Emoji};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
+use dirs::home_dir;
 use indicatif::{HumanDuration, ProgressStyle};
 use regex::Regex;
 use std::{env, time::Instant};
@@ -57,7 +58,14 @@ fn main() -> anyhow::Result<()> {
             .trim()
             .to_string()
     };
-    let utf8_path: Utf8PathBuf = Utf8PathBuf::from(path);
+    // Resolve path
+    let mut utf8_path = Utf8PathBuf::from(&path);
+    if utf8_path.starts_with("~") {
+        if let Some(home) = home_dir() {
+            let home_utf8 = Utf8PathBuf::from_path_buf(home).unwrap();
+            utf8_path = home_utf8.join(utf8_path.strip_prefix("~").unwrap());
+        }
+    }
     if !utf8_path.exists() {
         panic!("Path does not exist");
     }
