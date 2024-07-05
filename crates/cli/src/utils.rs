@@ -1,6 +1,5 @@
-use std::process::Command;
-
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
+use std::process::Command;
 
 pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) {
     let versioning = Command::new("scarb").arg("--version").output().expect(
@@ -20,9 +19,6 @@ pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) 
         .collect::<Vec<&str>>()[1];
 
     let scarb_version = match scarb_version {
-        // "0.6.1" => SupportedScarbVersions::V0_6_1,
-        // "0.6.2" => SupportedScarbVersions::V0_6_2,
-        // "0.7.0" => SupportedScarbVersions::V0_7_0,
         "0.6.1" => SupportedScarbVersions::V0_6_1,
         _ => panic!("Unsupported scarb version: {}", scarb_version),
     };
