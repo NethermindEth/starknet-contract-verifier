@@ -10,7 +10,7 @@ use voyager_resolver_cairo::dyn_compiler::VoyagerGeneratorWrapper as VoyagerGene
 
 pub fn get_dynamic_compiler(cairo_version: SupportedCairoVersions) -> Box<dyn DynamicCompiler> {
     match cairo_version {
-        SupportedCairoVersions::V2_4_3 => Box::new(VoyagerGenerator),
+        SupportedCairoVersions::V2_6_3 => Box::new(VoyagerGenerator),
     }
 }
 
