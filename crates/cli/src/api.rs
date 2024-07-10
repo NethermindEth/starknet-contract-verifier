@@ -331,7 +331,10 @@ mod tests {
         // Assert that the internal api is correct
         assert_eq!(actual_network_api.0, "https://sepolia.voyager.online");
         // Assert that the public api is correct``
-        assert_eq!(actual_network_api.1, "https://sepolia-api.voyager.online/beta");
+        assert_eq!(
+            actual_network_api.1,
+            "https://sepolia-api.voyager.online/beta"
+        );
     }
 
     #[test]

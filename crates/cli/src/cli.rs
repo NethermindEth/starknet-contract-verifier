@@ -182,7 +182,10 @@ fn main() -> anyhow::Result<()> {
 
         network_items[network_index]
     } else {
-        println!("🔔 {}", style("Custom verification endpoint provided:").bold());
+        println!(
+            "🔔 {}",
+            style("Custom verification endpoint provided:").bold()
+        );
         println!(
             "Internal endpoint url: {}",
             custom_internal_api_endpoint_url.unwrap_or("".to_string())
