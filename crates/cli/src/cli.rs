@@ -154,20 +154,46 @@ fn main() -> anyhow::Result<()> {
         .expect("Aborted at license version selection, terminating...")
         .expect("Aborted at license version selection, terminating...");
 
-    // Network selection
+    // -- Network selection --
+
+    // Custom network selection
+    let custom_internal_api_endpoint_url = env::var("CUSTOM_INTERNAL_API_ENDPOINT_URL");
+    let custom_public_api_endpoint_url = env::var("CUSTOM_PUBLIC_API_ENDPOINT_URL");
+    let is_custom_network =
+        custom_internal_api_endpoint_url.is_ok() && custom_public_api_endpoint_url.is_ok();
+
+    // Only show local if debug network option is up.
     let is_debug_network = env::var("DEBUG_NETWORK").is_ok();
     let network_items = if is_debug_network {
         vec!["Mainnet", "Sepolia", "Integration", "Local"]
     } else {
         vec!["Mainnet", "Sepolia"]
     };
-    let network_index = Select::with_theme(&ColorfulTheme::default())
-        .items(&network_items)
-        .with_prompt("Which network would you like to verify on : ")
-        .default(0)
-        .interact_opt()
-        .expect("Aborted at network selection, terminating...")
-        .expect("Aborted at network selection, terminating...");
+
+    // defaults to the first item.
+    let selected_network = if !is_custom_network {
+        let network_index = Select::with_theme(&ColorfulTheme::default())
+            .items(&network_items)
+            .with_prompt("Which network would you like to verify on : ")
+            .default(0)
+            .interact_opt()
+            .expect("Aborted at network selection, terminating...")
+            .expect("Aborted at network selection, terminating...");
+
+        network_items[network_index]
+    } else {
+        println!("🔔 {}", style("Custom verification endpoint provided:").bold());
+        println!(
+            "Internal endpoint url: {}",
+            custom_internal_api_endpoint_url.unwrap_or("".to_string())
+        );
+        println!(
+            "Public endpoint url: {}",
+            custom_public_api_endpoint_url.unwrap_or("".to_string())
+        );
+
+        "custom"
+    };
 
     let verification_start = Instant::now();
     println!(
@@ -178,7 +204,7 @@ fn main() -> anyhow::Result<()> {
 
     // Parse args into VerifyProjectArgs
     let verify_args = VerifyProjectArgs {
-        network: network_items[network_index].to_string(),
+        network: selected_network.to_string(),
         hash: class_hash,
         license: licenses[license_index],
         name: class_name,
