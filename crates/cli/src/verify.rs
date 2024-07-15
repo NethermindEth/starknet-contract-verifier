@@ -8,8 +8,8 @@ use dyn_compiler::dyn_compiler::SupportedCairoVersions;
 
 use crate::{
     api::{
-        dispatch_class_verification_job, poll_verification_status, FileInfo,
-        Network, ProjectMetadataInfo,
+        dispatch_class_verification_job, poll_verification_status, FileInfo, Network,
+        ProjectMetadataInfo,
     },
     license::LicenseType,
     resolver::get_dynamic_compiler,
