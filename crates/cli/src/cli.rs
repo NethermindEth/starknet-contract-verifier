@@ -5,6 +5,7 @@ mod utils;
 mod validation;
 mod verify;
 
+use crate::api::{does_class_exist, Network};
 use crate::license::LicenseType;
 use crate::utils::detect_local_tools;
 use camino::Utf8PathBuf;
@@ -13,7 +14,7 @@ use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use dirs::home_dir;
 use indicatif::{HumanDuration, ProgressStyle};
 use regex::Regex;
-use std::{env, time::Instant};
+use std::{env, str::FromStr, time::Instant};
 use strum::IntoEnumIterator;
 use validation::is_class_hash_valid;
 use verify::VerifyProjectArgs;
@@ -95,65 +96,6 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    // TODO: try to calculate the class hash automatically later after contract selection?
-    // println!(
-    //     "{} {} Calculating class hash...",
-    //     style("[x/x]").bold().dim(),
-    //     Emoji("🔍  ", "")
-    // );
-    println!(
-        "{} {} Getting verification information...",
-        style("[3/4]").bold().dim(),
-        Emoji("🔍  ", "")
-    );
-    let re = Regex::new(r"^0x[a-fA-F0-9]{64}$").unwrap();
-    let class_hash: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Input class hash to verify : ")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if is_class_hash_valid(input) {
-                Ok(())
-            } else {
-                Err("This is not a class hash")
-            }
-        })
-        .interact()?;
-
-    // Get name that you want to use for the contract
-    let class_name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enter your desired class name: ")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if input.len() > 50 {
-                Err("Given name is too long")
-            } else {
-                Ok(())
-            }
-        })
-        .interact_text()
-        .expect("Aborted at class name input, terminating...")
-        .trim()
-        .to_string();
-
-    // Check if account contract
-    // TODO: Is there a way to detect this automatically?
-    // println!(
-    //     "{} {} Checking if account contract...",
-    //     style("[x/x]").bold().dim(),
-    //     Emoji("📃  ", "")
-    // );
-    let is_account_contract: bool = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Is this an Account Class?")
-        .interact()?;
-
-    // Set license for your contract code
-    let licenses: Vec<LicenseType> = LicenseType::iter().collect();
-    let license_index = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select license you'd like to verify under :")
-        .items(&licenses)
-        .default(0)
-        .interact_opt()
-        .expect("Aborted at license version selection, terminating...")
-        .expect("Aborted at license version selection, terminating...");
-
     // -- Network selection --
 
     // Custom network selection
@@ -197,6 +139,83 @@ fn main() -> anyhow::Result<()> {
 
         "custom"
     };
+
+    // TODO: try to calculate the class hash automatically later after contract selection?
+    // println!(
+    //     "{} {} Calculating class hash...",
+    //     style("[x/x]").bold().dim(),
+    //     Emoji("🔍  ", "")
+    // );
+    println!(
+        "{} {} Getting verification information...",
+        style("[3/4]").bold().dim(),
+        Emoji("🔍  ", "")
+    );
+
+    let network_enum = Network::from_str(selected_network)?;
+    let mut class_hash: String;
+    loop {
+        class_hash = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Input class hash to verify : ")
+            .validate_with(|input: &String| -> Result<(), &str> {
+                if is_class_hash_valid(input) {
+                    Ok(())
+                } else {
+                    Err("This is not a class hash.")
+                }
+            })
+            .interact()?;
+
+        // Check if the class exists on the network
+        match does_class_exist(network_enum.clone(), &class_hash) {
+            Ok(true) => break,
+            Ok(false) => {
+                println!("This class hash does not exist for the given network. Please try again.")
+            }
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "Error while checking if class exists: {}",
+                    e
+                ))
+            }
+        }
+    }
+
+    // Get name that you want to use for the contract
+    let class_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Enter your desired class name: ")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            if input.len() > 50 {
+                Err("Given name is too long")
+            } else {
+                Ok(())
+            }
+        })
+        .interact_text()
+        .expect("Aborted at class name input, terminating...")
+        .trim()
+        .to_string();
+
+    // Check if account contract
+    // TODO: Is there a way to detect this automatically?
+    // println!(
+    //     "{} {} Checking if account contract...",
+    //     style("[x/x]").bold().dim(),
+    //     Emoji("📃  ", "")
+    // );
+    let is_account_contract: bool = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Is this an Account Class?")
+        .interact()?;
+
+    // Set license for your contract code
+    let licenses: Vec<LicenseType> = LicenseType::iter().collect();
+    let license_index = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select license you'd like to verify under :")
+        .items(&licenses)
+        .default(0)
+        .interact_opt()
+        .expect("Aborted at license version selection, terminating...")
+        .expect("Aborted at license version selection, terminating...");
 
     let verification_start = Instant::now();
     println!(

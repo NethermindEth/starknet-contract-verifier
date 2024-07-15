@@ -56,18 +56,7 @@ pub fn verify_project(
     metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
 ) -> Result<()> {
-    // Check if the class exists on the network
     let network_enum = Network::from_str(args.network.as_str())?;
-    match does_class_exist(network_enum.clone(), &args.hash) {
-        Ok(true) => (),
-        Ok(false) => return Err(anyhow::anyhow!("Class does not exist on the network")),
-        Err(e) => {
-            return Err(anyhow::anyhow!(
-                "Error while checking if class exists: {}",
-                e
-            ))
-        }
-    }
 
     let dispatch_response = dispatch_class_verification_job(
         args.api_key.as_str(),
