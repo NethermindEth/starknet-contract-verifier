@@ -50,13 +50,21 @@ fn main() -> anyhow::Result<()> {
     let path = if is_current_dir_scarb {
         env::current_dir()?.to_str().unwrap().trim().to_string()
     } else {
-        // TODO, add TargetType::File path input here
-        Input::<String>::with_theme(&ColorfulTheme::default())
-            .with_prompt("Enter Path to scarb project root:")
-            .interact_text()
-            .expect("Aborted at path input, terminating...")
-            .trim()
-            .to_string()
+        loop {
+            // TODO, add TargetType::File path input here
+            let input_path = Input::<String>::with_theme(&ColorfulTheme::default())
+                .with_prompt("Enter Path to scarb project root:")
+                .interact_text()
+                .expect("Aborted at path input, terminating...")
+                .trim()
+                .to_string();
+            let utf8_path: Utf8PathBuf = Utf8PathBuf::from(&input_path);
+            if utf8_path.exists() {
+                break input_path;
+            } else {
+                println!("Path does not exist. Please try again.");
+            }
+        }
     };
     // Resolve path
     let mut utf8_path = Utf8PathBuf::from(&path);
@@ -65,9 +73,6 @@ fn main() -> anyhow::Result<()> {
             let home_utf8 = Utf8PathBuf::from_path_buf(home).unwrap();
             utf8_path = home_utf8.join(utf8_path.strip_prefix("~").unwrap());
         }
-    }
-    if !utf8_path.exists() {
-        panic!("Path does not exist");
     }
 
     // Start the whole process
