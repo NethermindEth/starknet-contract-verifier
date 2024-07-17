@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
     // };
     println!(
         "{} {} Getting project information...",
-        style("[1/3]").bold().dim(),
+        style("[1/4]").bold().dim(),
         Emoji("📝", "")
     );
 
@@ -82,7 +82,7 @@ fn main() -> anyhow::Result<()> {
 
     println!(
         "{} {} Resolving project...",
-        style("[2/3]").bold().dim(),
+        style("[2/4]").bold().dim(),
         Emoji("🔗", "")
     );
 
