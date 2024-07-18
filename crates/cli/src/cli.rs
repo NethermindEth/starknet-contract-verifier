@@ -96,6 +96,18 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
+    // TODO: try to calculate the class hash automatically later after contract selection?
+    // println!(
+    //     "{} {} Calculating class hash...",
+    //     style("[x/x]").bold().dim(),
+    //     Emoji("🔍  ", "")
+    // );
+    println!(
+        "{} {} Getting verification information...",
+        style("[3/4]").bold().dim(),
+        Emoji("🔍  ", "")
+    );
+
     // -- Network selection --
 
     // Custom network selection
@@ -139,18 +151,6 @@ fn main() -> anyhow::Result<()> {
 
         "custom"
     };
-
-    // TODO: try to calculate the class hash automatically later after contract selection?
-    // println!(
-    //     "{} {} Calculating class hash...",
-    //     style("[x/x]").bold().dim(),
-    //     Emoji("🔍  ", "")
-    // );
-    println!(
-        "{} {} Getting verification information...",
-        style("[3/4]").bold().dim(),
-        Emoji("🔍  ", "")
-    );
 
     let network_enum = Network::from_str(selected_network)?;
     let mut class_hash: String;
