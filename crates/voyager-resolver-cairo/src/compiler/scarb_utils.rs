@@ -1,5 +1,5 @@
 use anyhow::{anyhow, ensure, Context, Result};
-use scarb::flock::Filesystem;
+use camino::Utf8Path;
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -135,7 +135,7 @@ pub fn get_table_mut<'a>(doc: &'a mut Document, path: &[&str]) -> Result<&'a mut
 /// * Generating an updated Scarb.toml file fails.
 pub fn generate_scarb_updated_files(
     scarb_metadata: scarb_metadata::Metadata,
-    target_dir: &Filesystem,
+    target_dir: &Utf8Path,
     required_modules: Vec<&CairoModule>,
 ) -> Result<()> {
     let mut metadata = scarb_metadata.clone();
@@ -153,7 +153,10 @@ pub fn generate_scarb_updated_files(
 
     for package in metadata.packages {
         let manifest_path = package.manifest_path;
-        let target_path = target_dir.path_existent()?.join(package.name);
+        if !target_dir.exists() {
+            return Err(anyhow!("unable to locate target dir"));
+        }
+        let target_path = target_dir.join(package.name);
         generate_updated_scarb_toml(
             manifest_path.into_std_path_buf(),
             target_path.as_std_path(),

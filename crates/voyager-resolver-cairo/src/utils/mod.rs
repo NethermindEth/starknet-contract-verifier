@@ -1,10 +1,10 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use camino::Utf8Path;
 
 use crate::compiler::scarb_utils::read_additional_scarb_manifest_metadata;
 use crate::model::{CairoAttachmentModule, CairoImport, CairoModule, ModulePath};
 
 use scarb::core::Workspace;
-use scarb::flock::Filesystem;
 use std::collections::HashMap;
 
 use std::fs;
@@ -86,15 +86,17 @@ pub fn get_import_remaps(modules_to_verify: Vec<&CairoModule>) -> Vec<CairoImpor
 /// * `target_dir` - The directory in which to generate the .cairo files.
 pub fn create_attachment_files(
     attachment_modules: &HashMap<ModulePath, CairoAttachmentModule>,
-    target_dir: &Filesystem,
+    target_dir: &Utf8Path,
 ) -> Result<()> {
     for (parent_module, attachment_module) in attachment_modules {
         let child_modules = &attachment_module.children;
         let mut filename = String::new();
         let path_split = parent_module.0.split("::");
         let crate_name = parent_module.get_crate();
-        let target_path = target_dir.path_existent()?;
-        let source_path = target_path.join(crate_name).join("src");
+        if !target_dir.exists() {
+            return Err(anyhow!("failed to create attachment files"))
+        }
+        let source_path = target_dir.join(crate_name).join("src");
         filename = match path_split.clone().count() {
             1 => "lib.cairo".to_string(),
             _ => {
@@ -139,12 +141,14 @@ pub fn create_attachment_files(
 /// TODO: add comprehensive test for this.
 pub fn copy_required_files(
     required_modules: &Vec<&CairoModule>,
-    target_dir: &Filesystem,
+    target_dir: &Utf8Path,
     ws: &Workspace,
 ) -> Result<()> {
     let root_path = ws.root();
     let mut root_parts = root_path.components().peekable();
-    let target_path = target_dir.path_existent()?;
+    if !target_dir.exists() {
+        return Err(anyhow!("unable to resolve target dir"));
+    }
 
     // Skip the first component if it is the Windows or Unix root
     if let Some(component) = root_parts.peek() {
@@ -169,7 +173,7 @@ pub fn copy_required_files(
         // Construct the destination path for the .cairo & readme & license file
         let root_dir = module.get_root_dir()?;
         let filepath_relative = filepath.strip_prefix(root_dir.clone())?;
-        let dest_path = Path::new(target_path)
+        let dest_path = Path::new(target_dir)
             .join(crate_name.clone())
             .join(filepath_relative);
 
@@ -190,7 +194,7 @@ pub fn copy_required_files(
         // Attempt to copy the readme and license files to the target directory
         let root_dir_clone = root_dir.clone();
         let base_source_root_path = Path::new(&root_dir_clone);
-        let base_dest_root_path = Path::new(target_path).join(crate_name);
+        let base_dest_root_path = Path::new(target_dir).join(crate_name);
 
         let readme_source_path = base_source_root_path.join(&additional_metadata.readme);
         let readme_dest_path = base_dest_root_path.join(&additional_metadata.readme);

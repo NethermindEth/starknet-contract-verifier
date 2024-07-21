@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::ids::ModuleId;
 use cairo_lang_filesystem::db::FilesGroup;
@@ -28,7 +28,6 @@ use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
 // use crate::graph::display_graphviz;
 use scarb::compiler::{CompilationUnit, Compiler};
 use scarb::core::{TargetKind, Workspace};
-use scarb::flock::Filesystem;
 
 pub struct VoyagerGenerator;
 
@@ -157,9 +156,6 @@ impl Compiler for VoyagerGenerator {
             }
         });
 
-        // treat target dir as a Filesystem
-        let target_dir = Filesystem::new(target_dir);
-
         create_attachment_files(&attachment_modules_data, &target_dir)
             .with_context(|| "Failed to create attachment files")?;
 
@@ -177,7 +173,12 @@ impl Compiler for VoyagerGenerator {
         generate_scarb_updated_files(metadata, &target_dir, required_modules)?;
 
         let package_name = unit.main_component().package.id.name.to_string();
-        let generated_crate_dir = target_dir.path_existent().unwrap().join(package_name);
+
+        if !target_dir.exists() {
+            return Err(anyhow!("unable to locate target directory"));
+        }
+
+        let generated_crate_dir = target_dir.join(package_name);
         //Locally run scarb build to make sure that everything compiles correctly before sending the files to voyager.
         run_scarb_build(generated_crate_dir.as_str())?;
 
