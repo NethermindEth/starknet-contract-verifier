@@ -13,7 +13,10 @@ pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) 
     );
 
     let versioning_str = String::from_utf8(versioning.stdout).unwrap();
-    let version_list = versioning_str.split('\n').filter(|x| !x.is_empty()).collect::<Vec<&str>>();
+    let version_list = versioning_str
+        .split('\n')
+        .filter(|x| !x.is_empty())
+        .collect::<Vec<&str>>();
     if version_list.len() != SCARB_VERSION_OUTPUT_LINES {
         panic!("{}", String::from_utf8(versioning.stderr).unwrap());
     }
