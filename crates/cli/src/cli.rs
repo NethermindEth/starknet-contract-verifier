@@ -13,17 +13,11 @@ use console::{style, Emoji};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use dirs::home_dir;
 use indicatif::{HumanDuration, ProgressStyle};
-use regex::Regex;
 use std::{env, str::FromStr, time::Instant};
 use strum::IntoEnumIterator;
 use validation::is_class_hash_valid;
 use verify::VerifyProjectArgs;
 
-#[allow(dead_code)]
-enum TargetType {
-    ScarbProject,
-    File,
-}
 
 fn main() -> anyhow::Result<()> {
     // TODO: make this cli use a secure api
