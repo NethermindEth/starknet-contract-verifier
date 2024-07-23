@@ -1,6 +1,8 @@
 use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
 use std::process::Command;
 
+const SCARB_VERSION_OUTPUT_LINES: usize = 3;
+
 pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) {
     let versioning = Command::new("scarb").arg("--version").output().expect(
         "
@@ -11,6 +13,10 @@ pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) 
     );
 
     let versioning_str = String::from_utf8(versioning.stdout).unwrap();
+    let version_list = versioning_str.split('\n').filter(|x| !x.is_empty()).collect::<Vec<&str>>();
+    if version_list.len() != SCARB_VERSION_OUTPUT_LINES {
+        panic!("{}", String::from_utf8(versioning.stderr).unwrap());
+    }
     let scarb_version = versioning_str.split('\n').collect::<Vec<&str>>()[0]
         .split(" ")
         .collect::<Vec<&str>>()[1];
