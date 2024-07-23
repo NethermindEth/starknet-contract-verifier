@@ -13,7 +13,6 @@ use console::{style, Emoji};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use dirs::home_dir;
 use indicatif::{HumanDuration, ProgressStyle};
-use regex::Regex;
 use std::{env, str::FromStr, time::Instant};
 use strum::IntoEnumIterator;
 use validation::is_class_hash_valid;
@@ -59,7 +58,14 @@ fn main() -> anyhow::Result<()> {
                 .expect("Aborted at path input, terminating...")
                 .trim()
                 .to_string();
-            let utf8_path: Utf8PathBuf = Utf8PathBuf::from(&input_path);
+            let mut utf8_path: Utf8PathBuf = Utf8PathBuf::from(&input_path);
+            // Resolve path
+            if utf8_path.starts_with("~") {
+                if let Some(home) = home_dir() {
+                    let home_utf8 = Utf8PathBuf::from_path_buf(home).unwrap();
+                    utf8_path = home_utf8.join(utf8_path.strip_prefix("~").unwrap());
+                }
+            }
             if utf8_path.exists() {
                 break input_path;
             } else {
@@ -67,14 +73,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
     };
-    // Resolve path
-    let mut utf8_path = Utf8PathBuf::from(&path);
-    if utf8_path.starts_with("~") {
-        if let Some(home) = home_dir() {
-            let home_utf8 = Utf8PathBuf::from_path_buf(home).unwrap();
-            utf8_path = home_utf8.join(utf8_path.strip_prefix("~").unwrap());
-        }
-    }
+    let utf8_path = Utf8PathBuf::from(&path);
 
     // Start the whole process
     let _spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}")
