@@ -12,8 +12,12 @@ use camino::Utf8PathBuf;
 use console::{style, Emoji};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use dirs::home_dir;
-use indicatif::{HumanDuration, ProgressStyle};
-use std::{env, str::FromStr, time::Instant};
+use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
+use std::{
+    env,
+    str::FromStr,
+    time::{Duration, Instant},
+};
 use strum::IntoEnumIterator;
 use validation::is_class_hash_valid;
 use verify::VerifyProjectArgs;
@@ -228,6 +232,12 @@ fn main() -> anyhow::Result<()> {
         Emoji("🔍", "")
     );
 
+    // Create and configure a progress bar
+    let pb_verification = ProgressBar::new_spinner();
+    pb_verification.set_style(_spinner_style);
+    pb_verification.enable_steady_tick(Duration::from_millis(100));
+    pb_verification.set_message("Please wait...");
+
     // Parse args into VerifyProjectArgs
     let verify_args = VerifyProjectArgs {
         network: selected_network.to_string(),
@@ -247,6 +257,9 @@ fn main() -> anyhow::Result<()> {
         TargetType::File => panic!("Single contract file verification is not yet implemented"),
     };
 
+    // Stop and clear the progress bar
+    pb_verification.finish_with_message("Done");
+
     match verification_result {
         Ok(_) => {
             println!(
@@ -257,7 +270,7 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Err(e) => Err(anyhow::anyhow!(
-            "verification failed {} {}",
+            "Verification failed! {} {}",
             Emoji("❌", ""),
             e
         )),
