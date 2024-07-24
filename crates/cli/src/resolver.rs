@@ -4,15 +4,7 @@ use std::fs;
 use walkdir::{DirEntry, WalkDir};
 
 use crate::api::{FileInfo, ProjectMetadataInfo};
-use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions, SupportedScarbVersions};
-use voyager_resolver_cairo::compiler::scarb_utils::read_additional_scarb_manifest_metadata;
-use voyager_resolver_cairo::dyn_compiler::VoyagerGeneratorWrapper as VoyagerGenerator;
-
-pub fn get_dynamic_compiler(cairo_version: SupportedCairoVersions) -> Box<dyn DynamicCompiler> {
-    match cairo_version {
-        SupportedCairoVersions::V2_4_3 => Box::new(VoyagerGenerator),
-    }
-}
+use voyager_resolver_cairo::compiler::{scarb_utils::read_additional_scarb_manifest_metadata, VoyagerGenerator};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ScarbTomlRawPackageData {
@@ -27,8 +19,8 @@ struct ScarbTomlRawData {
 
 pub fn resolve_scarb(
     path: Utf8PathBuf,
-    cairo_version: SupportedCairoVersions,
-    scarb_version: SupportedScarbVersions,
+    cairo_version: &str,
+    scarb_version: &str,
 ) -> anyhow::Result<(Vec<FileInfo>, ProjectMetadataInfo)> {
     // Extract necessary files from the Scarb project for the verified contract
     let source_dir = if path.is_absolute() {
@@ -39,7 +31,7 @@ pub fn resolve_scarb(
         Utf8PathBuf::from_path_buf(current_path).unwrap()
     };
 
-    let compiler = get_dynamic_compiler(cairo_version);
+    let compiler = Box::new(VoyagerGenerator);
     let contract_paths = compiler.get_contracts_to_verify_path(&source_dir)?;
 
     // TODO move the contract selection before the resolving step as a 'pre-resolving' step

@@ -23,8 +23,6 @@ strum = "0.25.0"
 strum_macros = "0.25.0"
 dirs = "4.0"
 
-dyn-compiler = { path = "../dyn-compiler" }
-
 # All resolver versions, based on scarb + cairo
 voyager-resolver-cairo = { path = "../voyager-resolver-cairo" }
 walkdir = "2.3.3"

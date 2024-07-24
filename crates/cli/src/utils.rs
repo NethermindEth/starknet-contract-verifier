@@ -1,4 +1,3 @@
-use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
 use std::process::Command;
 
 pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) {
