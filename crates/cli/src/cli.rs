@@ -47,8 +47,9 @@ fn main() -> anyhow::Result<()> {
     // Project type + Path entry
     let target_type = TargetType::ScarbProject; // by default we assume the user is in a scarb project
     let is_current_dir_scarb = env::current_dir()?.join("scarb.toml").exists();
-    let path = if is_current_dir_scarb {
-        env::current_dir()?.to_str().unwrap().trim().to_string()
+    let utf8_path = if is_current_dir_scarb {
+        let current_path = env::current_dir()?.to_str().unwrap().trim().to_string();
+        Utf8PathBuf::from(&current_path)
     } else {
         loop {
             // TODO, add TargetType::File path input here
@@ -58,22 +59,21 @@ fn main() -> anyhow::Result<()> {
                 .expect("Aborted at path input, terminating...")
                 .trim()
                 .to_string();
-            let mut utf8_path: Utf8PathBuf = Utf8PathBuf::from(&input_path);
+            let mut utf8_input_path: Utf8PathBuf = Utf8PathBuf::from(&input_path);
             // Resolve path
-            if utf8_path.starts_with("~") {
+            if utf8_input_path.starts_with("~") {
                 if let Some(home) = home_dir() {
                     let home_utf8 = Utf8PathBuf::from_path_buf(home).unwrap();
-                    utf8_path = home_utf8.join(utf8_path.strip_prefix("~").unwrap());
+                    utf8_input_path = home_utf8.join(utf8_input_path.strip_prefix("~").unwrap());
                 }
             }
-            if utf8_path.exists() {
-                break input_path;
+            if utf8_input_path.exists() {
+                break utf8_input_path;
             } else {
                 println!("Path does not exist. Please try again.");
             }
         }
     };
-    let utf8_path = Utf8PathBuf::from(&path);
 
     // Start the whole process
     let _spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}")
