@@ -7,6 +7,7 @@ mod verify;
 
 use crate::api::{does_class_exist, Network};
 use crate::license::LicenseType;
+use crate::resolver::TargetType;
 use crate::utils::detect_local_tools;
 use camino::Utf8PathBuf;
 use console::{style, Emoji};
@@ -21,12 +22,6 @@ use std::{
 use strum::IntoEnumIterator;
 use validation::is_class_hash_valid;
 use verify::VerifyProjectArgs;
-
-#[allow(dead_code)]
-enum TargetType {
-    ScarbProject,
-    File,
-}
 
 fn main() -> anyhow::Result<()> {
     // TODO: make this cli use a secure api
