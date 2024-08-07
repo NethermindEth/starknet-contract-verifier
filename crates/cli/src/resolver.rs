@@ -8,6 +8,12 @@ use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions, Suppor
 use voyager_resolver_cairo::compiler::scarb_utils::read_additional_scarb_manifest_metadata;
 use voyager_resolver_cairo::dyn_compiler::VoyagerGeneratorWrapper as VoyagerGenerator;
 
+#[allow(dead_code)]
+pub enum TargetType {
+    ScarbProject,
+    File,
+}
+
 pub fn get_dynamic_compiler(cairo_version: SupportedCairoVersions) -> Box<dyn DynamicCompiler> {
     match cairo_version {
         SupportedCairoVersions::V2_0_2 => Box::new(VoyagerGenerator),
