@@ -32,3 +32,7 @@ walkdir = "2.3.3"
 [[bin]]
 name = "starknet-contract-verifier"
 path = "src/cli.rs"
+
+[[bin]]
+name = "starknet-contract-resolver"
+path = "src/resolver-cli.rs"
