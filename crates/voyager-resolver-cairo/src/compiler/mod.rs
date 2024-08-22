@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::ids::ModuleId;
 use cairo_lang_filesystem::db::FilesGroup;
@@ -129,6 +129,19 @@ impl Compiler for VoyagerGenerator {
         // This returns the relative file paths of the contracts to verify.
         let contracts_to_verify = get_contracts_to_verify(&unit.main_component().package)?;
 
+        if contracts_to_verify.is_empty() {
+            return Err(anyhow!("No contracts found."));
+        }
+        if contracts_to_verify.len() > 1 {
+            return Err(anyhow!("Currently doesn't support multiple contracts."));
+        }
+
+        if !contracts_to_verify[0].exists() {
+            return Err(anyhow!(
+                "Unable to find the contract file given in Scarb.toml"
+            ));
+        }
+
         // Collect the CairoModule corresponding to the file paths of the contracts.
         let modules_to_verify = project_modules
             .iter()
@@ -233,6 +246,7 @@ impl VoyagerGenerator {
                 // Extract a vector of modules for the crate.
                 // We only collect "file" modules, which are related to a Cairo file.
                 // Internal modules are not collected here.
+                // TODO: we should also collect internal modules, since they matter!
                 let crate_modules = collect_crate_module_files(db, crate_id)?;
                 Ok(CairoCrate {
                     root_dir: crate_root_dir,
