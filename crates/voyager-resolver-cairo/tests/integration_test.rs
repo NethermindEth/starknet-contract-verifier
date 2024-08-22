@@ -1,6 +1,7 @@
+use std::any::Any;
 use std::env;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use scarb::compiler::CompilerRepository;
 use scarb::core::Config;
 use scarb::ops;
@@ -10,6 +11,45 @@ use std::path::PathBuf;
 use voyager_resolver_cairo::compiler::scarb_utils::get_contracts_to_verify;
 use voyager_resolver_cairo::compiler::VoyagerGenerator;
 use voyager_resolver_cairo::utils::run_scarb_build;
+
+#[test]
+fn test_incorrect_contract_path_given() -> Result<()> {
+    let mut compilers = CompilerRepository::empty();
+    compilers.add(Box::new(VoyagerGenerator)).unwrap();
+    let source_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/test_data")
+        .join("project_w_incorrect_contract_path");
+    let manifest_path = source_dir.join("Scarb.toml");
+
+    let config = Config::builder(manifest_path.to_str().unwrap())
+        .ui_verbosity(Verbosity::Verbose)
+        .log_filter_directive(env::var_os("SCARB_LOG"))
+        .compilers(compilers)
+        .build()
+        .unwrap();
+
+    let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
+        eprintln!("error: {}", err);
+        std::process::exit(1);
+    });
+    let package_ids = ws.members().map(|p| p.id.clone()).collect();
+    let compile_opts = ops::CompileOpts {
+        include_targets: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_targets: vec![],
+    };
+
+    let result = ops::compile(package_ids, compile_opts, &ws);
+    assert!(result.is_err());
+
+    let reduced_project_path = source_dir.join("voyager-verify/project_w_incorrect_contract_path");
+    println!(
+        "Reduced project path: {}",
+        reduced_project_path.to_str().unwrap()
+    );
+    let compile_result = run_scarb_build(reduced_project_path.to_str().unwrap());
+    assert!(compile_result.is_err());
+    Ok(())
+}
 
 #[test]
 fn test_get_contracts_to_verify() {
