@@ -190,7 +190,6 @@ pub fn dispatch_class_verification_job(
     network: Network,
     address: &str,
     license: &str,
-    is_account: bool,
     name: &str,
     project_metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
@@ -204,7 +203,6 @@ pub fn dispatch_class_verification_job(
         )
         .text("scarb_version", project_metadata.scarb_version.to_string())
         .text("license", license.to_string())
-        .text("account_contract", is_account.to_string())
         .text("name", name.to_string())
         .text("contract_file", project_metadata.contract_file)
         .text("project_dir_path", project_metadata.project_dir_path);
