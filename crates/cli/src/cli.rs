@@ -11,7 +11,7 @@ use crate::resolver::TargetType;
 use crate::utils::detect_local_tools;
 use camino::Utf8PathBuf;
 use console::{style, Emoji};
-use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
+use dialoguer::{theme::ColorfulTheme, Input, Select};
 use dirs::home_dir;
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use std::{
@@ -199,17 +199,6 @@ fn main() -> anyhow::Result<()> {
         .trim()
         .to_string();
 
-    // Check if account contract
-    // TODO: Is there a way to detect this automatically?
-    // println!(
-    //     "{} {} Checking if account contract...",
-    //     style("[x/x]").bold().dim(),
-    //     Emoji("📃  ", "")
-    // );
-    let is_account_contract: bool = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Is this an Account Class?")
-        .interact()?;
-
     // Set license for your contract code
     let licenses: Vec<LicenseType> = LicenseType::iter().collect();
     let license_index = Select::with_theme(&ColorfulTheme::default())
@@ -239,7 +228,6 @@ fn main() -> anyhow::Result<()> {
         hash: class_hash,
         license: licenses[license_index],
         name: class_name,
-        is_account_contract: Some(is_account_contract),
         max_retries: Some(10),
         api_key: "".to_string(),
         path: utf8_path,
