@@ -36,9 +36,6 @@ pub struct VerifyProjectArgs {
     #[arg(help = "Source directory", required = true)]
     pub path: Utf8PathBuf,
 
-    #[arg(long, help = "Is it an account contract?")]
-    pub is_account_contract: Option<bool>,
-
     #[arg(long, help = "Max retries")]
     pub max_retries: Option<u32>,
 
@@ -63,7 +60,6 @@ pub fn verify_project(
         network_enum.clone(),
         &args.hash,
         args.license.to_long_string().as_str(),
-        args.is_account_contract.unwrap_or(false),
         &args.name,
         metadata,
         files,
