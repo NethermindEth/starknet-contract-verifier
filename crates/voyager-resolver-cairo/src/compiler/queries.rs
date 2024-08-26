@@ -6,12 +6,11 @@ use cairo_lang_defs::ids::{
 };
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, Directory, FileId, FileLongId};
-use cairo_lang_parser::db::ParserGroup;
 use cairo_lang_semantic::diagnostic::{NotFoundItemType, SemanticDiagnostics};
 use cairo_lang_semantic::expr::inference::InferenceId;
 use cairo_lang_semantic::items::us::get_use_segments;
 use cairo_lang_semantic::resolve::{ResolvedGenericItem, Resolver};
-use cairo_lang_syntax::node::ast::{MaybeModuleBody, SyntaxFile, UsePath, UsePathLeaf};
+use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf};
 use cairo_lang_syntax::node::{ast, Terminal, TypedSyntaxNode};
 use cairo_lang_utils::ordered_hash_map::OrderedHashMap;
 use cairo_lang_utils::Upcast;
@@ -96,6 +95,36 @@ fn extract_child_module_imports(
     }
 }
 
+/// Recursively capture all module imports, inclusive of submodule's imports.
+fn capture_module_imports(
+    db: &dyn DefsGroup,
+    module_id: ModuleId,
+    module_uses: &mut OrderedHashMap<UseId, (UsePathLeaf, ModuleId)>,
+) -> Result<()> {
+    // First we capture the given module id imports.
+    let found_module_uses = match db.module_uses(module_id) {
+        Ok(mods) => mods,
+        Err(_) => return Err(anyhow!("Fail to resolve modules uses")),
+    };
+
+    for (use_id, use_path_leaf) in found_module_uses.iter() {
+        module_uses.insert(*use_id, (use_path_leaf.clone(), module_id));
+    }
+
+    // We then check if there are any defined submodules in the given module.
+    // If so recursively resolve them.
+    let found_submodules = match db.module_submodules_ids(module_id) {
+        Ok(submod) => submod,
+        Err(_) => return Err(anyhow!("Fail to resolve module submodules")),
+    };
+
+    for submod in found_submodules.iter() {
+        capture_module_imports(db, ModuleId::Submodule(*submod), module_uses)?;
+    }
+
+    Ok(())
+}
+
 /// Extracts the imports of a child module and adds them to a hash map.
 ///
 /// The function recursively processes a use import. If a path containts only an
@@ -177,7 +206,20 @@ pub fn collect_crate_module_files(
         }
     };
 
+    println!("crate id {:?}", crate_id);
+    println!("crates? {:?}", &*defs_db.crate_modules(crate_id));
+
     for module_id in &*defs_db.crate_modules(crate_id) {
+        println!("******");
+        println!("module id {:?}", module_id);
+        println!("module id full path {:?}", module_id.full_path(db));
+        let module_file_data = get_module_file(db, *module_id);
+        println!("module file {:?}", module_file_data.clone());
+    }
+
+    for module_id in &*defs_db.crate_modules(crate_id) {
+        println!("---------");
+        println!("module id {:?}", module_id);
         let module_file = defs_db
             .module_main_file(ModuleId::CrateRoot(crate_id))
             .to_option()
@@ -200,18 +242,17 @@ pub fn collect_crate_module_files(
             visited_files.insert(file.clone(), true);
 
             let defs_group: &dyn DefsGroup = db.upcast();
-            let module_dir =
-                match defs_group
-                    .module_dir(*module_id)
-                    .to_option()
-                    .with_context(|| {
-                        format!("Could not get module directory for module {:?}", module_id)
-                    })? {
-                    Directory::Real(path) => path.display().to_string(),
-                    Directory::Virtual { .. } => {
-                        return Err(anyhow!("Virtual directories are not supported"));
-                    }
-                };
+            let module_dir: String = match defs_group
+                .module_dir(*module_id)
+                .to_option()
+                .with_context(|| {
+                    format!("Could not get module directory for module {:?}", module_id)
+                })? {
+                Directory::Real(path) => path.display().to_string(),
+                Directory::Virtual { .. } => {
+                    return Err(anyhow!("Virtual directories are not supported"));
+                }
+            };
             let module_imports = HashSet::from_iter(extract_file_imports(db, *module_id, &file)?);
             let cairo_module_data = CairoModule {
                 dir: module_dir.into(),
@@ -273,7 +314,6 @@ fn collect_submodule_declarations(
     for (k, v) in module_declarations.iter() {
         let submodule_name = v.name(db).text(db);
         let submodule_path = format!("{}::{}", parent_path, submodule_name);
-
         match v.body(db) {
             MaybeModuleBody::None(_) => {
                 imports.push(CairoImport {
@@ -283,6 +323,7 @@ fn collect_submodule_declarations(
                     import_type: CairoImportType::Module,
                 });
             }
+
             MaybeModuleBody::Some(_body) => {
                 let module_id = ModuleId::Submodule(*k);
                 let mut declared_modules =
@@ -291,7 +332,7 @@ fn collect_submodule_declarations(
             }
         }
     }
-
+    // TODO: maybe we need to make this unique via a hashmap?
     imports
 }
 
@@ -311,52 +352,40 @@ pub fn extract_file_imports(
     module_id: ModuleId,
     file_data: &FileData,
 ) -> Result<Vec<CairoImport>> {
-    let file_syntax = db
-        .file_syntax(file_data.id)
-        .to_option()
-        .with_context(|| format!("Could not get file_syntax for file {:?}", file_data.id))?;
-    let file_ast = SyntaxFile::from_syntax_node(db, file_syntax).items(db);
-    let module_file_id = ModuleFileId(module_id, FileIndex(file_data.index));
-
     let mut imports: Vec<CairoImport> = vec![];
-    let mut module_uses = OrderedHashMap::default();
+    let mut module_uses: OrderedHashMap<UseId, (UsePathLeaf, ModuleId)> = OrderedHashMap::default();
 
-    // Process the top-level items in the file AST
-    for item_ast in file_ast.elements(db) {
-        // Top level items
-        match item_ast {
-            ast::Item::Use(item_use) => {
-                capture_imports(db, module_file_id, &mut module_uses, item_use.use_path(db))
-            }
-            ast::Item::Module(item_module) => {
-                extract_child_module_imports(db, &item_module, module_file_id, &mut module_uses);
-            }
-            _ => {}
-        }
-    }
+    // Attempt to capture all modules uses for this module recursively
+    match capture_module_imports(db, module_id, &mut module_uses) {
+        Ok(_) => (),
+        Err(err) => return Err(err),
+    };
 
     let file_module_name = module_id.full_path(db);
     let submodules_declarations = collect_submodule_declarations(db, &module_id, &file_module_name);
     imports.extend(submodules_declarations);
+    println!("imports array: {:?}", imports);
 
     // Resolve the module's imports
     // the resolver depends on the current module file id
-    let mut resolver = Resolver::new(db, module_file_id, InferenceId::NoContext);
+
     let mut diagnostics = SemanticDiagnostics::new(file_data.id);
 
-    for (use_id, use_path) in module_uses.iter() {
-        // let resolved_item_maybe = db.use_resolved_item(*use_id);
-        // diagnostics.diagnostics.extend(db.use_semantic_diagnostics(*use_id));
-        let syntax_db = db.upcast();
-
+    for (use_id, (use_path, use_mod_id)) in module_uses.iter() {
         // Use Path needs to break down into segments
         let mut segments = vec![];
-        get_use_segments(
-            syntax_db,
-            &ast::UsePath::Leaf(use_path.clone()),
-            &mut segments,
-        )
-        .unwrap();
+        get_use_segments(db, &ast::UsePath::Leaf(use_path.clone()), &mut segments).unwrap();
+        println!(
+            "use path {:?}",
+            use_path.as_syntax_node().get_text(db).to_string()
+        );
+        println!(
+            "individual segments: {:?}",
+            segments
+                .iter()
+                .map(|s| { s.as_syntax_node().get_text(db) })
+                .collect::<Vec<String>>()
+        );
 
         let import_path = segments
             .clone()
@@ -364,6 +393,12 @@ pub fn extract_file_imports(
             .map(|x| x.as_syntax_node().get_text(db))
             .join("::");
 
+        // The resolver must resolve using the correct module that is importing it.
+        let mut resolver = Resolver::new(
+            db,
+            ModuleFileId(*use_mod_id, FileIndex(0)),
+            InferenceId::NoContext,
+        );
         let resolved_item_maybe =
             resolver.resolve_generic_path(&mut diagnostics, segments, NotFoundItemType::Identifier);
 
@@ -374,11 +409,11 @@ pub fn extract_file_imports(
                 ResolvedGenericItem::Module(_) => CairoImportType::Module,
                 _ => CairoImportType::Other,
             };
-
+            // We don't want anything starting with core (which are builtins).
             if !full_path.starts_with("core") {
                 imports.push(CairoImport {
                     name: use_id.name(db).to_string(),
-                    path: ModulePath::new(import_path),
+                    path: ModulePath::new(import_path.clone()),
                     resolved_path: ModulePath::new(full_path),
                     import_type,
                 });
@@ -390,7 +425,7 @@ pub fn extract_file_imports(
             ));
         }
     }
-
+    println!("final imports {:?}", imports);
     Ok(imports)
 }
 
