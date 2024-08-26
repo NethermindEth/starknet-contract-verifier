@@ -2,13 +2,15 @@ use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_defs::ids::{
-    FileIndex, GenericTypeId, ModuleFileId, ModuleId, TopLevelLanguageElementId, UseId, UseLongId,
+    FileIndex, GenericTypeId, LanguageElementId, ModuleFileId, ModuleId, TopLevelLanguageElementId,
+    UseId, UseLongId,
 };
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, Directory, FileId, FileLongId};
 use cairo_lang_semantic::diagnostic::{NotFoundItemType, SemanticDiagnostics};
 use cairo_lang_semantic::expr::inference::InferenceId;
 use cairo_lang_semantic::items::us::get_use_segments;
+use cairo_lang_semantic::lookup_item::HasResolverData;
 use cairo_lang_semantic::resolve::{ResolvedGenericItem, Resolver};
 use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf};
 use cairo_lang_syntax::node::{ast, Terminal, TypedSyntaxNode};
@@ -95,9 +97,12 @@ fn extract_child_module_imports(
     }
 }
 
-/// Recursively capture all module imports, inclusive of submodule's imports.
-fn capture_module_imports(
-    db: &dyn DefsGroup,
+/// Recursively capture all the use statements of a given file, inclusive of the root
+/// module of the file and also the submodules of the file, while retaining the
+/// context of the modules in which the use statements were at.
+fn capture_file_modules_uses(
+    db: &RootDatabase,
+    file_id: FileId,
     module_id: ModuleId,
     module_uses: &mut OrderedHashMap<UseId, (UsePathLeaf, ModuleId)>,
 ) -> Result<()> {
@@ -119,7 +124,14 @@ fn capture_module_imports(
     };
 
     for submod in found_submodules.iter() {
-        capture_module_imports(db, ModuleId::Submodule(*submod), module_uses)?;
+        let submod_id = ModuleId::Submodule(*submod);
+        // Check that the location of the submodule is of the same as the module's file.
+        // This prevent over-resoluting the modules.
+        if let Some(submod_file_data) = get_module_file(db, submod_id) {
+            if submod_file_data.id == file_id {
+                capture_file_modules_uses(db, file_id, submod_id, module_uses)?;
+            }
+        }
     }
 
     Ok(())
@@ -213,7 +225,7 @@ pub fn collect_crate_module_files(
         println!("******");
         println!("module id {:?}", module_id);
         println!("module id full path {:?}", module_id.full_path(db));
-        let module_file_data = get_module_file(db, *module_id);
+        let module_file_data: Option<FileData> = get_module_file(db, *module_id);
         println!("module file {:?}", module_file_data.clone());
     }
 
@@ -283,13 +295,13 @@ pub fn get_module_file(db: &RootDatabase, module_id: ModuleId) -> Option<FileDat
     // If the module in question is not the root module of the file,
     // it returns the file that contains the module.
     let module_file_ids = db.module_files(module_id).to_option()?;
-    let module_file = module_file_ids
-        .iter()
-        .filter(|file_id| match db.lookup_intern_file(**file_id) {
-            FileLongId::OnDisk(_) => true,
-            FileLongId::Virtual(_) => false,
-        })
-        .next()?;
+    let module_file =
+        module_file_ids
+            .iter()
+            .find(|file_id| match db.lookup_intern_file(**file_id) {
+                FileLongId::OnDisk(_) => true,
+                FileLongId::Virtual(_) => false,
+            })?;
     match db.lookup_intern_file(*module_file) {
         FileLongId::OnDisk(path) => Some(FileData {
             id: *module_file,
@@ -356,7 +368,7 @@ pub fn extract_file_imports(
     let mut module_uses: OrderedHashMap<UseId, (UsePathLeaf, ModuleId)> = OrderedHashMap::default();
 
     // Attempt to capture all modules uses for this module recursively
-    match capture_module_imports(db, module_id, &mut module_uses) {
+    match capture_file_modules_uses(db, file_data.id, module_id, &mut module_uses) {
         Ok(_) => (),
         Err(err) => return Err(err),
     };
@@ -368,7 +380,6 @@ pub fn extract_file_imports(
 
     // Resolve the module's imports
     // the resolver depends on the current module file id
-
     let mut diagnostics = SemanticDiagnostics::new(file_data.id);
 
     for (use_id, (use_path, use_mod_id)) in module_uses.iter() {
@@ -399,6 +410,7 @@ pub fn extract_file_imports(
             ModuleFileId(*use_mod_id, FileIndex(0)),
             InferenceId::NoContext,
         );
+
         let resolved_item_maybe =
             resolver.resolve_generic_path(&mut diagnostics, segments, NotFoundItemType::Identifier);
 
@@ -409,8 +421,14 @@ pub fn extract_file_imports(
                 ResolvedGenericItem::Module(_) => CairoImportType::Module,
                 _ => CairoImportType::Other,
             };
-            // We don't want anything starting with core (which are builtins).
-            if !full_path.starts_with("core") {
+
+            // Turns out there are generated code that are considered uses even
+            // when there's no 'use' keyword used. These usually start with dunder (__),
+            // or double underscore. We avoid those.
+            // TODO: Since there is a chance where people do use dunder for their module imports
+            // this will not work foolproof. Fix that!
+            // We also don't want anything starting with core (which are builtins).
+            if !import_path.starts_with("__") && !full_path.starts_with("core") {
                 imports.push(CairoImport {
                     name: use_id.name(db).to_string(),
                     path: ModulePath::new(import_path.clone()),
