@@ -257,19 +257,16 @@ pub fn collect_crate_module_files(
         }
     };
 
-    println!("crates? {:?}", &*defs_db.crate_modules(crate_id));
+    // Piece of code for debugging. Leaving this in for later usage.
+    // for module_id in &*defs_db.crate_modules(crate_id) {
+    //     println!("******");
+    //     println!("module id {:?}", module_id);
+    //     println!("module id full path {:?}", module_id.full_path(db));
+    //     let module_file_data: Option<FileData> = get_module_file(db, *module_id);
+    //     println!("module file {:?}", module_file_data.clone());
+    // }
 
     for module_id in &*defs_db.crate_modules(crate_id) {
-        println!("******");
-        println!("module id {:?}", module_id);
-        println!("module id full path {:?}", module_id.full_path(db));
-        let module_file_data: Option<FileData> = get_module_file(db, *module_id);
-        println!("module file {:?}", module_file_data.clone());
-    }
-
-    for module_id in &*defs_db.crate_modules(crate_id) {
-        println!("---------");
-        println!("module id {:?}", module_id);
         let module_file = defs_db
             .module_main_file(ModuleId::CrateRoot(crate_id))
             .to_option()
@@ -425,17 +422,6 @@ pub fn extract_file_imports(
         // Use Path needs to break down into segments
         let mut segments = vec![];
         get_use_segments(db, &ast::UsePath::Leaf(use_path.clone()), &mut segments).unwrap();
-        println!(
-            "use path {:?}",
-            use_path.as_syntax_node().get_text(db).to_string()
-        );
-        println!(
-            "individual segments: {:?}",
-            segments
-                .iter()
-                .map(|s| { s.as_syntax_node().get_text(db) })
-                .collect::<Vec<String>>()
-        );
 
         let import_path = segments
             .clone()
@@ -482,7 +468,7 @@ pub fn extract_file_imports(
             ));
         }
     }
-    println!("final imports {:?}", imports);
+
     Ok(imports)
 }
 

@@ -42,10 +42,6 @@ fn test_incorrect_contract_path_given() -> Result<()> {
     assert!(result.is_err());
 
     let reduced_project_path = source_dir.join("voyager-verify/project_w_incorrect_contract_path");
-    println!(
-        "Reduced project path: {}",
-        reduced_project_path.to_str().unwrap()
-    );
     let compile_result = run_scarb_build(reduced_project_path.to_str().unwrap());
     assert!(compile_result.is_err());
     Ok(())
@@ -108,10 +104,6 @@ fn test_simple_project() -> Result<()> {
     ops::compile(package_ids, compile_opts, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/local");
-    println!(
-        "Reduced project path: {}",
-        reduced_project_path.to_str().unwrap()
-    );
     run_scarb_build(reduced_project_path.to_str().unwrap()).unwrap();
     Ok(())
 }
@@ -146,10 +138,6 @@ fn test_project_with_remap() -> Result<()> {
     ops::compile(package_ids, compile_opts, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/project_with_remap");
-    println!(
-        "Reduced project path: {}",
-        reduced_project_path.to_str().unwrap()
-    );
     run_scarb_build(reduced_project_path.to_str().unwrap()).unwrap();
     Ok(())
 }
@@ -184,10 +172,6 @@ fn test_project_w_import_from_attachment() -> Result<()> {
     ops::compile(package_ids, compile_opts, &ws).unwrap();
 
     let reduced_project_path = source_dir.join("voyager-verify/local");
-    println!(
-        "Reduced project path: {}",
-        reduced_project_path.to_str().unwrap()
-    );
     run_scarb_build(reduced_project_path.to_str().unwrap()).unwrap();
     Ok(())
 }
