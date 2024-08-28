@@ -124,6 +124,9 @@ impl CairoImport {
     pub fn is_remapped(&self) -> bool {
         self.path != ModulePath::new(self.resolved_path.clone())
     }
+    pub fn is_super_import(&self) -> bool {
+        self.path.0.starts_with("super")
+    }
 
     pub fn resolved_parent_module(&self) -> ModulePath {
         self.resolved_path.get_parent_path()
