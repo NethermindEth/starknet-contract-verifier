@@ -24,8 +24,9 @@ use crate::compiler::scarb_utils::{
     generate_scarb_updated_files, get_contracts_to_verify, read_scarb_metadata,
     update_crate_roots_from_metadata,
 };
-use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
-// use crate::graph::display_graphviz;
+use crate::graph::{
+    create_graph, get_required_module_for_contracts, EdgeWeight, _display_graphviz,
+};
 use scarb::compiler::{CompilationUnit, Compiler};
 use scarb::core::{TargetKind, Workspace};
 use scarb::flock::Filesystem;
@@ -126,12 +127,10 @@ impl Compiler for VoyagerGenerator {
 
         // Creates a graph where nodes are cairo modules, and edges are the dependencies between modules.
         let graph = create_graph(&project_modules);
-        // println!("Graph is:\n");
-        // display_graphviz(&graph);
+        _display_graphviz(&graph);
 
         // Read Scarb manifest file to get the list of contracts to verify from the [tool.voyager] section.
         // This returns the relative file paths of the contracts to verify.
-        // TODO: handle when this is empty.
         let contracts_to_verify = get_contracts_to_verify(&unit.main_component().package)?;
 
         if contracts_to_verify.is_empty() {
@@ -256,7 +255,6 @@ impl VoyagerGenerator {
                 // Extract a vector of modules for the crate.
                 // We only collect "file" modules, which are related to a Cairo file.
                 // Internal modules are not collected here.
-                // TODO: we should also collect internal modules, since they matter!
                 let crate_modules = collect_crate_module_files(db, crate_id)?;
                 Ok(CairoCrate {
                     root_dir: crate_root_dir,
@@ -297,8 +295,9 @@ impl VoyagerGenerator {
 
         let attachment_modules_data = generate_attachment_module_data(
             &required_modules_paths,
-            imports_path_not_matching_resolved_path,
+            imports_path_not_matching_resolved_path.clone(),
         );
+        println!("{:?}\n {:?}\n {:?}", required_modules_paths, imports_path_not_matching_resolved_path.clone(), attachment_modules_data);
 
         let unrequired_attachment_modules: HashMap<ModulePath, CairoAttachmentModule> =
             attachment_modules_data

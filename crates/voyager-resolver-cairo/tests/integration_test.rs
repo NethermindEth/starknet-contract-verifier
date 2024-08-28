@@ -175,3 +175,37 @@ fn test_project_w_import_from_attachment() -> Result<()> {
     run_scarb_build(reduced_project_path.to_str().unwrap()).unwrap();
     Ok(())
 }
+
+#[test]
+fn test_project_with_simple_super_import() -> Result<()> {
+    let source_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/test_data")
+        .join("simple_super_import");
+    let mut compilers = CompilerRepository::empty();
+    compilers.add(Box::new(VoyagerGenerator)).unwrap();
+
+    let manifest_path = source_dir.join("Scarb.toml");
+
+    let config = Config::builder(manifest_path.to_str().unwrap())
+        .ui_verbosity(Verbosity::Verbose)
+        .log_filter_directive(env::var_os("SCARB_LOG"))
+        .compilers(compilers)
+        .build()
+        .unwrap();
+
+    let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
+        eprintln!("error: {}", err);
+        std::process::exit(1);
+    });
+    let package_ids = ws.members().map(|p| p.id).collect();
+    let compile_opts = ops::CompileOpts {
+        include_targets: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_targets: vec![],
+    };
+
+    ops::compile(package_ids, compile_opts, &ws).unwrap();
+
+    let reduced_project_path = source_dir.join("voyager-verify/simple_super_import");
+    run_scarb_build(reduced_project_path.to_str().unwrap()).unwrap();
+    Ok(())
+}
