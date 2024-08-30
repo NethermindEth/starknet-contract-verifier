@@ -238,7 +238,8 @@ fn test_project_with_external_import_resolved() -> Result<()> {
 
     ops::compile(package_ids, compile_opts, &ws).unwrap();
 
-    let reduced_project_path = source_dir.join("voyager-verify/import_external_deps_with_workspace");
+    let reduced_project_path =
+        source_dir.join("voyager-verify/import_external_deps_with_workspace");
     run_scarb_build(reduced_project_path.to_str().unwrap()).unwrap();
     Ok(())
 }
