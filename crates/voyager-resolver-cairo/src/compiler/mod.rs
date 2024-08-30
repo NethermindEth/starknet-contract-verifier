@@ -168,11 +168,12 @@ impl Compiler for VoyagerGenerator {
         let attachment_modules_data = attachment_modules_data
             .iter()
             .filter(|(k, _)| {
-                let base_package_name = &k.0.split("::").collect::<Vec<&str>>()[0];
-                !external_packages.contains(&base_package_name.to_string())
+                let base_package_name = &k.0.split("::").collect::<Vec<&str>>()[0].to_string();
+                !external_packages.contains(base_package_name) && base_package_name != "super"
             })
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect::<HashMap<ModulePath, CairoAttachmentModule>>();
+        println!("amd {:?}", attachment_modules_data.clone());
 
         let target_dir = Utf8PathBuf::from(
             manifest_path
