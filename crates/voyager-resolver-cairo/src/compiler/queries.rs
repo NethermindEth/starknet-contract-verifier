@@ -6,12 +6,11 @@ use cairo_lang_defs::ids::{
 };
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, Directory, FileId, FileLongId};
-use cairo_lang_parser::db::ParserGroup;
 use cairo_lang_semantic::diagnostic::{NotFoundItemType, SemanticDiagnostics};
 use cairo_lang_semantic::expr::inference::InferenceId;
 use cairo_lang_semantic::items::us::get_use_segments;
 use cairo_lang_semantic::resolve::{ResolvedGenericItem, Resolver};
-use cairo_lang_syntax::node::ast::{MaybeModuleBody, SyntaxFile, UsePath, UsePathLeaf};
+use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf};
 use cairo_lang_syntax::node::{ast, Terminal, TypedSyntaxNode};
 use cairo_lang_utils::ordered_hash_map::OrderedHashMap;
 use cairo_lang_utils::Upcast;
@@ -19,7 +18,7 @@ use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use crate::model::{CairoImport, CairoImportType, CairoModule, ModulePath};
+use crate::model::{CairoImport, CairoImportType, CairoModule, CairoSubmodules, ModulePath};
 use cairo_lang_diagnostics::ToOption;
 use cairo_lang_semantic::items::functions::GenericFunctionId;
 
@@ -94,6 +93,87 @@ fn extract_child_module_imports(
                 _ => {}
             });
     }
+}
+
+pub fn capture_modules_submodules(
+    db: &RootDatabase,
+    file_id: FileId,
+    module_id: ModuleId,
+) -> Result<Vec<CairoSubmodules>> {
+    let mut submodules: Vec<CairoSubmodules> = vec![];
+    // We check if there are any defined submodules in the given module.
+    // If so recursively resolve them.
+    let found_submodules = match db.module_submodules_ids(module_id) {
+        Ok(submod) => submod,
+        Err(_) => return Err(anyhow!("Fail to resolve module submodules")),
+    };
+
+    for submod in found_submodules.iter() {
+        let submod_id = ModuleId::Submodule(*submod);
+        // Check that the location of the submodule is of the same as the module's file.
+        // This prevent over-resoluting the modules.
+        if let Some(submod_file_data) = get_module_file(db, submod_id) {
+            if submod_file_data.id == file_id {
+                let root_mod_path = module_id.full_path(db);
+                let current_mod_path = submod_id.full_path(db);
+                let mod_name = match current_mod_path
+                    .strip_prefix(format!("{}::", root_mod_path.as_str()).as_str())
+                {
+                    Some(name) => name.to_string(),
+                    None => return Err(anyhow!("Fail to compute submod name from path")),
+                };
+                submodules.push(CairoSubmodules {
+                    name: mod_name,
+                    parent_path: ModulePath::new(root_mod_path),
+                    path: ModulePath::new(current_mod_path),
+                });
+                let submod_submods = capture_modules_submodules(db, file_id, submod_id)?;
+                submodules.extend(submod_submods);
+            }
+        }
+    }
+
+    Ok(submodules)
+}
+
+/// Recursively capture all the use statements of a given file, inclusive of the root
+/// module of the file and also the submodules of the file, while retaining the
+/// context of the modules in which the use statements were at.
+fn capture_file_modules_uses(
+    db: &RootDatabase,
+    file_id: FileId,
+    module_id: ModuleId,
+    module_uses: &mut OrderedHashMap<UseId, (UsePathLeaf, ModuleId)>,
+) -> Result<()> {
+    // First we capture the given module id imports.
+    let found_module_uses = match db.module_uses(module_id) {
+        Ok(mods) => mods,
+        Err(_) => return Err(anyhow!("Fail to resolve modules uses")),
+    };
+
+    for (use_id, use_path_leaf) in found_module_uses.iter() {
+        module_uses.insert(*use_id, (use_path_leaf.clone(), module_id));
+    }
+
+    // We then check if there are any defined submodules in the given module.
+    // If so recursively resolve them.
+    let found_submodules = match db.module_submodules_ids(module_id) {
+        Ok(submod) => submod,
+        Err(_) => return Err(anyhow!("Fail to resolve module submodules")),
+    };
+
+    for submod in found_submodules.iter() {
+        let submod_id = ModuleId::Submodule(*submod);
+        // Check that the location of the submodule is of the same as the module's file.
+        // This prevent over-resoluting the modules.
+        if let Some(submod_file_data) = get_module_file(db, submod_id) {
+            if submod_file_data.id == file_id {
+                capture_file_modules_uses(db, file_id, submod_id, module_uses)?;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Extracts the imports of a child module and adds them to a hash map.
@@ -177,6 +257,15 @@ pub fn collect_crate_module_files(
         }
     };
 
+    // Piece of code for debugging. Leaving this in for later usage.
+    // for module_id in &*defs_db.crate_modules(crate_id) {
+    //     println!("******");
+    //     println!("module id {:?}", module_id);
+    //     println!("module id full path {:?}", module_id.full_path(db));
+    //     let module_file_data: Option<FileData> = get_module_file(db, *module_id);
+    //     println!("module file {:?}", module_file_data.clone());
+    // }
+
     for module_id in &*defs_db.crate_modules(crate_id) {
         let module_file = defs_db
             .module_main_file(ModuleId::CrateRoot(crate_id))
@@ -200,19 +289,19 @@ pub fn collect_crate_module_files(
             visited_files.insert(file.clone(), true);
 
             let defs_group: &dyn DefsGroup = db.upcast();
-            let module_dir =
-                match defs_group
-                    .module_dir(*module_id)
-                    .to_option()
-                    .with_context(|| {
-                        format!("Could not get module directory for module {:?}", module_id)
-                    })? {
-                    Directory::Real(path) => path.display().to_string(),
-                    Directory::Virtual { .. } => {
-                        return Err(anyhow!("Virtual directories are not supported"));
-                    }
-                };
+            let module_dir: String = match defs_group
+                .module_dir(*module_id)
+                .to_option()
+                .with_context(|| {
+                    format!("Could not get module directory for module {:?}", module_id)
+                })? {
+                Directory::Real(path) => path.display().to_string(),
+                Directory::Virtual { .. } => {
+                    return Err(anyhow!("Virtual directories are not supported"));
+                }
+            };
             let module_imports = HashSet::from_iter(extract_file_imports(db, *module_id, &file)?);
+            let module_submodules = capture_modules_submodules(db, file.id, *module_id)?;
             let cairo_module_data = CairoModule {
                 dir: module_dir.into(),
                 main_file: main_file_path,
@@ -220,6 +309,7 @@ pub fn collect_crate_module_files(
                 filepath: file.path.clone(),
                 relative_filepath: file.get_relative_path(&PathBuf::from(&crate_root_dir))?,
                 imports: module_imports,
+                submodules: module_submodules,
             };
             crate_modules.push(cairo_module_data);
         }
@@ -242,13 +332,13 @@ pub fn get_module_file(db: &RootDatabase, module_id: ModuleId) -> Option<FileDat
     // If the module in question is not the root module of the file,
     // it returns the file that contains the module.
     let module_file_ids = db.module_files(module_id).to_option()?;
-    let module_file = module_file_ids
-        .iter()
-        .filter(|file_id| match db.lookup_intern_file(**file_id) {
-            FileLongId::OnDisk(_) => true,
-            FileLongId::Virtual(_) => false,
-        })
-        .next()?;
+    let module_file =
+        module_file_ids
+            .iter()
+            .find(|file_id| match db.lookup_intern_file(**file_id) {
+                FileLongId::OnDisk(_) => true,
+                FileLongId::Virtual(_) => false,
+            })?;
     match db.lookup_intern_file(*module_file) {
         FileLongId::OnDisk(path) => Some(FileData {
             id: *module_file,
@@ -273,7 +363,6 @@ fn collect_submodule_declarations(
     for (k, v) in module_declarations.iter() {
         let submodule_name = v.name(db).text(db);
         let submodule_path = format!("{}::{}", parent_path, submodule_name);
-
         match v.body(db) {
             MaybeModuleBody::None(_) => {
                 imports.push(CairoImport {
@@ -283,6 +372,7 @@ fn collect_submodule_declarations(
                     import_type: CairoImportType::Module,
                 });
             }
+
             MaybeModuleBody::Some(_body) => {
                 let module_id = ModuleId::Submodule(*k);
                 let mut declared_modules =
@@ -291,7 +381,7 @@ fn collect_submodule_declarations(
             }
         }
     }
-
+    // TODO: maybe we need to make this unique via a hashmap?
     imports
 }
 
@@ -311,29 +401,14 @@ pub fn extract_file_imports(
     module_id: ModuleId,
     file_data: &FileData,
 ) -> Result<Vec<CairoImport>> {
-    let file_syntax = db
-        .file_syntax(file_data.id)
-        .to_option()
-        .with_context(|| format!("Could not get file_syntax for file {:?}", file_data.id))?;
-    let file_ast = SyntaxFile::from_syntax_node(db, file_syntax).items(db);
-    let module_file_id = ModuleFileId(module_id, FileIndex(file_data.index));
-
     let mut imports: Vec<CairoImport> = vec![];
-    let mut module_uses = OrderedHashMap::default();
+    let mut module_uses: OrderedHashMap<UseId, (UsePathLeaf, ModuleId)> = OrderedHashMap::default();
 
-    // Process the top-level items in the file AST
-    for item_ast in file_ast.elements(db) {
-        // Top level items
-        match item_ast {
-            ast::Item::Use(item_use) => {
-                capture_imports(db, module_file_id, &mut module_uses, item_use.use_path(db))
-            }
-            ast::Item::Module(item_module) => {
-                extract_child_module_imports(db, &item_module, module_file_id, &mut module_uses);
-            }
-            _ => {}
-        }
-    }
+    // Attempt to capture all modules uses for this module recursively
+    match capture_file_modules_uses(db, file_data.id, module_id, &mut module_uses) {
+        Ok(_) => (),
+        Err(err) => return Err(err),
+    };
 
     let file_module_name = module_id.full_path(db);
     let submodules_declarations = collect_submodule_declarations(db, &module_id, &file_module_name);
@@ -341,28 +416,25 @@ pub fn extract_file_imports(
 
     // Resolve the module's imports
     // the resolver depends on the current module file id
-    let mut resolver = Resolver::new(db, module_file_id, InferenceId::NoContext);
     let mut diagnostics = SemanticDiagnostics::new(file_data.id);
 
-    for (use_id, use_path) in module_uses.iter() {
-        // let resolved_item_maybe = db.use_resolved_item(*use_id);
-        // diagnostics.diagnostics.extend(db.use_semantic_diagnostics(*use_id));
-        let syntax_db = db.upcast();
-
+    for (use_id, (use_path, use_mod_id)) in module_uses.iter() {
         // Use Path needs to break down into segments
         let mut segments = vec![];
-        get_use_segments(
-            syntax_db,
-            &ast::UsePath::Leaf(use_path.clone()),
-            &mut segments,
-        )
-        .unwrap();
+        get_use_segments(db, &ast::UsePath::Leaf(use_path.clone()), &mut segments).unwrap();
 
         let import_path = segments
             .clone()
             .into_iter()
             .map(|x| x.as_syntax_node().get_text(db))
             .join("::");
+
+        // The resolver must resolve using the correct module that is importing it.
+        let mut resolver = Resolver::new(
+            db,
+            ModuleFileId(*use_mod_id, FileIndex(0)),
+            InferenceId::NoContext,
+        );
 
         let resolved_item_maybe =
             resolver.resolve_generic_path(&mut diagnostics, segments, NotFoundItemType::Identifier);
@@ -375,10 +447,16 @@ pub fn extract_file_imports(
                 _ => CairoImportType::Other,
             };
 
-            if !full_path.starts_with("core") {
+            // Turns out there are generated code that are considered uses even
+            // when there's no 'use' keyword used. These usually start with dunder (__),
+            // or double underscore. We avoid those.
+            // TODO: Since there is a chance where people do use dunder for their module imports
+            // this will not work foolproof. Fix that!
+            // We also don't want anything starting with core (which are builtins).
+            if !import_path.starts_with("__") && !full_path.starts_with("core") {
                 imports.push(CairoImport {
                     name: use_id.name(db).to_string(),
-                    path: ModulePath::new(import_path),
+                    path: ModulePath::new(import_path.clone()),
                     resolved_path: ModulePath::new(full_path),
                     import_type,
                 });
@@ -699,6 +777,7 @@ mod tests {
                         import_type: CairoImportType::Module,
                     },
                 ]),
+                submodules: vec![],
             },
             CairoModule {
                 dir: PathBuf::from("src/submod"),
@@ -712,6 +791,7 @@ mod tests {
                     resolved_path: ModulePath::new("test::submod::subsubmod"),
                     import_type: CairoImportType::Module,
                 }]),
+                submodules: vec![],
             },
             CairoModule {
                 dir: PathBuf::from("src/submod/subsubmod"),
@@ -720,6 +800,7 @@ mod tests {
                 filepath: PathBuf::from("src/submod/subsubmod.cairo"),
                 relative_filepath: PathBuf::from("src/lib.cairo"),
                 imports: Default::default(),
+                submodules: vec![],
             },
             CairoModule {
                 dir: PathBuf::from("src/contract"),
@@ -733,6 +814,7 @@ mod tests {
                     resolved_path: ModulePath::new("test::submod::subsubmod::foo"),
                     import_type: CairoImportType::Other,
                 }]),
+                submodules: vec![],
             },
         ];
 
@@ -777,5 +859,98 @@ mod tests {
         assert_eq!(file_data.name, "submod.cairo");
         assert_eq!(file_data.index, 0);
         assert_eq!(file_data.path.to_str().unwrap(), "src/submod.cairo");
+    }
+
+    #[test]
+    fn test_module_submodules_should_extract_single_level_submodules() {
+        let db = &mut RootDatabase::builder()
+            .with_plugin_suite(
+                PluginSuite::default()
+                    .add_plugin::<StarkNetPlugin>()
+                    .to_owned(),
+            )
+            .build()
+            .unwrap();
+
+        let crate_id = setup_test_files_with_imports(
+            db,
+            TestImport {
+                path: ModulePath::new("test::submod::subsubmod::inlinemod::foo"),
+                implementation: "
+                mod inlinemod {
+                    fn foo(){}
+                }
+                "
+                .to_owned(),
+            },
+        );
+        let crate_modules = db.crate_modules(crate_id);
+        // The second modules found will be the subsubmod.cairo file.
+        let module_id = crate_modules[2];
+        let file_data = get_module_file(db, module_id).unwrap();
+
+        let submodules = capture_modules_submodules(db, file_data.id, module_id).unwrap();
+        assert_eq!(submodules.len(), 1);
+        assert_eq!(
+            submodules[0],
+            CairoSubmodules {
+                name: "inlinemod".to_string(),
+                path: ModulePath::new("test::submod::subsubmod::inlinemod"),
+                parent_path: ModulePath::new("test::submod::subsubmod")
+            }
+        )
+    }
+
+    #[test]
+    fn test_module_submodules_should_extract_multi_level_submodules() {
+        let db = &mut RootDatabase::builder()
+            .with_plugin_suite(
+                PluginSuite::default()
+                    .add_plugin::<StarkNetPlugin>()
+                    .to_owned(),
+            )
+            .build()
+            .unwrap();
+
+        let crate_id = setup_test_files_with_imports(
+            db,
+            TestImport {
+                path: ModulePath::new("test::submod::subsubmod::inlinemod::inline2mod::foo"),
+                implementation: "
+                mod inlinemod {
+                    mod inline2mod {
+                        fn foo(){}
+                    }
+                    mod inline3mod {
+                        fn bar(){}
+                    }
+                }
+                "
+                .to_owned(),
+            },
+        );
+        let crate_modules = db.crate_modules(crate_id);
+        // The second modules found will be the subsubmod.cairo file.
+        let module_id = crate_modules[2];
+        let file_data = get_module_file(db, module_id).unwrap();
+
+        let submodules = capture_modules_submodules(db, file_data.id, module_id).unwrap();
+        assert_eq!(submodules.len(), 3);
+        assert_eq!(
+            submodules[1],
+            CairoSubmodules {
+                name: "inline2mod".to_string(),
+                path: ModulePath::new("test::submod::subsubmod::inlinemod::inline2mod"),
+                parent_path: ModulePath::new("test::submod::subsubmod::inlinemod")
+            }
+        );
+        assert_eq!(
+            submodules[2],
+            CairoSubmodules {
+                name: "inline3mod".to_string(),
+                path: ModulePath::new("test::submod::subsubmod::inlinemod::inline3mod"),
+                parent_path: ModulePath::new("test::submod::subsubmod::inlinemod")
+            }
+        );
     }
 }
