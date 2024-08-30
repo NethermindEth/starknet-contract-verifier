@@ -2,7 +2,8 @@ use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_defs::ids::{
-    FileIndex, GenericTypeId, ModuleFileId, ModuleId, NamedLanguageElementId, TopLevelLanguageElementId, UseId, UseLongId
+    FileIndex, GenericTypeId, ModuleFileId, ModuleId, NamedLanguageElementId,
+    TopLevelLanguageElementId, UseId, UseLongId,
 };
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, Directory, FileId, FileLongId};
