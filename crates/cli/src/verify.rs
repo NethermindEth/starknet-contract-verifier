@@ -8,8 +8,8 @@ use dyn_compiler::dyn_compiler::SupportedCairoVersions;
 
 use crate::{
     api::{
-        dispatch_class_verification_job, does_class_exist, poll_verification_status, FileInfo,
-        Network, ProjectMetadataInfo,
+        dispatch_class_verification_job, poll_verification_status, FileInfo, Network,
+        ProjectMetadataInfo,
     },
     license::LicenseType,
     resolver::get_dynamic_compiler,
@@ -36,9 +36,6 @@ pub struct VerifyProjectArgs {
     #[arg(help = "Source directory", required = true)]
     pub path: Utf8PathBuf,
 
-    #[arg(long, help = "Is it an account contract?")]
-    pub is_account_contract: Option<bool>,
-
     #[arg(long, help = "Max retries")]
     pub max_retries: Option<u32>,
 
@@ -56,25 +53,13 @@ pub fn verify_project(
     metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
 ) -> Result<()> {
-    // Check if the class exists on the network
     let network_enum = Network::from_str(args.network.as_str())?;
-    match does_class_exist(network_enum.clone(), &args.hash) {
-        Ok(true) => (),
-        Ok(false) => return Err(anyhow::anyhow!("Class does not exist on the network")),
-        Err(e) => {
-            return Err(anyhow::anyhow!(
-                "Error while checking if class exists: {}",
-                e
-            ))
-        }
-    }
 
     let dispatch_response = dispatch_class_verification_job(
         args.api_key.as_str(),
         network_enum.clone(),
         &args.hash,
         args.license.to_long_string().as_str(),
-        args.is_account_contract.unwrap_or(false),
         &args.name,
         metadata,
         files,
