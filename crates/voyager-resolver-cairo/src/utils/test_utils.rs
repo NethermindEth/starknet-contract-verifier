@@ -73,6 +73,7 @@ pub fn setup_simple_modules() -> Vec<CairoModule> {
         filepath: PathBuf::from("src/lib.cairo"),
         relative_filepath: PathBuf::from("lib.cairo"),
         imports: Default::default(),
+        submodules: vec![],
     };
 
     let module_1 = CairoModule {
@@ -82,6 +83,7 @@ pub fn setup_simple_modules() -> Vec<CairoModule> {
         filepath: PathBuf::from("src/submod.cairo"),
         relative_filepath: PathBuf::from("submod.cairo"),
         imports: Default::default(),
+        submodules: vec![],
     };
 
     let module_2 = CairoModule {
@@ -91,6 +93,7 @@ pub fn setup_simple_modules() -> Vec<CairoModule> {
         filepath: PathBuf::from("src/submod/subsubmod.cairo"),
         relative_filepath: PathBuf::from("subsubmod.cairo"),
         imports: Default::default(),
+        submodules: vec![],
     };
 
     let module_3 = CairoModule {
@@ -105,6 +108,7 @@ pub fn setup_simple_modules() -> Vec<CairoModule> {
             resolved_path: ModulePath::new("test::submod::subsubmod::foo"),
             import_type: CairoImportType::Other,
         }]),
+        submodules: vec![],
     };
 
     let modules = vec![module_0, module_1, module_2, module_3];

@@ -1,6 +1,9 @@
 use anyhow::{anyhow, ensure, Context, Result};
+use itertools::Itertools;
 use scarb::flock::Filesystem;
+use scarb_metadata::Metadata;
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -58,6 +61,35 @@ pub fn read_scarb_metadata(manifest_path: &PathBuf) -> anyhow::Result<scarb_meta
         .inherit_stderr()
         .exec()
         .map_err(Into::into)
+}
+
+/// Extract non-local external packages, which comes from a source that is not
+/// - local
+/// - a std library
+/// The extract list should only contain dependencies coming from
+/// - package registry
+/// - github registry
+pub fn get_external_nonlocal_packages(metadata: Metadata) -> Vec<String> {
+    let mut package_set: HashSet<String> = HashSet::new();
+
+    for p in metadata.packages.iter() {
+        if p.source.repr != "std"
+            && !p.source.repr.starts_with("path")
+            && p.source.repr != "registry+https://there-is-no-default-registry-yet.com/"
+        {
+            package_set.insert(p.name.clone());
+        }
+        for dep in p.dependencies.clone() {
+            if dep.source.repr != "std"
+                && !dep.source.repr.starts_with("path")
+                && dep.source.repr != "registry+https://there-is-no-default-registry-yet.com/"
+            {
+                package_set.insert(dep.name.clone());
+            }
+        }
+    }
+
+    package_set.iter().map(|p| p.to_owned()).collect_vec()
 }
 
 /// Updates the crate roots in the compiler database using the metadata from a Scarb compilation.
@@ -128,6 +160,7 @@ pub fn generate_scarb_updated_files(
     scarb_metadata: scarb_metadata::Metadata,
     target_dir: &Filesystem,
     required_modules: Vec<&CairoModule>,
+    external_packages: Vec<String>,
 ) -> Result<()> {
     let mut metadata = scarb_metadata.clone();
     let required_packages = required_modules
@@ -149,6 +182,7 @@ pub fn generate_scarb_updated_files(
             manifest_path.into_std_path_buf(),
             target_path.as_std_path(),
             &required_packages,
+            &external_packages,
         )?;
     }
     Ok(())
@@ -177,6 +211,7 @@ pub fn generate_updated_scarb_toml(
     manifest_path: PathBuf,
     target_path: &Path,
     required_packages: &[String],
+    external_packages: &[String],
 ) -> Result<()> {
     let manifest_path = fs::canonicalize(manifest_path)?;
     let original_raw_manifest = fs::read_to_string(&manifest_path)?;
@@ -204,6 +239,12 @@ pub fn generate_updated_scarb_toml(
         if *k == "starknet" {
             return;
         }
+
+        // Ignore any external packages and keep as it is.
+        if external_packages.contains(&k.to_string()) {
+            return;
+        }
+
         // remove unused dependencies
         if !required_packages.contains(&k.to_string()) && *k != "starknet" {
             tab.as_table_like_mut().unwrap().remove(k);

@@ -64,6 +64,7 @@ pub struct CairoModule {
     pub path: ModulePath,
     pub filepath: PathBuf,
     pub relative_filepath: PathBuf,
+    pub submodules: Vec<CairoSubmodules>,
     pub imports: HashSet<CairoImport>,
 }
 
@@ -83,6 +84,25 @@ impl CairoModule {
             .with_context(|| format!("Failed to get grandparent of {:?}", module_root))?
             .to_path_buf())
     }
+
+    /// Attempt to check if a ModulePath given will resolve into a CairoModule or
+    /// a CairoSubmodule.
+    pub fn is_module_path_resolved(&self, mod_path: ModulePath) -> bool {
+        if mod_path == self.path {
+            return true;
+        }
+        if self.submodules.iter().any(|submod| submod.path == mod_path) {
+            return true;
+        }
+        false
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CairoSubmodules {
+    pub name: String,
+    pub parent_path: ModulePath,
+    pub path: ModulePath,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -103,6 +123,9 @@ impl CairoImport {
 
     pub fn is_remapped(&self) -> bool {
         self.path != ModulePath::new(self.resolved_path.clone())
+    }
+    pub fn is_super_import(&self) -> bool {
+        self.path.0.starts_with("super")
     }
 
     pub fn resolved_parent_module(&self) -> ModulePath {

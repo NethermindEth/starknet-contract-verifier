@@ -13,52 +13,55 @@ permissions:
 # release flow.
 jobs:
   sync-branches:
-    strategy:
-      matrix:
-        supported-version:
-          [
-            "1.1.0",
-            "1.1.1",
-            "2.0.1",
-            "2.0.2",
-            "2.1.0",
-            "2.1.1",
-            "2.2.0",
-            "2.3.0",
-            "2.3.1",
-            "2.4.0",
-            "2.4.1",
-            "2.4.2",
-            "2.4.3",
-            "2.4.4",
-            "2.5.0",
-            "2.5.1",
-            "2.5.2",
-            "2.5.3",
-            "2.5.4",
-            "2.6.0",
-            "2.6.1",
-            "2.6.2",
-            "2.6.3",
-          ]
+    # strategy:
+    #   matrix:
+    #     supported-version:
+    #       [
+    #         "1.1.0",
+    #         "1.1.1",
+    #         "2.0.1",
+    #         "2.0.2",
+    #         "2.1.0",
+    #         "2.1.1",
+    #         "2.2.0",
+    #         "2.3.0",
+    #         "2.3.1",
+    #         "2.4.0",
+    #         "2.4.1",
+    #         "2.4.2",
+    #         "2.4.3",
+    #         "2.4.4",
+    #         "2.5.0",
+    #         "2.5.1",
+    #         "2.5.2",
+    #         "2.5.3",
+    #         "2.5.4",
+    #         "2.6.0",
+    #         "2.6.1",
+    #         "2.6.2",
+    #         "2.6.3",
+    #       ]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        # Do nothing for now since the newest changes include version updates.
+        - name: Do nothing
+          run: echo nothing
+    #   - name: Checkout
+    #     uses: actions/checkout@v4
+    #     with:
+    #       fetch-depth: 0
 
-      # This user can be anything using any email, just for git to work as expected.
-      - name: setup git configs
-        run: |
-          git config user.name "cwkang1998 (Github Action)"
-          git config user.email "23054115+cwkang1998@users.noreply.github.com"
+    #   # This user can be anything using any email, just for git to work as expected.
+    #   - name: setup git configs
+    #     run: |
+    #       git config user.name "cwkang1998 (Github Action)"
+    #       git config user.email "23054115+cwkang1998@users.noreply.github.com"
 
-      - name: update all release branches
-        run: |
-          git checkout main
-          git fetch origin
-          git checkout release/${{ matrix.supported-version }}
-          git pull
-          git merge origin/main
-          git push origin release/${{ matrix.supported-version }}
+    #   - name: update all release branches
+    #     run: |
+    #       git checkout main
+    #       git fetch origin
+    #       git checkout release/${{ matrix.supported-version }}
+    #       git pull
+    #       git merge origin/main
+    #       git push origin release/${{ matrix.supported-version }}

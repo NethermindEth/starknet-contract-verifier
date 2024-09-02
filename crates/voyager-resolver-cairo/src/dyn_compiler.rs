@@ -4,7 +4,11 @@ use anyhow::Result;
 use camino::Utf8PathBuf;
 use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions, SupportedScarbVersions};
 use itertools::Itertools;
-use scarb::{compiler::CompilerRepository, core::{Config, TargetKind}, ops};
+use scarb::{
+    compiler::CompilerRepository,
+    core::{Config, TargetKind},
+    ops,
+};
 
 use crate::{
     compiler::{scarb_utils::get_contracts_to_verify, VoyagerGenerator},
