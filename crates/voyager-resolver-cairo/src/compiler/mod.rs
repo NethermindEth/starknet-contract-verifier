@@ -1,11 +1,13 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::ids::ModuleId;
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, CrateLongId, FileLongId};
 use camino::Utf8PathBuf;
+use scarb_utils::get_external_nonlocal_packages;
+use std::clone;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_diagnostics::ToOption;
@@ -24,8 +26,9 @@ use crate::compiler::scarb_utils::{
     generate_scarb_updated_files, get_contracts_to_verify, read_scarb_metadata,
     update_crate_roots_from_metadata,
 };
-use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
-// use crate::graph::display_graphviz;
+use crate::graph::{
+    create_graph, get_required_module_for_contracts, EdgeWeight, _display_graphviz,
+};
 use scarb::compiler::{CairoCompilationUnit, CompilationUnitAttributes, Compiler};
 use scarb::core::{TargetKind, Workspace};
 use scarb::flock::Filesystem;
@@ -99,6 +102,10 @@ impl Compiler for VoyagerGenerator {
         // This updates the compiler database with the crate roots of the external dependencies.
         // This enables resolving external dependencies paths.
         let manifest_path: PathBuf = unit.main_component().package.manifest_path().into();
+        let root_path = match manifest_path.parent() {
+            Some(path) => path,
+            None => Path::new(""),
+        };
         let metadata = read_scarb_metadata(&manifest_path)
             .expect("Failed to obtain scarb metadata from manifest file.");
         update_crate_roots_from_metadata(db, metadata.clone());
@@ -122,12 +129,28 @@ impl Compiler for VoyagerGenerator {
 
         // Creates a graph where nodes are cairo modules, and edges are the dependencies between modules.
         let graph = create_graph(&project_modules);
-        // println!("Graph is:\n");
-        // display_graphviz(&graph);
 
         // Read Scarb manifest file to get the list of contracts to verify from the [tool.voyager] section.
         // This returns the relative file paths of the contracts to verify.
         let contracts_to_verify = get_contracts_to_verify(&unit.main_component().package)?;
+
+        if contracts_to_verify.is_empty() {
+            return Err(anyhow!("No contracts found."));
+        }
+        if contracts_to_verify.len() > 1 {
+            return Err(anyhow!("Currently doesn't support multiple contracts."));
+        }
+
+        // Check if the path exists, which requires us to know the absolute path.
+        if !root_path
+            .join("src")
+            .join(contracts_to_verify[0].clone())
+            .exists()
+        {
+            return Err(anyhow!(
+                "Unable to find the contract file given in Scarb.toml"
+            ));
+        }
 
         // Collect the CairoModule corresponding to the file paths of the contracts.
         let modules_to_verify = project_modules
@@ -135,8 +158,22 @@ impl Compiler for VoyagerGenerator {
             .filter(|m| contracts_to_verify.contains(&m.relative_filepath))
             .collect::<Vec<_>>();
 
+        let external_packages = get_external_nonlocal_packages(metadata.clone());
+
         let (required_modules_paths, attachment_modules_data) =
-            self.get_reduced_project(&graph, modules_to_verify)?;
+            self.get_reduced_project(&graph, modules_to_verify.clone())?;
+        println!("rmp {:?}", required_modules_paths.clone());
+
+        // Filter away packages that are external, imported from git repository & std.
+        let attachment_modules_data = attachment_modules_data
+            .iter()
+            .filter(|(k, _)| {
+                let base_package_name = &k.0.split("::").collect::<Vec<&str>>()[0].to_string();
+                !external_packages.contains(base_package_name) && base_package_name != "super"
+            })
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<HashMap<ModulePath, CairoAttachmentModule>>();
+        println!("amd {:?}", attachment_modules_data.clone());
 
         let target_dir = Utf8PathBuf::from(
             manifest_path
@@ -166,7 +203,11 @@ impl Compiler for VoyagerGenerator {
         // Get the Cairo Modules corresponding to the required modules paths.
         let required_modules = project_modules
             .iter()
-            .filter(|m| required_modules_paths.contains(&m.path))
+            .filter(|m| {
+                let base_package_name = &m.path.0.split("::").collect::<Vec<&str>>()[0].trim();
+                required_modules_paths.contains(&m.path)
+                    && !external_packages.contains(&base_package_name.to_string())
+            })
             .collect::<Vec<_>>();
         // Copy these modules in the target directory.
         // Copy readme files and license files over too
@@ -174,7 +215,7 @@ impl Compiler for VoyagerGenerator {
 
         // Generate each of the scarb manifest files for the output directory.
         // The dependencies are updated to include the required modules as local dependencies.
-        generate_scarb_updated_files(metadata, &target_dir, required_modules)?;
+        generate_scarb_updated_files(metadata, &target_dir, required_modules, external_packages)?;
 
         let package_name = unit.main_component().package.id.name.to_string();
         let generated_crate_dir = target_dir.path_existent().unwrap().join(package_name);
@@ -273,7 +314,7 @@ impl VoyagerGenerator {
 
         let attachment_modules_data = generate_attachment_module_data(
             &required_modules_paths,
-            imports_path_not_matching_resolved_path,
+            imports_path_not_matching_resolved_path.clone(),
         );
 
         let unrequired_attachment_modules: HashMap<ModulePath, CairoAttachmentModule> =
@@ -298,6 +339,7 @@ mod tests {
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
     use cairo_lang_semantic::plugin::PluginSuite;
     use cairo_lang_starknet::plugin::StarkNetPlugin;
+    use scarb_metadata::Metadata;
     use std::collections::HashSet;
     use std::path::PathBuf;
 
