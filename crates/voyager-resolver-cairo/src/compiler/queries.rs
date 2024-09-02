@@ -426,7 +426,7 @@ pub fn extract_file_imports(
         let import_path = segments
             .clone()
             .into_iter()
-            .map(|x| x.as_syntax_node().get_text(db))
+            .map(|x| x.as_syntax_node().get_text(db).trim().to_string())
             .join("::");
 
         // The resolver must resolve using the correct module that is importing it.

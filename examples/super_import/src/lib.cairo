@@ -1,2 +1,0 @@
-mod simple;
-mod contracts;
