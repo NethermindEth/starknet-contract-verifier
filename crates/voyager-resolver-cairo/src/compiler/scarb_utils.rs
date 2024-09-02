@@ -4,7 +4,8 @@ use scarb::flock::Filesystem;
 use scarb_metadata::Metadata;
 use serde::Deserialize;
 use std::collections::HashSet;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use toml_edit::{Document, Formatted, InlineTable, Item, Table, Value};
@@ -193,13 +194,6 @@ pub fn generate_scarb_updated_files(
             &required_packages,
             &external_packages,
         )?;
-
-        // Problem with this step is that sometimes the build happens faster than the Scarb.toml is actually created and detected.
-        // as such adding a checking step here in order to check and at the same time artificially slow down this process.
-        // For some weird reason this is only an issue before cairo 2.6?
-        if !manifest_path.exists() {
-            return Err(anyhow!("Files not created correctly."))
-        }
     }
 
     Ok(())
