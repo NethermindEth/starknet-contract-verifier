@@ -16,19 +16,7 @@ pub enum TargetType {
 
 pub fn get_dynamic_compiler(cairo_version: SupportedCairoVersions) -> Box<dyn DynamicCompiler> {
     match cairo_version {
-<<<<<<< HEAD
-        // SupportedCairoVersions::V1_1_0 => Box::new(VoyagerGeneratorV1_1_0),
-        // SupportedCairoVersions::V1_1_1 => Box::new(VoyagerGeneratorV1_1_1),
-        // SupportedCairoVersions::V2_0_0 => Box::new(VoyagerGeneratorV2_0_0),
-        // SupportedCairoVersions::V2_0_1 => Box::new(VoyagerGeneratorV2_0_1),
-        // SupportedCairoVersions::V2_0_2 => Box::new(VoyagerGeneratorV2_0_2),
-        // SupportedCairoVersions::V2_1_0 => Box::new(VoyagerGeneratorV2_1_0),
-        // SupportedCairoVersions::V2_1_1 => Box::new(VoyagerGeneratorV2_1_1),
-        // SupportedCairoVersions::V2_2_0 => Box::new(VoyagerGeneratorV2_2_0),
         SupportedCairoVersions::V2_4_2 => Box::new(VoyagerGenerator),
-=======
-        SupportedCairoVersions::V2_4_3 => Box::new(VoyagerGenerator),
->>>>>>> main
     }
 }
 
