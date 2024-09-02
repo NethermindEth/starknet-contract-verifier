@@ -8,6 +8,8 @@ use scarb_utils::get_external_nonlocal_packages;
 use std::clone;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::thread::sleep;
+use std::time::Duration;
 
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_diagnostics::ToOption;
@@ -217,6 +219,14 @@ impl Compiler for VoyagerGenerator {
 
         let package_name = unit.main_component().package.id.name.to_string();
         let generated_crate_dir = target_dir.path_existent().unwrap().join(package_name);
+
+        // Problem with this step is that sometimes the build happens faster than the Scarb.toml is actually created and detected.
+        // For some weird reason this is only an issue before cairo 2.6?
+        // Adding this artificial delay here in order to hopefully resolve this, or at least reduce its occurrences.
+        // TODO: actually addressing this, or not. Likely related to this https://github.com/rust-lang/rust/issues/51775
+        // likely also related to the fact that during compilation and resolving the git cloned libraries takes some time to be
+        // pulled and updated, which might have caused this.
+        sleep(Duration::from_secs(2));
 
         // Locally run scarb build to make sure that everything compiles correctly before sending the files to voyager.
         run_scarb_build(generated_crate_dir.as_str())?;
