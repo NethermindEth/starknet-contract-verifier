@@ -1,0 +1,23 @@
+[package]
+name = "import_external_deps_with_workspace"
+version = "0.1.0"
+
+# See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest
+
+[dependencies]
+starknet = ">=2.3.0"
+dependency = { path = "../dependency" }
+openzeppelin = { git = "https://github.com/OpenZeppelin/cairo-contracts.git", tag = "v0.13.0" }
+
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
+casm-add-pythonic-hints = true
+
+[lib]
+sierra = true
+casm = true
+
+[tool.voyager]
+contract = { path = "main.cairo", address = "0x12345" }
