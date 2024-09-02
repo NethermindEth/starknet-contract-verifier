@@ -162,7 +162,6 @@ impl Compiler for VoyagerGenerator {
 
         let (required_modules_paths, attachment_modules_data) =
             self.get_reduced_project(&graph, modules_to_verify.clone())?;
-        println!("rmp {:?}", required_modules_paths.clone());
 
         // Filter away packages that are external, imported from git repository & std.
         let attachment_modules_data = attachment_modules_data
@@ -173,7 +172,6 @@ impl Compiler for VoyagerGenerator {
             })
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect::<HashMap<ModulePath, CairoAttachmentModule>>();
-        println!("amd {:?}", attachment_modules_data.clone());
 
         let target_dir = Utf8PathBuf::from(
             manifest_path
@@ -219,7 +217,8 @@ impl Compiler for VoyagerGenerator {
 
         let package_name = unit.main_component().package.id.name.to_string();
         let generated_crate_dir = target_dir.path_existent().unwrap().join(package_name);
-        //Locally run scarb build to make sure that everything compiles correctly before sending the files to voyager.
+
+        // Locally run scarb build to make sure that everything compiles correctly before sending the files to voyager.
         run_scarb_build(generated_crate_dir.as_str())?;
 
         Ok(())
@@ -339,7 +338,6 @@ mod tests {
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
     use cairo_lang_semantic::plugin::PluginSuite;
     use cairo_lang_starknet::plugin::StarkNetPlugin;
-    use scarb_metadata::Metadata;
     use std::collections::HashSet;
     use std::path::PathBuf;
 

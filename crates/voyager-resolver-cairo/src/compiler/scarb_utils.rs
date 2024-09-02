@@ -184,16 +184,24 @@ pub fn generate_scarb_updated_files(
         .packages
         .retain(|package| required_packages.contains(&package.name));
 
-    for package in metadata.packages {
+    for package in metadata.packages.clone() {
         let manifest_path = package.manifest_path;
         let target_path = target_dir.path_existent()?.join(package.name);
         generate_updated_scarb_toml(
-            manifest_path.into_std_path_buf(),
+            manifest_path.clone().into_std_path_buf(),
             target_path.as_std_path(),
             &required_packages,
             &external_packages,
         )?;
+
+        // Problem with this step is that sometimes the build happens faster than the Scarb.toml is actually created and detected.
+        // as such adding a checking step here in order to check and at the same time artificially slow down this process.
+        // For some weird reason this is only an issue before cairo 2.6?
+        if !manifest_path.exists() {
+            return Err(anyhow!("Files not created correctly."))
+        }
     }
+
     Ok(())
 }
 
