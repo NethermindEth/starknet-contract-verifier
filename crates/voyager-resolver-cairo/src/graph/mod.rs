@@ -43,16 +43,18 @@ pub fn create_graph(modules: &Vec<CairoModule>) -> Graph<ModulePath, EdgeWeight>
     // Add edges based on the imports
     for module in modules {
         let module_path = module.path.clone();
+        // Get the imports of each file module (inline modules not included)
+        // and attempt to resolve them with the modules we have.
         for import in module.imports.iter() {
             let import_path = import.get_import_module();
 
             for target_module in modules.iter() {
-                let target_module = &target_module.path;
-
-                if *target_module == import_path {
+                // When attempting to add by comparing the modules by path works for most cases
+                // it does not work when we have imports of nested modules.
+                if target_module.is_module_path_resolved(import_path.clone()) {
                     if let (Some(&src), Some(&dst)) = (
                         file_nodes.get(&module_path.clone()),
-                        file_nodes.get(target_module),
+                        file_nodes.get(&target_module.path),
                     ) {
                         graph.add_edge(src, dst, EdgeWeight(()));
                     }
@@ -128,7 +130,6 @@ pub fn get_required_module_for_contracts(
             .find(|&index| graph[index] == module_path)
             .with_context(|| format!("Couldn't find corresponding module for {module_path}"))?;
 
-        // Push the neighbors of the contract node to the queue
         for neighbor in graph.neighbors(contract_node) {
             queue.push_back(neighbor);
         }
