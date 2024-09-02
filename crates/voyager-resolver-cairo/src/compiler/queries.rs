@@ -2,7 +2,8 @@ use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_defs::ids::{
-    FileIndex, GenericTypeId, ModuleFileId, ModuleId, NamedLanguageElementId, TopLevelLanguageElementId, UseId, UseLongId
+    FileIndex, GenericTypeId, ModuleFileId, ModuleId, NamedLanguageElementId,
+    TopLevelLanguageElementId, UseId, UseLongId,
 };
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, Directory, FileId, FileLongId};
@@ -426,7 +427,7 @@ pub fn extract_file_imports(
         let import_path = segments
             .clone()
             .into_iter()
-            .map(|x| x.as_syntax_node().get_text(db))
+            .map(|x| x.as_syntax_node().get_text(db).trim().to_string())
             .join("::");
 
         // The resolver must resolve using the correct module that is importing it.
