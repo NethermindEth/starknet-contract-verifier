@@ -1,8 +1,6 @@
 #[starknet::contract]
 mod contract {
-    use openzeppelin::{
-        upgrades::{UpgradeableComponent, interface::IUpgradeable},
-    };
+    use snforge_std::{declare, ContractClassTrait, ContractClass};
     use starknet::{get_contract_address, get_caller_address};
     use starknet::{ContractAddress, ClassHash};
 

@@ -10,10 +10,10 @@ name = "import_external_deps_with_workspace"
 version = "0.1.0"
 dependencies = [
  "dependency",
- "openzeppelin",
+ "snforge_std",
 ]
 
 [[package]]
-name = "openzeppelin"
-version = "0.8.1"
-source = "git+https://github.com/OpenZeppelin/cairo-contracts.git?tag=v0.8.1#89a450a88628ec3b86273f261b2d8d1ca9b1522b"
+name = "snforge_std"
+version = "0.20.0"
+source = "git+https://github.com/foundry-rs/starknet-foundry.git?tag=v0.20.0#423eecf7847469e353258321274394b9155d24eb"
