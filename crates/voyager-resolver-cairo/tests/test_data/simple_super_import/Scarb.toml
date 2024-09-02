@@ -1,0 +1,25 @@
+[package]
+name = "simple_super_import"
+version = "0.1.0"
+
+# See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest
+
+[dependencies]
+starknet = ">=2.0.0"
+
+[[target.starknet-contract]]
+# Enable Sierra codegen.
+sierra = true
+ 
+# Enable CASM codegen.
+casm = false
+# Emit Python-powered hints in order to run compiled CASM class with legacy Cairo VM.
+casm-add-pythonic-hints = false
+ 
+# Enable allowed libfuncs validation.
+allowed-libfuncs = true
+# Raise errors instead of warnings if disallowed libfuncs are found.
+allowed-libfuncs-deny = false
+
+[tool.voyager]
+Simple = { path = "simple.cairo", address = "0x12345" }
