@@ -4,8 +4,12 @@ use cairo_lang_defs::ids::ModuleId;
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, CrateLongId, FileLongId};
 use camino::Utf8PathBuf;
+use scarb_utils::get_external_nonlocal_packages;
+use std::clone;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::thread::sleep;
+use std::time::Duration;
 
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_diagnostics::ToOption;
@@ -24,8 +28,9 @@ use crate::compiler::scarb_utils::{
     generate_scarb_updated_files, get_contracts_to_verify, read_scarb_metadata,
     update_crate_roots_from_metadata,
 };
-use crate::graph::{create_graph, get_required_module_for_contracts, EdgeWeight};
-// use crate::graph::display_graphviz;
+use crate::graph::{
+    create_graph, get_required_module_for_contracts, EdgeWeight, _display_graphviz,
+};
 use scarb::compiler::{CompilationUnit, Compiler};
 use scarb::core::{TargetKind, Workspace};
 use scarb::flock::Filesystem;
@@ -126,12 +131,9 @@ impl Compiler for VoyagerGenerator {
 
         // Creates a graph where nodes are cairo modules, and edges are the dependencies between modules.
         let graph = create_graph(&project_modules);
-        // println!("Graph is:\n");
-        // display_graphviz(&graph);
 
         // Read Scarb manifest file to get the list of contracts to verify from the [tool.voyager] section.
         // This returns the relative file paths of the contracts to verify.
-        // TODO: handle when this is empty.
         let contracts_to_verify = get_contracts_to_verify(&unit.main_component().package)?;
 
         if contracts_to_verify.is_empty() {
@@ -158,8 +160,20 @@ impl Compiler for VoyagerGenerator {
             .filter(|m| contracts_to_verify.contains(&m.relative_filepath))
             .collect::<Vec<_>>();
 
+        let external_packages = get_external_nonlocal_packages(metadata.clone());
+
         let (required_modules_paths, attachment_modules_data) =
-            self.get_reduced_project(&graph, modules_to_verify)?;
+            self.get_reduced_project(&graph, modules_to_verify.clone())?;
+
+        // Filter away packages that are external, imported from git repository & std.
+        let attachment_modules_data = attachment_modules_data
+            .iter()
+            .filter(|(k, _)| {
+                let base_package_name = &k.0.split("::").collect::<Vec<&str>>()[0].to_string();
+                !external_packages.contains(base_package_name) && base_package_name != "super"
+            })
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<HashMap<ModulePath, CairoAttachmentModule>>();
 
         let target_dir = Utf8PathBuf::from(
             manifest_path
@@ -189,7 +203,11 @@ impl Compiler for VoyagerGenerator {
         // Get the Cairo Modules corresponding to the required modules paths.
         let required_modules = project_modules
             .iter()
-            .filter(|m| required_modules_paths.contains(&m.path))
+            .filter(|m| {
+                let base_package_name = &m.path.0.split("::").collect::<Vec<&str>>()[0].trim();
+                required_modules_paths.contains(&m.path)
+                    && !external_packages.contains(&base_package_name.to_string())
+            })
             .collect::<Vec<_>>();
         // Copy these modules in the target directory.
         // Copy readme files and license files over too
@@ -197,11 +215,20 @@ impl Compiler for VoyagerGenerator {
 
         // Generate each of the scarb manifest files for the output directory.
         // The dependencies are updated to include the required modules as local dependencies.
-        generate_scarb_updated_files(metadata, &target_dir, required_modules)?;
+        generate_scarb_updated_files(metadata, &target_dir, required_modules, external_packages)?;
 
         let package_name = unit.main_component().package.id.name.to_string();
         let generated_crate_dir = target_dir.path_existent().unwrap().join(package_name);
-        //Locally run scarb build to make sure that everything compiles correctly before sending the files to voyager.
+
+        // Problem with this step is that sometimes the build happens faster than the Scarb.toml is actually created and detected.
+        // For some weird reason this is only an issue before cairo 2.6?
+        // Adding this artificial delay here in order to hopefully resolve this, or at least reduce its occurrences.
+        // TODO: actually addressing this, or not. Likely related to this https://github.com/rust-lang/rust/issues/51775
+        // likely also related to the fact that during compilation and resolving the git cloned libraries takes some time to be
+        // pulled and updated, which might have caused this.
+        sleep(Duration::from_secs(2));
+
+        // Locally run scarb build to make sure that everything compiles correctly before sending the files to voyager.
         run_scarb_build(generated_crate_dir.as_str())?;
 
         Ok(())
@@ -256,7 +283,6 @@ impl VoyagerGenerator {
                 // Extract a vector of modules for the crate.
                 // We only collect "file" modules, which are related to a Cairo file.
                 // Internal modules are not collected here.
-                // TODO: we should also collect internal modules, since they matter!
                 let crate_modules = collect_crate_module_files(db, crate_id)?;
                 Ok(CairoCrate {
                     root_dir: crate_root_dir,
@@ -297,7 +323,7 @@ impl VoyagerGenerator {
 
         let attachment_modules_data = generate_attachment_module_data(
             &required_modules_paths,
-            imports_path_not_matching_resolved_path,
+            imports_path_not_matching_resolved_path.clone(),
         );
 
         let unrequired_attachment_modules: HashMap<ModulePath, CairoAttachmentModule> =
@@ -318,9 +344,9 @@ mod tests {
     use crate::model::{CairoAttachmentModule, ModulePath};
     use crate::utils::test_utils::set_file_content;
     use cairo_lang_compiler::db::RootDatabase;
-    use cairo_lang_semantic::plugin::PluginSuite;
     use cairo_lang_filesystem::db::{CrateConfiguration, FilesGroup, FilesGroupEx};
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
+    use cairo_lang_semantic::plugin::PluginSuite;
     use cairo_lang_starknet::plugin::StarkNetPlugin;
     use std::collections::HashSet;
     use std::path::PathBuf;
