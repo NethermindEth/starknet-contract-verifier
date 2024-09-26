@@ -29,8 +29,8 @@ impl ToString for SupportedScarbVersions {
 
 /**
  * This trait is required to be implemented by the voyager resolvers.
- * This allows us to use multiple version of scarb + cairo in the same project,
- * and compile scarb projects easily,
+ * This allows us to use multiple version of Scarb + Cairo in the same project,
+ * and compile Scarb projects easily,
  */
 pub trait DynamicCompiler {
     fn get_supported_scarb_versions(&self) -> Vec<SupportedScarbVersions>;

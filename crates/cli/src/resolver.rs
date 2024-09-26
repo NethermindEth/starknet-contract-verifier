@@ -59,7 +59,7 @@ pub fn resolve_scarb(
         ));
     }
 
-    // Read the scarb metadata to get more information
+    // Read the Scarb metadata to get more information
     // TODO: switch this to using scarb-metadata
     let scarb_toml_content = fs::read_to_string(source_dir.join("Scarb.toml"))?;
     let extracted_scarb_toml_data =

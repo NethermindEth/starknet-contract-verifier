@@ -28,7 +28,7 @@ fn test_incorrect_contract_path_given() -> Result<()> {
         .unwrap();
 
     let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
+        eprintln!("Error: {}", err);
         std::process::exit(1);
     });
     let package_ids = ws.members().map(|p| p.id.clone()).collect();
@@ -63,7 +63,7 @@ fn test_get_contracts_to_verify() {
         .unwrap();
 
     let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
+        eprintln!("Error: {}", err);
         std::process::exit(1);
     });
     //
@@ -91,7 +91,7 @@ fn test_simple_project() -> Result<()> {
         .unwrap();
 
     let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
+        eprintln!("Error: {}", err);
         std::process::exit(1);
     });
     let package_ids = ws.members().map(|p| p.id.clone()).collect();
@@ -125,7 +125,7 @@ fn test_project_with_remap() -> Result<()> {
         .unwrap();
 
     let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
+        eprintln!("Error: {}", err);
         std::process::exit(1);
     });
     let package_ids = ws.members().map(|p| p.id.clone()).collect();
@@ -159,7 +159,7 @@ fn test_project_w_import_from_attachment() -> Result<()> {
         .unwrap();
 
     let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
+        eprintln!("Error: {}", err);
         std::process::exit(1);
     });
     let package_ids = ws.members().map(|p| p.id.clone()).collect();
@@ -193,7 +193,7 @@ fn test_project_with_simple_super_import() -> Result<()> {
         .unwrap();
 
     let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
+        eprintln!("Error: {}", err);
         std::process::exit(1);
     });
     let package_ids = ws.members().map(|p| p.id).collect();
@@ -227,7 +227,7 @@ fn test_project_with_external_import_resolved() -> Result<()> {
         .unwrap();
 
     let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
+        eprintln!("Error: {}", err);
         std::process::exit(1);
     });
     let package_ids = ws.members().map(|p| p.id).collect();
