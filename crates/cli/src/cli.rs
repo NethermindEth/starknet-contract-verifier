@@ -13,6 +13,7 @@ use camino::Utf8PathBuf;
 use console::{style, Emoji};
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 use dirs::home_dir;
+use dotenv::dotenv;
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use std::{
     env,
@@ -24,6 +25,8 @@ use validation::is_class_hash_valid;
 use verify::VerifyProjectArgs;
 
 fn main() -> anyhow::Result<()> {
+    dotenv().ok();
+
     // TODO: make this cli use a secure api
     // let api_key = match env::var("API_KEY") {
     //     Ok(api_key) => Some(api_key),
