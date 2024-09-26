@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 # Syncing branches are currently the solution as long as
-# we have multiple binaries version based on cairo.
+# we have multiple binaries version based on Cairo.
 # As we move away from that this should be migrated to a normal rust
 # release flow.
 jobs:

@@ -39,7 +39,7 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
             .unwrap();
 
         let ws = ops::read_workspace(config.manifest_path(), &config).unwrap_or_else(|err| {
-            eprintln!("error: {}", err);
+            eprintln!("Error: {}", err);
             std::process::exit(1);
         });
         let package = ws.current_package().unwrap();
@@ -76,7 +76,7 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
 
     fn compile_file(&self, file_path: &Utf8PathBuf) -> Result<()> {
         //TODO detect_corelib will try to use the local corelib.
-        // Once cairo is released, it will probably be able to use
+        // Once Cairo is released, it will probably be able to use
         // the corelib from the release.
         run_starknet_compile(file_path.as_str())
     }

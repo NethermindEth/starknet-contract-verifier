@@ -6,7 +6,7 @@
 - [Voyager Starknet block explorer](https://voyager.online).
 
 
-#### We currently support the following cairo version & scarb version.
+#### We currently support the following Cairo version & Scarb version.
 <!-- - [x] Cairo 1.1.0 (Scarb v0.4.0)
 - [x] Cairo 1.1.1 (Scarb v0.4.1)
 - [x] Cairo 2.0.1 (Scarb v0.5.1)

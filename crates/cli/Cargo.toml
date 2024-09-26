@@ -26,7 +26,7 @@ dotenv = "0.15"
 
 dyn-compiler = { path = "../dyn-compiler" }
 
-# All resolver versions, based on scarb + cairo
+# All resolver versions, based on Scarb + Cairo
 voyager-resolver-cairo = { path = "../voyager-resolver-cairo" }
 walkdir = "2.3.3"
 
