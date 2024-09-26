@@ -8,6 +8,8 @@ use scarb_utils::get_external_nonlocal_packages;
 use std::clone;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::thread::sleep;
+use std::time::Duration;
 
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_diagnostics::ToOption;
@@ -98,7 +100,7 @@ impl Compiler for VoyagerGenerator {
         //    .with_starknet()
         //    .build()?;
 
-        // We can use scarb metadata to update crate root info with external dependencies,
+        // We can use Scarb metadata to update crate root info with external dependencies,
         // This updates the compiler database with the crate roots of the external dependencies.
         // This enables resolving external dependencies paths.
         let manifest_path: PathBuf = unit.main_component().package.manifest_path().into();
@@ -107,7 +109,7 @@ impl Compiler for VoyagerGenerator {
             None => Path::new(""),
         };
         let metadata = read_scarb_metadata(&manifest_path)
-            .expect("Failed to obtain scarb metadata from manifest file.");
+            .expect("Failed to obtain Scarb metadata from manifest file.");
         update_crate_roots_from_metadata(db, metadata.clone());
 
         // We need all crate ids different than `core`
@@ -127,7 +129,7 @@ impl Compiler for VoyagerGenerator {
             .flat_map(|c| c.modules.iter().cloned())
             .collect::<Vec<CairoModule>>();
 
-        // Creates a graph where nodes are cairo modules, and edges are the dependencies between modules.
+        // Creates a graph where nodes are Cairo modules, and edges are the dependencies between modules.
         let graph = create_graph(&project_modules);
 
         // Read Scarb manifest file to get the list of contracts to verify from the [tool.voyager] section.
@@ -211,13 +213,22 @@ impl Compiler for VoyagerGenerator {
         // Copy readme files and license files over too
         copy_required_files(&required_modules, &target_dir, ws)?;
 
-        // Generate each of the scarb manifest files for the output directory.
+        // Generate each of the Scarb manifest files for the output directory.
         // The dependencies are updated to include the required modules as local dependencies.
         generate_scarb_updated_files(metadata, &target_dir, required_modules, external_packages)?;
 
         let package_name = unit.main_component().package.id.name.to_string();
         let generated_crate_dir = target_dir.path_existent().unwrap().join(package_name);
-        //Locally run scarb build to make sure that everything compiles correctly before sending the files to voyager.
+
+        // Problem with this step is that sometimes the build happens faster than the Scarb.toml is actually created and detected.
+        // For some weird reason this is only an issue before Cairo 2.6?
+        // Adding this artificial delay here in order to hopefully resolve this, or at least reduce its occurrences.
+        // TODO: actually addressing this, or not. Likely related to this https://github.com/rust-lang/rust/issues/51775
+        // likely also related to the fact that during compilation and resolving the git cloned libraries takes some time to be
+        // pulled and updated, which might have caused this.
+        sleep(Duration::from_secs(2));
+
+        // Locally run Scarb build to make sure that everything compiles correctly before sending the files to voyager.
         run_scarb_build(generated_crate_dir.as_str())?;
 
         Ok(())
@@ -338,7 +349,6 @@ mod tests {
     use cairo_lang_filesystem::ids::{CrateLongId, Directory};
     use cairo_lang_semantic::plugin::PluginSuite;
     use cairo_lang_starknet::plugin::StarkNetPlugin;
-    use scarb_metadata::Metadata;
     use std::collections::HashSet;
     use std::path::PathBuf;
 

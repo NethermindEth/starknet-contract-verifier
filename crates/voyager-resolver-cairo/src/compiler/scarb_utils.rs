@@ -4,7 +4,8 @@ use scarb::flock::Filesystem;
 use scarb_metadata::Metadata;
 use serde::Deserialize;
 use std::collections::HashSet;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use toml_edit::{Document, Formatted, InlineTable, Item, Table, Value};
@@ -184,16 +185,17 @@ pub fn generate_scarb_updated_files(
         .packages
         .retain(|package| required_packages.contains(&package.name));
 
-    for package in metadata.packages {
+    for package in metadata.packages.clone() {
         let manifest_path = package.manifest_path;
         let target_path = target_dir.path_existent()?.join(package.name);
         generate_updated_scarb_toml(
-            manifest_path.into_std_path_buf(),
+            manifest_path.clone().into_std_path_buf(),
             target_path.as_std_path(),
             &required_packages,
             &external_packages,
         )?;
     }
+
     Ok(())
 }
 

@@ -22,10 +22,11 @@ indicatif = "0.17.7"
 strum = "0.25.0"
 strum_macros = "0.25.0"
 dirs = "4.0"
+dotenv = "0.15"
 
 dyn-compiler = { path = "../dyn-compiler" }
 
-# All resolver versions, based on scarb + cairo
+# All resolver versions, based on Scarb + Cairo
 voyager-resolver-cairo = { path = "../voyager-resolver-cairo" }
 walkdir = "2.3.3"
 

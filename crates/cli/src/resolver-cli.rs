@@ -19,8 +19,8 @@ fn main() -> anyhow::Result<()> {
     );
 
     // Project type + Path entry
-    let target_type = TargetType::ScarbProject; // by default we assume the user is in a scarb project
-    let is_current_dir_scarb = env::current_dir()?.join("scarb.toml").exists();
+    let target_type = TargetType::ScarbProject; // by default we assume the user is in a Scarb project
+    let is_current_dir_scarb = env::current_dir()?.join("Scarb.toml").exists();
     let utf8_path = if is_current_dir_scarb {
         let current_path = env::current_dir()?.to_str().unwrap().trim().to_string();
         Utf8PathBuf::from(&current_path)
@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
         loop {
             // TODO, add TargetType::File path input here
             let input_path = Input::<String>::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter Path to scarb project root:")
+                .with_prompt("Enter Path to Scarb project root:")
                 .interact_text()
                 .expect("Aborted at path input, terminating...")
                 .trim()
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     // Resolve project
     let (_project_files, _project_metadata) = match target_type {
         TargetType::File => {
-            panic!("Single contract file verification is not yet implemented, please use a scarb project instead.");
+            panic!("Single contract file verification is not yet implemented, please use a Scarb project instead.");
         }
         TargetType::ScarbProject => {
             let (local_scarb_version, local_cairo_version) = detect_local_tools();

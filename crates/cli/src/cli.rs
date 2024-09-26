@@ -13,6 +13,7 @@ use camino::Utf8PathBuf;
 use console::{style, Emoji};
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 use dirs::home_dir;
+use dotenv::dotenv;
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use std::{
     env,
@@ -24,6 +25,8 @@ use validation::is_class_hash_valid;
 use verify::VerifyProjectArgs;
 
 fn main() -> anyhow::Result<()> {
+    dotenv().ok();
+
     // TODO: make this cli use a secure api
     // let api_key = match env::var("API_KEY") {
     //     Ok(api_key) => Some(api_key),
@@ -44,8 +47,8 @@ fn main() -> anyhow::Result<()> {
     );
 
     // Project type + Path entry
-    let target_type = TargetType::ScarbProject; // by default we assume the user is in a scarb project
-    let is_current_dir_scarb = env::current_dir()?.join("scarb.toml").exists();
+    let target_type = TargetType::ScarbProject; // by default we assume the user is in a Scarb project
+    let is_current_dir_scarb = env::current_dir()?.join("Scarb.toml").exists();
     let utf8_path = if is_current_dir_scarb {
         let current_path = env::current_dir()?.to_str().unwrap().trim().to_string();
         Utf8PathBuf::from(&current_path)
@@ -53,7 +56,7 @@ fn main() -> anyhow::Result<()> {
         loop {
             // TODO, add TargetType::File path input here
             let input_path = Input::<String>::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter Path to scarb project root:")
+                .with_prompt("Enter Path to Scarb project root:")
                 .interact_text()
                 .expect("Aborted at path input, terminating...")
                 .trim()
@@ -88,12 +91,12 @@ fn main() -> anyhow::Result<()> {
     // Resolve project
     let (project_files, project_metadata) = match target_type {
         TargetType::File => {
-            panic!("Single contract file verification is not yet implemented, please use a scarb project instead.");
+            panic!("Single contract file verification is not yet implemented, please use a Scarb project instead.");
         }
         TargetType::ScarbProject => {
             let (local_scarb_version, local_cairo_version) = detect_local_tools();
             // TODO: do a first pass to find all the contracts in the project
-            // For now we keep using the hardcoded value in the scarb.toml file
+            // For now we keep using the hardcoded value in the Scarb.toml file
 
             resolver::resolve_scarb(utf8_path.clone(), local_cairo_version, local_scarb_version)?
         }

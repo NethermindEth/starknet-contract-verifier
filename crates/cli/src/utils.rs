@@ -29,13 +29,13 @@ pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) 
 
     let scarb_version = match scarb_version {
         "2.6.3" => SupportedScarbVersions::V2_6_3,
-        _ => panic!("Unsupported scarb version: {}", scarb_version),
+        _ => panic!("Unsupported Scarb version: {}", scarb_version),
     };
 
     let cairo_version = match cairo_version {
         "2.6.3" => SupportedCairoVersions::V2_6_3,
         _ => {
-            println!("Unsupported cairo version {}. We thus do not guarantee compatibility and compilation might fail as a result.", cairo_version);
+            println!("Unsupported Cairo version {}. We thus do not guarantee compatibility and compilation might fail as a result.", cairo_version);
             // Use latest Scarb version as default.
             SupportedCairoVersions::V2_6_3
         }
