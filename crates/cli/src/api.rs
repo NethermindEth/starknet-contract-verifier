@@ -108,8 +108,8 @@ impl ApiEndpoints {
 
 pub fn get_network_api(network: Network) -> (String, String) {
     let url = match network {
-        Network::Mainnet => "https://voyager.online".to_string(),
-        Network::Sepolia => "https://sepolia.voyager.online".to_string(),
+        Network::Mainnet => "https://dev.voyager.online".to_string(),
+        Network::Sepolia => "https://dev-sepolia.voyager.online".to_string(),
         Network::Local => "http://localhost:8899".to_string(),
         Network::Custom => match env::var("CUSTOM_INTERNAL_API_ENDPOINT_URL") {
             std::result::Result::Ok(url) => url.to_string(),
@@ -118,8 +118,8 @@ pub fn get_network_api(network: Network) -> (String, String) {
     };
 
     let public_url = match network {
-        Network::Mainnet => "https://api.voyager.online/beta".to_string(),
-        Network::Sepolia => "https://sepolia-api.voyager.online/beta".to_string(),
+        Network::Mainnet => "https://dev-api.voyager.online/beta".to_string(),
+        Network::Sepolia => "https://dev-sepolia-api.voyager.online/beta".to_string(),
         Network::Local => "http://localhost:30380".to_string(),
         Network::Custom => match env::var("CUSTOM_PUBLIC_API_ENDPOINT_URL") {
             std::result::Result::Ok(url) => url.to_string(),
@@ -140,7 +140,18 @@ pub struct VerificationJobDispatch {
     job_id: String,
 }
 
-#[allow(dead_code)]
+#[derive(Debug, serde::Deserialize)]
+struct VerificationError {
+    message: String,
+    detail: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct VerificationResponse {
+    verification_status: String,
+    error: Option<VerificationError>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct VerificationJob {
     job_id: String,
@@ -183,6 +194,71 @@ pub struct ProjectMetadataInfo {
     pub scarb_version: SupportedScarbVersions,
     pub project_dir_path: String,
     pub contract_file: String,
+}
+
+pub fn send_verification_request(
+    _api_key: &str,
+    network: Network,
+    address: &str,
+    license: &str,
+    name: &str,
+    project_metadata: ProjectMetadataInfo,
+    files: Vec<FileInfo>,
+) -> Result<String> {
+    // Construct form body
+    let mut body = multipart::Form::new()
+        .percent_encode_noop()
+        .text(
+            "compiler_version",
+            project_metadata.cairo_version.to_string(),
+        )
+        .text("scarb_version", project_metadata.scarb_version.to_string())
+        .text("license", license.to_string())
+        .text("name", name.to_string())
+        .text("contract_file", project_metadata.contract_file)
+        .text("project_dir_path", project_metadata.project_dir_path);
+
+    for file in files.iter() {
+        let file_content = fs::read_to_string(file.path.as_path())?;
+        body = body.text(format!("files__{}", file.name.clone()), file_content);
+    }
+
+    let (_, public_url) = get_network_api(network);
+    let client = Client::new();
+
+    let path_with_param = ApiEndpoints::VerifyClass.to_api_path(address.to_owned());
+
+    let response = client
+        .post(public_url + path_with_param.as_str() + "?isAsync=false")
+        // .header("x-api-key", api_key)
+        .multipart(body)
+        .send()?;
+
+    match response.status() {
+        StatusCode::OK => (),
+        StatusCode::NOT_FOUND => {
+            return Err(anyhow!("Job not found"));
+        }
+        StatusCode::BAD_REQUEST => {
+            let err_response = response.json::<ApiError>()?;
+
+            return Err(anyhow!(
+                "Failed to send verification request with status 400: {}",
+                err_response.error
+            ));
+        }
+        unknown_status_code => {
+            return Err(anyhow!(
+                "Failed to send verification request with status {}: {}",
+                unknown_status_code,
+                response.text()?
+            ));
+        }
+    }
+
+    let data = response.json::<VerificationResponse>().unwrap();
+
+    Ok(data.verification_status)
 }
 
 pub fn dispatch_class_verification_job(

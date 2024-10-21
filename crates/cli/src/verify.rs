@@ -7,10 +7,7 @@ use clap::{arg, Args};
 use dyn_compiler::dyn_compiler::SupportedCairoVersions;
 
 use crate::{
-    api::{
-        dispatch_class_verification_job, poll_verification_status, FileInfo, Network,
-        ProjectMetadataInfo,
-    },
+    api::{send_verification_request, dispatch_class_verification_job, poll_verification_status, FileInfo, Network, ProjectMetadataInfo},
     license::LicenseType,
     resolver::get_dynamic_compiler,
 };
@@ -52,43 +49,61 @@ pub fn verify_project(
     args: VerifyProjectArgs,
     metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
+    is_async: bool,
 ) -> Result<()> {
     let network_enum = Network::from_str(args.network.as_str())?;
 
-    let dispatch_response = dispatch_class_verification_job(
-        args.api_key.as_str(),
-        network_enum.clone(),
-        &args.hash,
-        args.license.to_long_string().as_str(),
-        &args.name,
-        metadata,
-        files,
-    );
+    if is_async == false {
+        let verification_response = send_verification_request(
+            args.api_key.as_str(),
+            network_enum.clone(),
+            &args.hash,
+            args.license.to_long_string().as_str(),
+            &args.name,
+            metadata,
+            files,
+        );
 
-    let job_id = match dispatch_response {
-        Ok(response) => response,
-        Err(e) => {
-            return Err(anyhow::anyhow!(
-                "Failed to dispatch verification job: {}",
-                e
-            ));
+        match verification_response {
+            Ok(status) => Ok(()),
+            Err(e) => Err(e)
         }
-    };
+    } else {
+        let dispatch_response = dispatch_class_verification_job(
+            args.api_key.as_str(),
+            network_enum.clone(),
+            &args.hash,
+            args.license.to_long_string().as_str(),
+            &args.name,
+            metadata,
+            files,
+        );
 
-    // Retry for 5 minutes
-    let poll_result = poll_verification_status(
-        args.api_key.as_str(),
-        network_enum,
-        &job_id,
-        args.max_retries.unwrap_or(180),
-    );
+        let job_id = match dispatch_response {
+            Ok(response) => response,
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "Failed to dispatch verification job: {}",
+                    e
+                ));
+            }
+        };
 
-    match poll_result {
-        Ok(_response) => Ok(()),
-        Err(e) => Err(anyhow::anyhow!(
-            "Error while polling verification status: {}",
-            e
-        )),
+        // Retry for 5 minutes
+        let poll_result = poll_verification_status(
+            args.api_key.as_str(),
+            network_enum,
+            &job_id,
+            args.max_retries.unwrap_or(180),
+        );
+
+        match poll_result {
+            Ok(_response) => Ok(()),
+            Err(e) => Err(anyhow::anyhow!(
+                "Error while polling verification status: {}",
+                e
+            )),
+        }
     }
 }
 
