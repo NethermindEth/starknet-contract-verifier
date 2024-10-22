@@ -123,7 +123,10 @@ fn main() -> anyhow::Result<()> {
         custom_internal_api_endpoint_url.is_ok() && custom_public_api_endpoint_url.is_ok();
 
     // Only show local if debug network option is up.
-    let is_debug_network = env::var("DEBUG_NETWORK").is_ok();
+    let is_debug_network = match env::var("DEBUG_NETWORK") {
+        Ok(value) => value.to_lowercase() == "true",
+        Err(_) => false,
+    };
     let network_items = if is_debug_network {
         vec!["Mainnet", "Sepolia", "Integration", "Local"]
     } else {
@@ -236,9 +239,13 @@ fn main() -> anyhow::Result<()> {
         path: utf8_path,
     };
 
+    let use_sync_approach = match env::var("SYNC_VERIFICATION") {
+        Ok(value) => value.to_lowercase() == "true",
+        Err(_) => false,
+    };
     let verification_result = match target_type {
         TargetType::ScarbProject => {
-            verify::verify_project(verify_args, project_metadata, project_files, false)
+            verify::verify_project(verify_args, project_metadata, project_files, !use_sync_approach)
         }
         TargetType::File => panic!("Single contract file verification is not yet implemented"),
     };
