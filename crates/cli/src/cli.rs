@@ -244,9 +244,12 @@ fn main() -> anyhow::Result<()> {
         Err(_) => false,
     };
     let verification_result = match target_type {
-        TargetType::ScarbProject => {
-            verify::verify_project(verify_args, project_metadata, project_files, !use_sync_approach)
-        }
+        TargetType::ScarbProject => verify::verify_project(
+            verify_args,
+            project_metadata,
+            project_files,
+            !use_sync_approach,
+        ),
         TargetType::File => panic!("Single contract file verification is not yet implemented"),
     };
 

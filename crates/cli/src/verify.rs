@@ -7,7 +7,10 @@ use clap::{arg, Args};
 use dyn_compiler::dyn_compiler::SupportedCairoVersions;
 
 use crate::{
-    api::{send_verification_request, dispatch_class_verification_job, poll_verification_status, FileInfo, Network, ProjectMetadataInfo},
+    api::{
+        dispatch_class_verification_job, poll_verification_status, send_verification_request,
+        FileInfo, Network, ProjectMetadataInfo,
+    },
     license::LicenseType,
     resolver::get_dynamic_compiler,
 };
@@ -66,7 +69,7 @@ pub fn verify_project(
 
         match verification_response {
             Ok(status) => Ok(()),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     } else {
         let dispatch_response = dispatch_class_verification_job(
