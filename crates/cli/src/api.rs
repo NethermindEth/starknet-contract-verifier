@@ -108,8 +108,8 @@ impl ApiEndpoints {
 
 pub fn get_network_api(network: Network) -> (String, String) {
     let url = match network {
-        Network::Mainnet => "https://dev.voyager.online".to_string(),
-        Network::Sepolia => "https://dev-sepolia.voyager.online".to_string(),
+        Network::Mainnet => "https://voyager.online".to_string(),
+        Network::Sepolia => "https://sepolia.voyager.online".to_string(),
         Network::Local => "http://localhost:8899".to_string(),
         Network::Custom => match env::var("CUSTOM_INTERNAL_API_ENDPOINT_URL") {
             std::result::Result::Ok(url) => url.to_string(),
@@ -118,8 +118,8 @@ pub fn get_network_api(network: Network) -> (String, String) {
     };
 
     let public_url = match network {
-        Network::Mainnet => "https://dev-api.voyager.online/beta".to_string(),
-        Network::Sepolia => "https://dev-sepolia-api.voyager.online/beta".to_string(),
+        Network::Mainnet => "https://api.voyager.online/beta".to_string(),
+        Network::Sepolia => "https://sepolia-api.voyager.online/beta".to_string(),
         Network::Local => "http://localhost:30380".to_string(),
         Network::Custom => match env::var("CUSTOM_PUBLIC_API_ENDPOINT_URL") {
             std::result::Result::Ok(url) => url.to_string(),
