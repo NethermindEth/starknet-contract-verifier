@@ -259,15 +259,19 @@ pub fn poll_verification_status(
     // Get network api url
     let (_, public_url) = get_network_api(network);
 
-    // Blocking loop that polls every 2 seconds
-    static RETRY_INTERVAL: u64 = 2000; // Ms
+    // Blocking loop that polls every 5 seconds
+    static RETRY_INTERVAL: u64 = 5000; // Ms
     let mut retries: u32 = 0;
     let client = Client::new();
 
     let path_with_param = ApiEndpoints::GetJobStatus.to_api_path(job_id.to_owned());
 
+    let use_max_retries = match env::var("USE_POLLING_MAX_RETRIES") {
+        std::result::Result::Ok(value) => value.to_lowercase() == "true",
+        Err(_) => false,
+    };
     // Retry every 2000ms until we hit maxRetries
-    while retries < max_retries {
+    loop {
         let result = client
             .get(public_url.clone() + path_with_param.as_str())
             // .header("x-api-key", api_key)
@@ -307,6 +311,9 @@ pub fn poll_verification_status(
             _ => (),
         }
         retries += 1;
+        if use_max_retries && retries > max_retries {
+            break;
+        }
         sleep(std::time::Duration::from_millis(RETRY_INTERVAL));
     }
 
