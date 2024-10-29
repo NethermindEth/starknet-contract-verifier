@@ -277,6 +277,9 @@ pub fn collect_crate_module_files(
             FileLongId::Virtual(_) => {
                 Err(anyhow!("Expected OnDisk file for module {:?}", module_id))
             }
+            FileLongId::External(_) => {
+                Err(anyhow!("Expected OnDisk file for module {:?}", module_id))
+            }
         }?;
         let module_file_data = get_module_file(db, *module_id);
 
@@ -339,6 +342,7 @@ pub fn get_module_file(db: &RootDatabase, module_id: ModuleId) -> Option<FileDat
             .find(|file_id| match db.lookup_intern_file(**file_id) {
                 FileLongId::OnDisk(_) => true,
                 FileLongId::Virtual(_) => false,
+                FileLongId::External(_) => false,
             })?;
     match db.lookup_intern_file(*module_file) {
         FileLongId::OnDisk(path) => Some(FileData {
@@ -348,6 +352,7 @@ pub fn get_module_file(db: &RootDatabase, module_id: ModuleId) -> Option<FileDat
             index: 0,
         }),
         FileLongId::Virtual(_) => None,
+        FileLongId::External(_) => None,
     }
 }
 
