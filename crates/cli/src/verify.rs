@@ -1,8 +1,4 @@
-use std::{env::current_dir, str::FromStr};
-
 use anyhow::Result;
-use camino::Utf8PathBuf;
-use clap::{arg, Args};
 
 use dyn_compiler::dyn_compiler::SupportedCairoVersions;
 
@@ -11,55 +7,29 @@ use crate::{
         dispatch_class_verification_job, poll_verification_status, FileInfo, Network,
         ProjectMetadataInfo,
     },
-    license::LicenseType,
+    args,
+    args::Args,
     resolver::get_dynamic_compiler,
 };
 
-#[derive(Args, Debug)]
-pub struct VerifyProjectArgs {
-    #[arg(
-        help = "Network to verify against",
-        default_value_t=String::from("mainnet"),
-        required = true
-    )]
-    pub network: String,
-
-    #[arg(help = "Class hash to verify", required = true)]
-    pub hash: String,
-
-    #[arg(help = "license type", required = true)]
-    pub license: LicenseType,
-
-    #[arg(help = "Name", required = true)]
-    pub name: String,
-
-    #[arg(help = "Source directory", required = true)]
-    pub path: Utf8PathBuf,
-
-    #[arg(long, help = "Max retries")]
-    pub max_retries: Option<u32>,
-
-    pub api_key: String,
-}
-
-#[derive(Args, Debug)]
-pub struct VerifyFileArgs {
-    #[arg(help = "File path")]
-    path: Utf8PathBuf,
-}
-
 pub fn verify_project(
-    args: VerifyProjectArgs,
+    args: Args,
     metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
+    api_key: String,
+    max_retries: Option<u32>,
 ) -> Result<()> {
-    let network_enum = Network::from_str(args.network.as_str())?;
+    let network_enum = match args.network {
+        args::Network::Mainnet => Network::Mainnet,
+        args::Network::Testnet => Network::Sepolia,
+        args::Network::Custom { public: _, private: _ } => Network::Custom
+    };
 
     let dispatch_response = dispatch_class_verification_job(
-        args.api_key.as_str(),
+        api_key.as_str(),
         network_enum.clone(),
-        &args.hash,
-        args.license.to_long_string().as_str(),
+        args.hash.as_ref(),
+        "No License (None)",
         &args.name,
         metadata,
         files,
@@ -77,10 +47,10 @@ pub fn verify_project(
 
     // Retry for 5 minutes
     let poll_result = poll_verification_status(
-        args.api_key.as_str(),
+        api_key.as_str(),
         network_enum,
         &job_id,
-        args.max_retries.unwrap_or(180),
+        max_retries.unwrap_or(180),
     );
 
     match poll_result {
@@ -92,16 +62,9 @@ pub fn verify_project(
     }
 }
 
-pub fn _verify_file(args: VerifyFileArgs, cairo_version: SupportedCairoVersions) -> Result<()> {
-    let file_dir: Utf8PathBuf = match args.path.is_absolute() {
-        true => args.path.clone(),
-        false => {
-            let mut current_path = current_dir().unwrap();
-            current_path.push(args.path);
-            Utf8PathBuf::from_path_buf(current_path).unwrap()
-        }
-    };
+pub fn _verify_file(args: Args, cairo_version: SupportedCairoVersions) -> Result<()> {
+    let absdir = args.path.make_absolute()?;
 
     let compiler = get_dynamic_compiler(cairo_version);
-    compiler.compile_file(&file_dir)
+    compiler.compile_file(absdir.as_ref())
 }
