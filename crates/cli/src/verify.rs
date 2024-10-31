@@ -63,8 +63,6 @@ pub fn verify_project(
 }
 
 pub fn _verify_file(args: Args, cairo_version: SupportedCairoVersions) -> Result<()> {
-    let absdir = args.path.make_absolute()?;
-
     let compiler = get_dynamic_compiler(cairo_version);
-    compiler.compile_file(absdir.as_ref())
+    compiler.compile_file(args.path.as_ref())
 }

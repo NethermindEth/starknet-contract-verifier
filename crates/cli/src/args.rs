@@ -44,19 +44,20 @@ impl ProjectDir {
     }
 
     pub fn new(dir: PathBuf) -> Result<Self, ProjectDirError> {
-        let utf8 = Utf8PathBuf::try_from(dir)?;
+        let absolute = if dir.is_absolute() {
+            dir
+        } else {
+            let mut cwd = env::current_dir()?;
+            cwd.push(dir);
+            cwd
+        };
+
+        let utf8 = Utf8PathBuf::try_from(absolute)?;
         ProjectDir::find_scarb(utf8)
     }
 
     pub fn cwd() -> Result<ProjectDir, ProjectDirError> {
         let cwd = env::current_dir()?;
-        ProjectDir::new(cwd)
-    }
-
-    // TODO: make path absolute during construction?
-    pub fn make_absolute(self: Self) -> Result<Self, ProjectDirError> {
-        let mut cwd = env::current_dir()?;
-        cwd.push(self.0);
         ProjectDir::new(cwd)
     }
 }
@@ -91,7 +92,7 @@ impl AsRef<str> for ProjectDir {
     }
 }
 
-fn project_dir_value_parser(raw: &str) -> Result<ProjectDir, ProjectDirError> {
+pub fn project_dir_value_parser(raw: &str) -> Result<ProjectDir, ProjectDirError> {
     ProjectDir::new(PathBuf::from(raw))
 }
 

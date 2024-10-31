@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use walkdir::{DirEntry, WalkDir};
 
-use crate::api::{FileInfo, ProjectMetadataInfo};
+use crate::{
+    api::{FileInfo, ProjectMetadataInfo},
+    args::ProjectDir,
+};
 use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions, SupportedScarbVersions};
 use voyager_resolver_cairo::compiler::scarb_utils::read_additional_scarb_manifest_metadata;
 use voyager_resolver_cairo::dyn_compiler::VoyagerGeneratorWrapper as VoyagerGenerator;
@@ -32,21 +35,13 @@ struct ScarbTomlRawData {
 }
 
 pub fn resolve_scarb(
-    path: Utf8PathBuf,
+    path: ProjectDir,
     cairo_version: SupportedCairoVersions,
     scarb_version: SupportedScarbVersions,
 ) -> anyhow::Result<(Vec<FileInfo>, ProjectMetadataInfo)> {
     // Extract necessary files from the Scarb project for the verified contract
-    let source_dir = if path.is_absolute() {
-        path
-    } else {
-        let mut current_path = std::env::current_dir().unwrap();
-        current_path.push(path);
-        Utf8PathBuf::from_path_buf(current_path).unwrap()
-    };
-
     let compiler = get_dynamic_compiler(cairo_version);
-    let contract_paths = compiler.get_contracts_to_verify_path(&source_dir)?;
+    let contract_paths = compiler.get_contracts_to_verify_path(path.as_ref())?;
 
     // TODO move the contract selection before the resolving step as a 'pre-resolving' step
     // in order to allow for automatic contracts discovery and selection
@@ -59,6 +54,7 @@ pub fn resolve_scarb(
         ));
     }
 
+    let source_dir = Utf8PathBuf::from(path.clone());
     // Read the scarb metadata to get more information
     // TODO: switch this to using scarb-metadata
     let scarb_toml_content = fs::read_to_string(source_dir.join("Scarb.toml"))?;
@@ -66,7 +62,7 @@ pub fn resolve_scarb(
         read_additional_scarb_manifest_metadata(scarb_toml_content.as_str())?;
 
     // Compiler and extract the necessary files
-    compiler.compile_project(&source_dir)?;
+    compiler.compile_project(path.as_ref())?;
 
     // Since we know that we extract the files into the `voyager-verify` directory,
     // we'll read the files from there.
