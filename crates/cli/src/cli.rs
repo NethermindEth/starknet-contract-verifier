@@ -7,7 +7,7 @@ mod utils;
 mod verify;
 
 use crate::api::does_class_exist;
-use crate::args::{Args, Network};
+use crate::args::Args;
 use crate::license::LicenseType;
 use crate::resolver::TargetType;
 use crate::utils::detect_local_tools;
@@ -34,7 +34,11 @@ fn main() -> anyhow::Result<()> {
             // TODO: do a first pass to find all the contracts in the project
             // For now we keep using the hardcoded value in the scarb.toml file
 
-            resolver::resolve_scarb(args.path.clone().into(), local_cairo_version, local_scarb_version)?
+            resolver::resolve_scarb(
+                args.path.clone().into(),
+                local_cairo_version,
+                local_scarb_version,
+            )?
         }
     };
 
@@ -51,12 +55,9 @@ fn main() -> anyhow::Result<()> {
     );
 
     // -- Network selection --
-
-    // TODO: Unify those
-    let class_hash: String = args.hash.to_string();
     loop {
         // Check if the class exists on the network
-        match does_class_exist(args.network_url.clone(), &class_hash) {
+        match does_class_exist(args.network_url.clone(), &args.hash) {
             Ok(true) => break,
             Ok(false) => {
                 println!("This class hash does not exist for the given network. Please try again.")
@@ -94,13 +95,7 @@ fn main() -> anyhow::Result<()> {
 
     let verification_result = match target_type {
         TargetType::ScarbProject => {
-            verify::verify_project(
-                args,
-                project_metadata,
-                project_files,
-                "".to_string(),
-                None
-            )
+            verify::verify_project(args, project_metadata, project_files, "".to_string())
         }
         TargetType::File => panic!("Single contract file verification is not yet implemented"),
     };

@@ -1,17 +1,27 @@
-use std::fmt::Display;
-use std::path::PathBuf;
-use std::{env, fs};
-use std::{str::FromStr, thread::sleep};
-
-use anyhow::{anyhow, Error, Ok, Result};
-use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
-use reqwest::{
-    blocking::{get, multipart, Client},
-    StatusCode,
+use std::{
+    fmt::Display,
+    fs,
+    path::PathBuf,
+    time::Duration,
 };
 
-use crate::args::{Network, NetworkKind};
+use anyhow::anyhow;
+use backon::{
+    BlockingRetryable,
+    ExponentialBuilder,
+};
+use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
+use reqwest::{
+    blocking::{self, multipart, Client},
+    StatusCode,
+};
+use thiserror::Error;
+use url::Url;
 
+use crate::{
+    args::Network,
+    class_hash::ClassHash,
+};
 
 #[derive(Debug, serde::Deserialize)]
 pub enum VerifyJobStatus {
@@ -22,15 +32,18 @@ pub enum VerifyJobStatus {
     Success,
 }
 
-impl VerifyJobStatus {
-    fn from_u8(status: u8) -> Self {
-        match status {
+// TODO: Option blindness?
+type JobStatus = Option<VerificationJob>;
+
+impl From<u8> for VerifyJobStatus {
+    fn from(value: u8) -> Self {
+        match value {
             0 => Self::Submitted,
             1 => Self::Compiled,
             2 => Self::CompileFailed,
             3 => Self::Fail,
             4 => Self::Success,
-            _ => panic!("Unknown status: {}", status),
+            _ => panic!("Unknown status: {}", value),
         }
     }
 }
@@ -47,37 +60,182 @@ impl Display for VerifyJobStatus {
     }
 }
 
+#[derive(Clone)]
+pub struct ApiClient {
+    base: Url,
+    client: Client,
+}
+
+#[derive(Error, Debug)]
+pub enum ApiClientError {
+    #[error("{0} cannot be base, provide valid URL")]
+    CannotBeBase(Url),
+    #[error(transparent)]
+    Reqwest(#[from] reqwest::Error),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
 /**
  * Currently only GetJobStatus and VerifyClass are public available apis.
  * In the future, the get class api should be moved to using public apis too.
  * TODO: Change get class api to use public apis.
  */
-pub enum ApiEndpoints {
-    GetClass,
-    GetJobStatus,
-    VerifyClass,
-}
-
-impl ApiEndpoints {
-    fn as_str(&self) -> String {
-        match self {
-            ApiEndpoints::GetClass => "/api/class/{class_hash}".to_owned(),
-            ApiEndpoints::GetJobStatus => "/class-verify/job/{job_id}".to_owned(),
-            ApiEndpoints::VerifyClass => "/class-verify/{class_hash}".to_owned(),
+// TODO: Perhaps make a client and make this execute calls
+impl ApiClient {
+    pub fn new(base: Url) -> Result<Self, ApiClientError> {
+        // Test here so that we are sure path_segments_mut succeeds
+        if base.cannot_be_a_base() {
+            Err(ApiClientError::CannotBeBase(base))
+        } else {
+            Ok(Self {
+                base,
+                client: blocking::Client::new(),
+            })
         }
     }
 
-    fn to_api_path(&self, param: String) -> String {
-        match self {
-            ApiEndpoints::GetClass => self.as_str().replace("{class_hash}", param.as_str()),
-            ApiEndpoints::GetJobStatus => self.as_str().replace("{job_id}", param.as_str()),
-            ApiEndpoints::VerifyClass => self.as_str().replace("{class_hash}", param.as_str()),
+    pub fn get_class_url(&self, class_hash: &ClassHash) -> Url {
+        let mut url = self.base.clone();
+        url.path_segments_mut()
+            .expect("")
+            .extend(&["api", "class", class_hash.as_ref()]);
+        println!("get_class_url: {}", url);
+        url
+    }
+
+    pub fn get_class(&self, class_hash: &ClassHash) -> Result<bool, ApiClientError> {
+        let result = self
+            .client
+            .get(self.get_class_url(&class_hash))
+            // shouldn't `?` be enough?
+            .send()
+            .map_err(ApiClientError::Reqwest)?;
+
+        match result.status() {
+            StatusCode::OK => Ok(true),
+            StatusCode::NOT_FOUND => Ok(false),
+            _ => Err(ApiClientError::Other(anyhow::anyhow!(
+                "Unexpected status code {} when trying to get class hash with error {}",
+                result.status(),
+                result.text()?
+            ))),
         }
     }
-}
 
-pub fn get_network_api(network: Network) -> (String, String) {
-    (network.private.as_str().to_owned(), network.public.as_str().to_owned())
+    pub fn verify_class_url(&self, class_hash: ClassHash) -> Url {
+        let mut url = self.base.clone();
+        url.path_segments_mut()
+            .expect("")
+            .extend(&["class-verify", class_hash.as_ref()]);
+        url
+    }
+
+    pub fn verify_class(
+        &self,
+        class_hash: ClassHash,
+        license: &str,
+        name: &str,
+        project_metadata: ProjectMetadataInfo,
+        files: Vec<FileInfo>,
+    ) -> Result<String, ApiClientError> {
+        let mut body = multipart::Form::new()
+            .percent_encode_noop()
+            .text(
+                "compiler_version",
+                project_metadata.cairo_version.to_string(),
+            )
+            .text("scarb_version", project_metadata.scarb_version.to_string())
+            .text("license", license.to_string())
+            .text("name", name.to_string())
+            .text("contract_file", project_metadata.contract_file)
+            .text("project_dir_path", project_metadata.project_dir_path);
+
+        for file in files.iter() {
+            let file_content = fs::read_to_string(file.path.as_path())?;
+            body = body.text(format!("files__{}", file.name.clone()), file_content);
+        }
+
+        let response = self
+            .client
+            .post(self.verify_class_url(class_hash))
+            .multipart(body)
+            // shouldn't `?` be enough?
+            .send()
+            .map_err(ApiClientError::Reqwest)?;
+
+        match response.status() {
+            StatusCode::OK => (),
+            StatusCode::NOT_FOUND => {
+                return Err(ApiClientError::Other(anyhow!("Job not found")));
+            }
+            StatusCode::BAD_REQUEST => {
+                let err_response = response.json::<ApiError>()?;
+
+                return Err(ApiClientError::Other(anyhow!(
+                    "Failed to dispatch verification job with status 400: {}",
+                    err_response.error
+                )));
+            }
+            unknown_status_code => {
+                return Err(ApiClientError::Other(anyhow!(
+                    "Failed to dispatch verification job with status {}: {}",
+                    unknown_status_code,
+                    response.text()?
+                )));
+            }
+        }
+
+        Ok(response.json::<VerificationJobDispatch>()?.job_id)
+    }
+
+    pub fn get_job_status_url(&self, job_id: String) -> Url {
+        let mut url = self.base.clone();
+        url.path_segments_mut()
+            .expect("")
+            .extend(&["class-verify", "job", job_id.as_ref()]);
+        url
+    }
+
+    pub fn get_job_status(&self, job_id: String) -> Result<JobStatus, ApiClientError> {
+        let response = self.client.get(self.get_job_status_url(job_id)).send()?;
+
+        match response.status() {
+            StatusCode::OK => (),
+            StatusCode::NOT_FOUND => {
+                return Err(ApiClientError::Other(anyhow!("Job not found")));
+            }
+            unknown_status_code => {
+                return Err(ApiClientError::Other(anyhow!(
+                    "Unexpected status code: {}, with error message: {}",
+                    unknown_status_code,
+                    response.text()?
+                )));
+            }
+        }
+
+        let data = response.json::<VerificationJob>()?;
+        match VerifyJobStatus::from(data.status) {
+            VerifyJobStatus::Success => return Ok(Some(data)),
+            VerifyJobStatus::Fail => {
+                return Err(ApiClientError::Other(anyhow!(
+                    "Failed to verify: {:?}",
+                    data.status_description
+                        .unwrap_or("unknown failure".to_owned())
+                )))
+            }
+            VerifyJobStatus::CompileFailed => {
+                return Err(ApiClientError::Other(anyhow!(
+                    "Compilation failed: {:?}",
+                    data.status_description
+                        .unwrap_or("unknown failure".to_owned())
+                )))
+            }
+            _ => Ok(None),
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -112,19 +270,9 @@ pub struct FileInfo {
     pub path: PathBuf,
 }
 
-pub fn does_class_exist(network: Network, class_hash: &str) -> Result<bool> {
-    let (url, _) = get_network_api(network);
-    let path_with_params = ApiEndpoints::GetClass.to_api_path(class_hash.to_owned());
-    let result = get(url + path_with_params.as_str())?;
-    match result.status() {
-        StatusCode::OK => Ok(true),
-        StatusCode::NOT_FOUND => Ok(false),
-        _ => Err(anyhow::anyhow!(
-            "Unexpected status code {} when trying to get class hash with error {}",
-            result.status(),
-            result.text()?
-        )),
-    }
+pub fn does_class_exist(network: Network, class_hash: &ClassHash) -> Result<bool, ApiClientError> {
+    let api = ApiClient::new(network.private)?;
+    api.get_class(class_hash)
 }
 
 #[derive(Debug, Clone)]
@@ -138,132 +286,63 @@ pub struct ProjectMetadataInfo {
 pub fn dispatch_class_verification_job(
     _api_key: &str,
     network: Network,
-    address: &str,
+    class_hash: ClassHash,
     license: &str,
     name: &str,
     project_metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
-) -> Result<String> {
-    // Construct form body
-    let mut body = multipart::Form::new()
-        .percent_encode_noop()
-        .text(
-            "compiler_version",
-            project_metadata.cairo_version.to_string(),
-        )
-        .text("scarb_version", project_metadata.scarb_version.to_string())
-        .text("license", license.to_string())
-        .text("name", name.to_string())
-        .text("contract_file", project_metadata.contract_file)
-        .text("project_dir_path", project_metadata.project_dir_path);
+) -> Result<String, ApiClientError> {
+    let api = ApiClient::new(network.public)?;
+    api.verify_class(class_hash, license, name, project_metadata, files)
+}
 
-    for file in files.iter() {
-        let file_content = fs::read_to_string(file.path.as_path())?;
-        body = body.text(format!("files__{}", file.name.clone()), file_content);
+pub enum Status {
+    InProgress,
+    Finished(ApiClientError)
+}
+
+fn is_is_progress(status: &Status) -> bool {
+    match status {
+        Status::InProgress => true,
+        Status::Finished(_) => false,
     }
-
-    let (_, public_url) = get_network_api(network);
-    let client = Client::new();
-
-    let path_with_param = ApiEndpoints::VerifyClass.to_api_path(address.to_owned());
-
-    let response = client
-        .post(public_url + path_with_param.as_str())
-        // .header("x-api-key", api_key)
-        .multipart(body)
-        .send()?;
-
-    match response.status() {
-        StatusCode::OK => (),
-        StatusCode::NOT_FOUND => {
-            return Err(anyhow!("Job not found"));
-        }
-        StatusCode::BAD_REQUEST => {
-            let err_response = response.json::<ApiError>()?;
-
-            return Err(anyhow!(
-                "Failed to dispatch verification job with status 400: {}",
-                err_response.error
-            ));
-        }
-        unknown_status_code => {
-            return Err(anyhow!(
-                "Failed to dispatch verification job with status {}: {}",
-                unknown_status_code,
-                response.text()?
-            ));
-        }
-    }
-
-    let data = response.json::<VerificationJobDispatch>().unwrap();
-
-    Ok(data.job_id)
 }
 
 pub fn poll_verification_status(
     _api_key: &str,
     network: Network,
     job_id: &str,
-    max_retries: u32,
-) -> Result<VerificationJob> {
-    // Get network api url
-    let (_, public_url) = get_network_api(network);
+) -> Result<VerificationJob, ApiClientError> {
+    let api = ApiClient::new(network.public)?;
 
-    // Blocking loop that polls every 2 seconds
-    static RETRY_INTERVAL: u64 = 2000; // Ms
-    let mut retries: u32 = 0;
-    let client = Client::new();
+    let fetch = || -> Result<VerificationJob, Status> {
+        let result: Option<VerificationJob> = api
+            .get_job_status(job_id.to_owned())
+            .map_err(Status::Finished)?;
 
-    let path_with_param = ApiEndpoints::GetJobStatus.to_api_path(job_id.to_owned());
+        result.ok_or(Status::InProgress)
+    };
 
-    // Retry every 2000ms until we hit maxRetries
-    while retries < max_retries {
-        let result = client
-            .get(public_url.clone() + path_with_param.as_str())
-            // .header("x-api-key", api_key)
-            .send()?;
-        match result.status() {
-            StatusCode::OK => (),
-            StatusCode::NOT_FOUND => {
-                return Err(anyhow!("Job not found"));
-            }
-            unknown_status_code => {
-                return Err(anyhow!(
-                    "Unexpected status code: {}, with error message: {}",
-                    unknown_status_code,
-                    result.text()?
-                ));
-            }
-        }
-
-        // Go through the possible status
-        let data = result.json::<VerificationJob>()?;
-        match VerifyJobStatus::from_u8(data.status) {
-            VerifyJobStatus::Success => return Ok(data),
-            VerifyJobStatus::Fail => {
-                return Err(anyhow!(
-                    "Failed to verify: {:?}",
-                    data.status_description
-                        .unwrap_or("unknown failure".to_owned())
-                ))
-            }
-            VerifyJobStatus::CompileFailed => {
-                return Err(anyhow!(
-                    "Compilation failed: {:?}",
-                    data.status_description
-                        .unwrap_or("unknown failure".to_owned())
-                ))
-            }
-            _ => (),
-        }
-        retries += 1;
-        sleep(std::time::Duration::from_millis(RETRY_INTERVAL));
-    }
-
-    // If we hit maxRetries, throw an timeout error
-    Err(anyhow!(
-        "Timeout: Verification job took too long to complete"
-    ))
+    // So verbose because it has problems with inference
+    fetch
+        .retry(
+            ExponentialBuilder::default()
+                .with_max_times(0)
+                .with_min_delay(Duration::from_secs(2))
+                .with_max_delay(Duration::from_secs(300)) // 5 mins
+                .with_max_times(20)
+        )
+        .when(is_is_progress)
+        .notify(|_, dur: Duration| {
+            println!("Job: {} didn't finish, retrying in {:?}", job_id, dur);
+        })
+        .call()
+        .map_err(|err| match err {
+            Status::InProgress =>
+                ApiClientError::Other(anyhow!("Verification job is still in progress")),
+            Status::Finished(e) =>
+                e,
+        })
 }
 
 // #[cfg(test)]

@@ -4,11 +4,9 @@ use dyn_compiler::dyn_compiler::SupportedCairoVersions;
 
 use crate::{
     api::{
-        dispatch_class_verification_job, poll_verification_status, FileInfo,
-        ProjectMetadataInfo,
+        dispatch_class_verification_job, poll_verification_status, FileInfo, ProjectMetadataInfo,
     },
-    args,
-    args::{Args, Network},
+    args::Args,
     resolver::get_dynamic_compiler,
 };
 
@@ -17,12 +15,11 @@ pub fn verify_project(
     metadata: ProjectMetadataInfo,
     files: Vec<FileInfo>,
     api_key: String,
-    max_retries: Option<u32>,
 ) -> Result<()> {
     let dispatch_response = dispatch_class_verification_job(
         api_key.as_str(),
         args.network_url.clone(),
-        args.hash.as_ref(),
+        args.hash,
         "No License (None)",
         &args.name,
         metadata,
@@ -40,12 +37,7 @@ pub fn verify_project(
     };
 
     // Retry for 5 minutes
-    let poll_result = poll_verification_status(
-        api_key.as_str(),
-        args.network_url,
-        &job_id,
-        max_retries.unwrap_or(180),
-    );
+    let poll_result = poll_verification_status(api_key.as_str(), args.network_url, &job_id);
 
     match poll_result {
         Ok(_response) => Ok(()),

@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 anyhow.workspace = true
 camino.workspace = true
-clap.workspace = true
 comfy-table = "6.0.0"
 serde.workspace = true
 smol_str.workspace = true
@@ -28,6 +27,8 @@ dyn-compiler = { path = "../dyn-compiler" }
 # All resolver versions, based on scarb + cairo
 voyager-resolver-cairo = { path = "../voyager-resolver-cairo" }
 walkdir = "2.3.3"
+clap = { version = "4.5.20", features = ["derive", "unicode", "env"] }
+backon = { version = "1.2.0", default-features = false, features = ["std-blocking-sleep"] }
 
 [[bin]]
 name = "starknet-contract-verifier"
