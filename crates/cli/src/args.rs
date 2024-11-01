@@ -1,5 +1,5 @@
 use camino::{Utf8Path, Utf8PathBuf};
-use clap::{Parser, Subcommand};
+use clap;
 use reqwest::Url;
 use std::{
     env,
@@ -96,7 +96,7 @@ pub fn project_dir_value_parser(raw: &str) -> Result<ProjectDir, ProjectDirError
     ProjectDir::new(PathBuf::from(raw))
 }
 
-#[derive(Parser)]
+#[derive(clap::Parser)]
 #[command(name = "Starknet Contract Verifier")]
 #[command(author = "Nethermind")]
 #[command(version = "0.1.0")]
@@ -104,8 +104,11 @@ pub fn project_dir_value_parser(raw: &str) -> Result<ProjectDir, ProjectDirError
 #[command(long_about = "")]
 pub struct Args {
     /// Network to verify on
-    #[command(subcommand)]
-    pub network: Network,
+    #[arg(long, value_enum)]
+    pub network: NetworkKind,
+
+    #[command(flatten)]
+    pub network_url: Network,
 
     /// Path to Scarb project root DIR
     #[arg(
@@ -134,26 +137,128 @@ pub struct Args {
     pub license: Option<String>,
 }
 
-#[derive(Subcommand)]
-pub enum Network {
+#[derive(clap::ValueEnum, Clone)]
+pub enum NetworkKind {
+    /// Target the Mainnet
     Mainnet,
-    Testnet,
-    Custom {
-        /// Public Api URL
-        #[arg(
-            long,
-            value_name = "URL",
-            env = "CUSTOM_PUBLIC_API_ENDPOINT_URL",
-        )]
-        public: Url,
 
-        /// Internal Api URL
-        #[arg(
-            long,
-            value_name = "URL",
-            env = "CUSTOM_INTERNAL_API_ENDPOINT_URL",
-        )]
-        private: Url
+    /// Target Sepolia testnet
+    Testnet,
+
+    /// Target custom network
+    Custom,
+}
+
+#[derive(Clone)]
+pub struct Network {
+    /// Custom public API adress
+    pub public: Url,
+
+    /// Custom interval API address
+    pub private: Url,
+}
+
+impl clap::FromArgMatches for Network {
+    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
+        Ok(Self {
+            public: matches
+                // this cast is possible because we set value_parser
+                .get_one::<Url>("public")
+                // This should never panic because of the default_value
+                // and required_if_eq used in the clap::Args
+                // implementation for Network
+                .expect("Custom network API public Url is missig!")
+                .to_owned(),
+            private: matches
+                // this cast is possible because we set value_parser
+                .get_one::<Url>("private")
+                // This should never panic because of the default_value
+                // and required_if_eq used in the clap::Args
+                // implementation for Network
+                .expect("Custom network API private Url is missig!")
+                .to_owned(),
+        })
+    }
+
+    fn from_arg_matches_mut(matches: &mut clap::ArgMatches) -> Result<Self, clap::Error> {
+        Self::from_arg_matches(matches)
+    }
+
+    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
+        let mut matches = matches.clone();
+        self.update_from_arg_matches_mut(&mut matches)
+    }
+
+    fn update_from_arg_matches_mut(&mut self, matches: &mut clap::ArgMatches) -> Result<(), clap::Error> {
+        self.public = matches
+            // this cast is possible because we set value_parser
+            .get_one::<Url>("private")
+            // This should never panic because of the default_value
+            // and required_if_eq used in the clap::Args
+            // implementation for Network
+            .expect("Custom network API private URL is missig!")
+            .to_owned();
+        self.private = matches
+            // this cast is possible because we set value_parser
+            .get_one::<Url>("private")
+            // This should never panic because of the default_value
+            // and required_if_eq used in the clap::Args
+            // implementation for Network
+            .expect("Custom network API private URL is missig!")
+            .to_owned();
+        Ok(())
     }
 }
 
+// Can't derive the default value logic, hence hand rolled instance
+impl clap::Args for Network {
+    fn augment_args(cmd: clap::Command) -> clap::Command {
+        cmd.arg(
+            clap::Arg::new("public")
+                .long("public")
+                .help("Custom public API address")
+                .value_hint(clap::ValueHint::Url)
+                .value_parser(Url::parse)
+                .default_value_ifs([
+                    ("network", "mainnet", "https://api.voyager.online/beta"),
+                    ("network", "testnet", "https://sepolia-api.voyager.online/beta"),
+                ])
+                .required_if_eq("network", "custom")
+                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"))
+            .arg(clap::Arg::new("private")
+                .long("private")
+                .help("Custom interval API address")
+                .value_hint(clap::ValueHint::Url)
+                .value_parser(Url::parse)
+                .default_value_ifs([
+                    ("network", "mainnet", "https://voyager.online"),
+                    ("network", "testnet", "https://sepolia.voyager.online"),
+                ])
+                .required_if_eq("network", "custom")
+                .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"))
+    }
+
+    fn augment_args_for_update(cmd: clap::Command) -> clap::Command {
+        cmd.arg(
+            clap::Arg::new("public")
+                .long("public")
+                .help("Custom public API address")
+                .value_hint(clap::ValueHint::Url)
+                .default_value_ifs([
+                    ("network", "mainnet", "https://api.voyager.online/beta"),
+                    ("network", "testnet", "https://sepolia-api.voyager.online/beta"),
+                ])
+                .required_if_eq("network", "custom")
+                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"))
+            .arg(clap::Arg::new("private")
+                .long("private")
+                .help("Custom interval API address")
+                .value_hint(clap::ValueHint::Url)
+                .default_value_ifs([
+                    ("network", "mainnet", "https://api.voyager.online"),
+                    ("network", "testnet", "https://sepolia-api.voyager.online"),
+                ])
+                .required_if_eq("network", "custom")
+                .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"))
+    }
+}

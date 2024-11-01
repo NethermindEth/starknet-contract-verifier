@@ -6,15 +6,15 @@ mod resolver;
 mod utils;
 mod verify;
 
-use crate::api::{does_class_exist, Network};
-use crate::args::Args;
+use crate::api::does_class_exist;
+use crate::args::{Args, Network};
 use crate::license::LicenseType;
 use crate::resolver::TargetType;
 use crate::utils::detect_local_tools;
 use clap::Parser;
 use console::{style, Emoji};
 use dialoguer::{theme::ColorfulTheme, Select};
-use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
+use indicatif::{HumanDuration, ProgressBar};
 use std::time::{Duration, Instant};
 use strum::IntoEnumIterator;
 
@@ -23,17 +23,6 @@ fn main() -> anyhow::Result<()> {
 
     // Project type
     let target_type = TargetType::ScarbProject; // by default we assume the user is in a scarb project
-
-    // Start the whole process
-    let _spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}")
-        .unwrap()
-        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈");
-
-    println!(
-        "{} {} Resolving project...",
-        style("[2/4]").bold().dim(),
-        Emoji("🔗", "")
-    );
 
     // Resolve project
     let (project_files, project_metadata) = match target_type {
@@ -64,16 +53,10 @@ fn main() -> anyhow::Result<()> {
     // -- Network selection --
 
     // TODO: Unify those
-    let network_enum = match args.network {
-        args::Network::Mainnet => Network::Mainnet,
-        args::Network::Testnet => Network::Sepolia,
-        args::Network::Custom { public: _, private: _ } => Network::Custom
-    };
-
     let class_hash: String = args.hash.to_string();
     loop {
         // Check if the class exists on the network
-        match does_class_exist(network_enum.clone(), &class_hash) {
+        match does_class_exist(args.network_url.clone(), &class_hash) {
             Ok(true) => break,
             Ok(false) => {
                 println!("This class hash does not exist for the given network. Please try again.")
@@ -106,7 +89,6 @@ fn main() -> anyhow::Result<()> {
 
     // Create and configure a progress bar
     let pb_verification = ProgressBar::new_spinner();
-    pb_verification.set_style(_spinner_style);
     pb_verification.enable_steady_tick(Duration::from_millis(100));
     pb_verification.set_message("Please wait...");
 

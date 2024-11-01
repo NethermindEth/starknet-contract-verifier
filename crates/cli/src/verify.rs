@@ -4,11 +4,11 @@ use dyn_compiler::dyn_compiler::SupportedCairoVersions;
 
 use crate::{
     api::{
-        dispatch_class_verification_job, poll_verification_status, FileInfo, Network,
+        dispatch_class_verification_job, poll_verification_status, FileInfo,
         ProjectMetadataInfo,
     },
     args,
-    args::Args,
+    args::{Args, Network},
     resolver::get_dynamic_compiler,
 };
 
@@ -19,15 +19,9 @@ pub fn verify_project(
     api_key: String,
     max_retries: Option<u32>,
 ) -> Result<()> {
-    let network_enum = match args.network {
-        args::Network::Mainnet => Network::Mainnet,
-        args::Network::Testnet => Network::Sepolia,
-        args::Network::Custom { public: _, private: _ } => Network::Custom
-    };
-
     let dispatch_response = dispatch_class_verification_job(
         api_key.as_str(),
-        network_enum.clone(),
+        args.network_url.clone(),
         args.hash.as_ref(),
         "No License (None)",
         &args.name,
@@ -48,7 +42,7 @@ pub fn verify_project(
     // Retry for 5 minutes
     let poll_result = poll_verification_status(
         api_key.as_str(),
-        network_enum,
+        args.network_url,
         &job_id,
         max_retries.unwrap_or(180),
     );
