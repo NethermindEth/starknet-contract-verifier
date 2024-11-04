@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 use crate::model::{CairoImport, CairoImportType, CairoModule, CairoSubmodules, ModulePath};
-use cairo_lang_diagnostics::ToOption;
+use cairo_lang_diagnostics::{DiagnosticsBuilder, ToOption};
 use cairo_lang_semantic::items::functions::GenericFunctionId;
 
 use std::path::PathBuf;
@@ -421,7 +421,7 @@ pub fn extract_file_imports(
 
     // Resolve the module's imports
     // the resolver depends on the current module file id
-    let mut diagnostics = SemanticDiagnostics::new(file_data.id);
+    let mut diagnostics = DiagnosticsBuilder::default();
 
     for (use_id, (use_path, use_mod_id)) in module_uses.iter() {
         // Use Path needs to break down into segments
