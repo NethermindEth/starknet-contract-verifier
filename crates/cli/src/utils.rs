@@ -28,16 +28,16 @@ pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) 
         .collect::<Vec<&str>>()[1];
 
     let scarb_version = match scarb_version {
-        "2.6.3" => SupportedScarbVersions::V2_6_3,
+        "2.8.1" => SupportedScarbVersions::V2_8_1,
         _ => panic!("Unsupported Scarb version: {}", scarb_version),
     };
 
     let cairo_version = match cairo_version {
-        "2.6.3" => SupportedCairoVersions::V2_6_3,
+        "2.8.0" => SupportedCairoVersions::V2_8_0,
         _ => {
             println!("Unsupported Cairo version {}. We thus do not guarantee compatibility and compilation might fail as a result.", cairo_version);
             // Use latest Scarb version as default.
-            SupportedCairoVersions::V2_6_3
+            SupportedCairoVersions::V2_8_0
         }
     };
 
