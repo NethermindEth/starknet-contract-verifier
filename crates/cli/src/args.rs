@@ -2,8 +2,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use clap;
 use reqwest::Url;
 use std::{
-    env,
-    io,
+    env, io,
     path::{Path, PathBuf},
     string::ToString,
 };
@@ -35,11 +34,9 @@ impl ProjectDir {
         match dir.join("scarb.toml").try_exists() {
             Ok(_) => Ok(ProjectDir(dir)),
             Err(err) => Err(match err.kind() {
-                io::ErrorKind::NotFound =>
-                    ProjectDirError::NoScarb(dir),
-                _ =>
-                    ProjectDirError::from(err),
-            })
+                io::ErrorKind::NotFound => ProjectDirError::NoScarb(dir),
+                _ => ProjectDirError::from(err),
+            }),
         }
     }
 
@@ -103,29 +100,48 @@ pub fn project_dir_value_parser(raw: &str) -> Result<ProjectDir, ProjectDirError
 #[command(about = "Verify Starknet classes on Voyager block explorer")]
 #[command(long_about = "")]
 pub struct Args {
+    #[command(subcommand)]
+    pub command: Commands,
+
     /// Network to verify on
     #[arg(long, value_enum)]
     pub network: NetworkKind,
 
     #[command(flatten)]
     pub network_url: Network,
+}
 
+#[derive(clap::Subcommand)]
+pub enum Commands {
+    /// Submit smart contract for verification
+    Submit(SubmitArgs),
+
+    /// Check verification job status
+    Status {
+        /// Verification job id
+        #[arg(long, value_name = "UUID")]
+        job: String,
+    },
+}
+
+#[derive(clap::Args)]
+pub struct SubmitArgs {
     /// Path to Scarb project root DIR
     #[arg(
-        long,
-        value_name = "DIR",
-        value_hint = clap::ValueHint::DirPath,
-        value_parser = project_dir_value_parser,
-        default_value_t = ProjectDir::cwd().unwrap(),
-    )]
+            long,
+            value_name = "DIR",
+            value_hint = clap::ValueHint::DirPath,
+            value_parser = project_dir_value_parser,
+            default_value_t = ProjectDir::cwd().unwrap(),
+        )]
     pub path: ProjectDir,
 
     /// Class HASH to verify
     #[arg(
-        long,
-        value_name = "HASH",
-        value_parser = ClassHash::new
-    )]
+            long,
+            value_name = "HASH",
+            value_parser = ClassHash::new
+        )]
     pub hash: ClassHash,
 
     /// Desired class NAME
@@ -189,7 +205,10 @@ impl clap::FromArgMatches for Network {
         self.update_from_arg_matches_mut(&mut matches)
     }
 
-    fn update_from_arg_matches_mut(&mut self, matches: &mut clap::ArgMatches) -> Result<(), clap::Error> {
+    fn update_from_arg_matches_mut(
+        &mut self,
+        matches: &mut clap::ArgMatches,
+    ) -> Result<(), clap::Error> {
         self.public = matches
             // this cast is possible because we set value_parser
             .get_one::<Url>("private")
@@ -221,11 +240,17 @@ impl clap::Args for Network {
                 .value_parser(Url::parse)
                 .default_value_ifs([
                     ("network", "mainnet", "https://api.voyager.online/beta"),
-                    ("network", "testnet", "https://sepolia-api.voyager.online/beta"),
+                    (
+                        "network",
+                        "testnet",
+                        "https://sepolia-api.voyager.online/beta",
+                    ),
                 ])
                 .required_if_eq("network", "custom")
-                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"))
-            .arg(clap::Arg::new("private")
+                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
+        )
+        .arg(
+            clap::Arg::new("private")
                 .long("private")
                 .help("Custom interval API address")
                 .value_hint(clap::ValueHint::Url)
@@ -235,7 +260,8 @@ impl clap::Args for Network {
                     ("network", "testnet", "https://sepolia.voyager.online"),
                 ])
                 .required_if_eq("network", "custom")
-                .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"))
+                .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
+        )
     }
 
     fn augment_args_for_update(cmd: clap::Command) -> clap::Command {
@@ -246,11 +272,17 @@ impl clap::Args for Network {
                 .value_hint(clap::ValueHint::Url)
                 .default_value_ifs([
                     ("network", "mainnet", "https://api.voyager.online/beta"),
-                    ("network", "testnet", "https://sepolia-api.voyager.online/beta"),
+                    (
+                        "network",
+                        "testnet",
+                        "https://sepolia-api.voyager.online/beta",
+                    ),
                 ])
                 .required_if_eq("network", "custom")
-                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"))
-            .arg(clap::Arg::new("private")
+                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
+        )
+        .arg(
+            clap::Arg::new("private")
                 .long("private")
                 .help("Custom interval API address")
                 .value_hint(clap::ValueHint::Url)
@@ -259,6 +291,7 @@ impl clap::Args for Network {
                     ("network", "testnet", "https://sepolia-api.voyager.online"),
                 ])
                 .required_if_eq("network", "custom")
-                .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"))
+                .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
+        )
     }
 }

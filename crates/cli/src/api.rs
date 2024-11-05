@@ -102,7 +102,6 @@ impl ApiClient {
         url.path_segments_mut()
             .expect("")
             .extend(&["api", "class", class_hash.as_ref()]);
-        println!("get_class_url: {}", url);
         url
     }
 
@@ -216,6 +215,7 @@ impl ApiClient {
             }
         }
 
+
         let data = response.json::<VerificationJob>()?;
         match VerifyJobStatus::from(data.status) {
             VerifyJobStatus::Success => return Ok(Some(data)),
@@ -309,12 +309,9 @@ fn is_is_progress(status: &Status) -> bool {
 }
 
 pub fn poll_verification_status(
-    _api_key: &str,
-    network: Network,
+    api: ApiClient,
     job_id: &str,
 ) -> Result<VerificationJob, ApiClientError> {
-    let api = ApiClient::new(network.public)?;
-
     let fetch = || -> Result<VerificationJob, Status> {
         let result: Option<VerificationJob> = api
             .get_job_status(job_id.to_owned())

@@ -4,23 +4,44 @@ mod class_hash;
 mod license;
 mod resolver;
 mod utils;
-mod verify;
 
-use crate::api::does_class_exist;
-use crate::args::Args;
-use crate::license::LicenseType;
-use crate::resolver::TargetType;
-use crate::utils::detect_local_tools;
+use crate::{
+    api::{ApiClient, ApiClientError, VerificationJob, poll_verification_status},
+    args::{Args, Commands},
+    resolver::TargetType,
+    utils::detect_local_tools,
+};
+use args::SubmitArgs;
 use clap::Parser;
-use console::{style, Emoji};
-use dialoguer::{theme::ColorfulTheme, Select};
-use indicatif::{HumanDuration, ProgressBar};
-use std::time::{Duration, Instant};
-use strum::IntoEnumIterator;
 
 fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+    let Args {
+        command: cmd,
+        network_url: network,
+        network: _,
+    } = Args::parse();
 
+    let public = ApiClient::new(network.public)?;
+    let private = ApiClient::new(network.private)?;
+
+    match &cmd {
+        Commands::Submit(args) => {
+            let job_id = submit(public, private, args)?;
+            println!("Contract submitted for verification, job id: {}", job_id);
+        }
+        Commands::Status { job } => {
+            let status = check(public, job)?;
+            println!("{status:?}")
+        },
+    }
+    Ok(())
+}
+
+fn submit(
+    public: ApiClient,
+    private: ApiClient,
+    args: &SubmitArgs,
+) -> Result<String, ApiClientError> {
     // Project type
     let target_type = TargetType::ScarbProject; // by default we assume the user is in a scarb project
 
@@ -42,80 +63,27 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    // TODO: try to calculate the class hash automatically later after contract selection?
-    // println!(
-    //     "{} {} Calculating class hash...",
-    //     style("[x/x]").bold().dim(),
-    //     Emoji("🔍  ", "")
-    // );
-    println!(
-        "{} {} Getting verification information...",
-        style("[3/4]").bold().dim(),
-        Emoji("🔍  ", "")
-    );
-
-    // -- Network selection --
-    loop {
-        // Check if the class exists on the network
-        match does_class_exist(args.network_url.clone(), &args.hash) {
-            Ok(true) => break,
-            Ok(false) => {
-                println!("This class hash does not exist for the given network. Please try again.")
-            }
-            Err(e) => {
-                return Err(anyhow::anyhow!(
-                    "Error while checking if class exists: {}",
-                    e
-                ))
-            }
+    // Check if the class exists on the network
+    private.get_class(&args.hash).and_then(|does_exist| {
+        if !does_exist {
+            Err(ApiClientError::Other(anyhow::anyhow!(
+                "This class hash does not exist for the given network. Please try again."
+            )))
+        } else {
+            Ok(does_exist)
         }
-    }
+    })?;
 
-    // Set license for your contract code
-    let licenses: Vec<LicenseType> = LicenseType::iter().collect();
-    let license_index = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select license you'd like to verify under :")
-        .items(&licenses)
-        .default(0)
-        .interact_opt()
-        .expect("Aborted at license version selection, terminating...")
-        .expect("Aborted at license version selection, terminating...");
+    public.verify_class(
+        args.hash.clone(),
+        // TODO: License
+        "No License (None)", /* args.license} */
+        args.name.as_ref(),
+        project_metadata,
+        project_files,
+    )
+}
 
-    let verification_start = Instant::now();
-    println!(
-        "{} {} Verifying project...",
-        style("[4/4]").bold().dim(),
-        Emoji("🔍", "")
-    );
-
-    // Create and configure a progress bar
-    let pb_verification = ProgressBar::new_spinner();
-    pb_verification.enable_steady_tick(Duration::from_millis(100));
-    pb_verification.set_message("Please wait...");
-
-    let verification_result = match target_type {
-        TargetType::ScarbProject => {
-            verify::verify_project(args, project_metadata, project_files, "".to_string())
-        }
-        TargetType::File => panic!("Single contract file verification is not yet implemented"),
-    };
-
-    // Stop and clear the progress bar
-    pb_verification.finish_with_message("Done");
-
-    match verification_result {
-        Ok(_) => {
-            println!(
-                "{} Successfully verified in {}",
-                Emoji("✅", ""),
-                HumanDuration(verification_start.elapsed())
-            );
-            Ok(())
-        }
-        Err(e) => Err(anyhow::anyhow!(
-            "Verification failed! {} {}",
-            Emoji("❌", ""),
-            e
-        )),
-    }
+fn check(public: ApiClient, job_id: &String) -> Result<VerificationJob, ApiClientError> {
+    poll_verification_status(public, job_id)
 }
