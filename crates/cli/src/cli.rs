@@ -1,12 +1,11 @@
 mod api;
 mod args;
 mod class_hash;
-mod license;
 mod resolver;
 mod utils;
 
 use crate::{
-    api::{ApiClient, ApiClientError, VerificationJob, poll_verification_status},
+    api::{poll_verification_status, ApiClient, ApiClientError, VerificationJob},
     args::{Args, Commands},
     resolver::TargetType,
     utils::detect_local_tools,
@@ -32,7 +31,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Status { job } => {
             let status = check(public, job)?;
             println!("{status:?}")
-        },
+        }
     }
     Ok(())
 }
@@ -76,8 +75,11 @@ fn submit(
 
     public.verify_class(
         args.hash.clone(),
-        // TODO: License
-        "No License (None)", /* args.license} */
+        args.license
+            .map_or("No License (None)".to_string(), |l| {
+                format!("{} ({})", l.full_name, l.name)
+            })
+            .as_ref(),
         args.name.as_ref(),
         project_metadata,
         project_files,

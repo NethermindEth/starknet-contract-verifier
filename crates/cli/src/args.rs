@@ -1,6 +1,7 @@
 use camino::{Utf8Path, Utf8PathBuf};
 use clap;
 use reqwest::Url;
+use spdx::LicenseId;
 use std::{
     env, io,
     path::{Path, PathBuf},
@@ -124,33 +125,48 @@ pub enum Commands {
     },
 }
 
+fn license_value_parser(license: &str) -> Result<LicenseId, String> {
+    let id = spdx::license_id(license);
+    id.ok_or({
+        let guess = spdx::imprecise_license_id(license)
+            .map_or(String::new(), |(lic, _): (LicenseId, usize)| {
+                format!(", do you mean: {}?", lic.name)
+            });
+        format!("Unrecognized license: {license}{guess}")
+    })
+}
+
 #[derive(clap::Args)]
 pub struct SubmitArgs {
     /// Path to Scarb project root DIR
     #[arg(
-            long,
-            value_name = "DIR",
-            value_hint = clap::ValueHint::DirPath,
-            value_parser = project_dir_value_parser,
-            default_value_t = ProjectDir::cwd().unwrap(),
-        )]
+        long,
+        value_name = "DIR",
+        value_hint = clap::ValueHint::DirPath,
+        value_parser = project_dir_value_parser,
+        default_value_t = ProjectDir::cwd().unwrap(),
+    )]
     pub path: ProjectDir,
 
     /// Class HASH to verify
     #[arg(
-            long,
-            value_name = "HASH",
-            value_parser = ClassHash::new
-        )]
+        long,
+        value_name = "HASH",
+        value_parser = ClassHash::new
+    )]
     pub hash: ClassHash,
 
     /// Desired class NAME
     #[arg(long, value_name = "NAME")]
     pub name: String,
 
-    /// Valid SPDX license identifier
-    #[arg(long, value_name = "SPDX")]
-    pub license: Option<String>,
+    /// SPDX license identifier
+    #[arg(
+        long,
+        value_name = "SPDX",
+        value_parser = license_value_parser,
+    )]
+    pub license: Option<LicenseId>,
 }
 
 #[derive(clap::ValueEnum, Clone)]
