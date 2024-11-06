@@ -277,7 +277,8 @@ impl VoyagerGenerator {
                     })?;
                 let main_file_path = match db.lookup_intern_file(main_file) {
                     FileLongId::OnDisk(path) => path,
-                    FileLongId::Virtual(_) => panic!("Expected OnDisk file."),
+                    FileLongId::Virtual(_) => panic!("Expected OnDisk file, found Virtual."),
+                    FileLongId::External(_) => panic!("Expected OnDisk file, found External."),
                 };
 
                 // Extract a vector of modules for the crate.
