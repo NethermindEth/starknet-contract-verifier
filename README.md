@@ -34,7 +34,9 @@
 - [x] Cairo 2.6.4 & Scarb 2.6.5
 - [x] Cairo 2.7.0 & Scarb 2.7.0
 - [x] Cairo 2.7.1 & Scarb 2.7.1
+- [x] Cairo 2.8.0 & Scarb 2.8.0
 - [x] Cairo 2.8.0 & Scarb 2.8.1
+- [x] Cairo 2.8.2 & Scarb 2.8.2
 - [x] Cairo 2.8.2 & Scarb 2.8.3
 - [x] Cairo 2.8.4 & Scarb 2.8.4
 
