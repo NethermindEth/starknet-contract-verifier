@@ -16,7 +16,7 @@ pub enum TargetType {
 
 pub fn get_dynamic_compiler(cairo_version: SupportedCairoVersions) -> Box<dyn DynamicCompiler> {
     match cairo_version {
-        SupportedCairoVersions::V2_7_0 => Box::new(VoyagerGenerator),
+        SupportedCairoVersions::V2_7_1 => Box::new(VoyagerGenerator),
     }
 }
 
