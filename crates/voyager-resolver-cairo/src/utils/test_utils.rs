@@ -62,7 +62,7 @@ pub fn setup_test_files_with_imports(db: &mut RootDatabase, test_import: TestImp
 pub fn set_file_content(db: &mut RootDatabase, path: &str, content: &str) {
     let file_id = db.intern_file(FileLongId::OnDisk(path.into()));
     db.as_files_group_mut()
-        .override_file_content(file_id, Some(Arc::new(content.to_owned())));
+        .override_file_content(file_id, Some(Arc::from(content)));
 }
 
 pub fn setup_simple_modules() -> Vec<CairoModule> {
