@@ -33,7 +33,6 @@
 - [x] Cairo 2.6.3 & Scarb 2.6.4
 - [x] Cairo 2.6.4 & Scarb 2.6.5
 - [x] Cairo 2.7.0 & Scarb 2.7.0
-- [x] Cairo 2.7.1 & Scarb 2.7.1
 
 The source code release for each version is available at their respective branch at `release/2.<major_version>.<minor_version>`. For example, the release for `2.4.3` would live at `release/2.4.3`.
 
