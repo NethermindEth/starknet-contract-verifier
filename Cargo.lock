@@ -2927,9 +2927,7 @@ dependencies = [
 [[package]]
 name = "good_lp"
 version = "1.10.0"
-version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97630e1e456d7081c524488a87d8f8f7ed0fd3100ba10c55e3cfa7add5ce05c6"
 checksum = "97630e1e456d7081c524488a87d8f8f7ed0fd3100ba10c55e3cfa7add5ce05c6"
 dependencies = [
  "fnv",
@@ -4787,7 +4785,7 @@ dependencies = [
  "reqwest",
  "scarb-build-metadata",
  "scarb-metadata 1.12.0",
- "scarb-stable-hash 1.0.0 (git+https://github.com/software-mansion/scarb?rev=e9a2b87)",
+ "scarb-stable-hash 1.0.0 (git+https://github.com/software-mansion/scarb?rev=e288874)",
  "scarb-ui",
  "semver",
  "serde",
