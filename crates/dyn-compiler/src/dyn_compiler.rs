@@ -3,26 +3,28 @@ use camino::Utf8PathBuf;
 
 #[derive(Debug, Clone, Copy)]
 pub enum SupportedCairoVersions {
-    V2_8_0,
+    V2_8_2,
 }
 
 impl ToString for SupportedCairoVersions {
     fn to_string(&self) -> String {
         match self {
-            SupportedCairoVersions::V2_8_0 => "2.8.0".into(),
+            SupportedCairoVersions::V2_8_2 => "2.8.2".into(),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum SupportedScarbVersions {
-    V2_8_1,
+    V2_8_2,
+    V2_8_3,
 }
 
 impl ToString for SupportedScarbVersions {
     fn to_string(&self) -> String {
         match self {
-            SupportedScarbVersions::V2_8_1 => "2.8.1".into(),
+            SupportedScarbVersions::V2_8_2 => "2.8.2".into(),
+            SupportedScarbVersions::V2_8_3 => "2.8.3".into(),
         }
     }
 }
