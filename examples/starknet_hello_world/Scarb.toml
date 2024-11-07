@@ -11,3 +11,18 @@ starknet = "2.8.0"
 cairo_test = "2.8.0"
 
 [[target.starknet-contract]]
+# Enable Sierra codegen.
+sierra = true
+ 
+# Enable CASM codegen.
+casm = false
+# Emit Python-powered hints in order to run compiled CASM class with legacy Cairo VM.
+casm-add-pythonic-hints = false
+ 
+# Enable allowed libfuncs validation.
+allowed-libfuncs = true
+# Raise errors instead of warnings if disallowed libfuncs are found.
+allowed-libfuncs-deny = false
+
+[tool.voyager]
+Balance = {path= "lib.cairo", address = ""}
