@@ -325,7 +325,12 @@ impl VoyagerGenerator {
             &required_modules_paths,
             imports_path_not_matching_resolved_path.clone(),
         );
-        println!("{:?}\n {:?}\n {:?}", required_modules_paths, imports_path_not_matching_resolved_path.clone(), attachment_modules_data);
+        println!(
+            "{:?}\n {:?}\n {:?}",
+            required_modules_paths,
+            imports_path_not_matching_resolved_path.clone(),
+            attachment_modules_data
+        );
 
         let unrequired_attachment_modules: HashMap<ModulePath, CairoAttachmentModule> =
             attachment_modules_data

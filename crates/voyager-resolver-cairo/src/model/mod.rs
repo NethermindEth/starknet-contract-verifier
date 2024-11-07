@@ -167,4 +167,3 @@ impl CairoAttachmentModule {
         self.imports.insert(import);
     }
 }
-
