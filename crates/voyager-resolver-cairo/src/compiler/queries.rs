@@ -2,7 +2,8 @@ use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_defs::ids::{
-    FileIndex, GenericTypeId, LanguageElementId, LocalVarId, ModuleFileId, ModuleId, NamedLanguageElementId, TopLevelLanguageElementId, UseId, UseLongId, VarId
+    FileIndex, GenericTypeId, LanguageElementId, LocalVarId, ModuleFileId, ModuleId,
+    NamedLanguageElementId, TopLevelLanguageElementId, UseId, UseLongId, VarId,
 };
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, Directory, FileId, FileLongId};
@@ -275,7 +276,7 @@ pub fn collect_crate_module_files(
             FileLongId::OnDisk(path) => Ok(path),
             FileLongId::Virtual(_) => {
                 Err(anyhow!("Expected OnDisk file for module {:?}", module_id))
-            },
+            }
             FileLongId::External(_) => {
                 Err(anyhow!("Expected OnDisk file for module {:?}", module_id))
             }
@@ -501,7 +502,11 @@ fn get_full_path(db: &RootDatabase, resolved_item: &ResolvedGenericItem) -> Stri
                     //TODO figure out whether trait_id or impl_id is required here
                     id.function.full_path(db)
                 }
-                GenericFunctionId::Trait(concrete_trait_generic_function_id) => concrete_trait_generic_function_id.trait_function(db).full_path(db),
+                GenericFunctionId::Trait(concrete_trait_generic_function_id) => {
+                    concrete_trait_generic_function_id
+                        .trait_function(db)
+                        .full_path(db)
+                }
             }
         }
         ResolvedGenericItem::TraitFunction(trait_func_id) => trait_func_id.full_path(db),
@@ -512,12 +517,10 @@ fn get_full_path(db: &RootDatabase, resolved_item: &ResolvedGenericItem) -> Stri
         ResolvedGenericItem::Variant(variant) => variant.enum_id.full_path(db),
         ResolvedGenericItem::Impl(impl_id) => impl_id.full_path(db),
         ResolvedGenericItem::GenericImplAlias(impl_alias) => impl_alias.full_path(db),
-        ResolvedGenericItem::Variable(var_id) => {
-            match var_id {
-                VarId::Param(param_id) => param_id.full_path(db),
-                VarId::Local(local_var_id) => local_var_id.module_file_id(db).0.full_path(db),
-            }
-        }
+        ResolvedGenericItem::Variable(var_id) => match var_id {
+            VarId::Param(param_id) => param_id.full_path(db),
+            VarId::Local(local_var_id) => local_var_id.module_file_id(db).0.full_path(db),
+        },
     }
 }
 
