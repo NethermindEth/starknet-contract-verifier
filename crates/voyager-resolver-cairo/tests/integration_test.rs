@@ -33,8 +33,13 @@ fn test_incorrect_contract_path_given() -> Result<()> {
     });
     let package_ids = ws.members().map(|p| p.id.clone()).collect();
     let compile_opts = ops::CompileOpts {
-        include_targets: vec![TargetKind::STARKNET_CONTRACT],
-        exclude_targets: vec![],
+        include_target_kinds: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_target_kinds: Vec::new(),
+        include_target_names: Vec::new(),
+        features: ops::FeaturesOpts {
+            features: ops::FeaturesSelector::AllFeatures,
+            no_default_features: true,
+        },
     };
 
     let result = ops::compile(package_ids, compile_opts, &ws);
@@ -96,8 +101,13 @@ fn test_simple_project() -> Result<()> {
     });
     let package_ids = ws.members().map(|p| p.id.clone()).collect();
     let compile_opts = ops::CompileOpts {
-        include_targets: vec![TargetKind::STARKNET_CONTRACT],
-        exclude_targets: vec![],
+        include_target_kinds: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_target_kinds: Vec::new(),
+        include_target_names: Vec::new(),
+        features: ops::FeaturesOpts {
+            features: ops::FeaturesSelector::AllFeatures,
+            no_default_features: true,
+        },
     };
 
     ops::compile(package_ids, compile_opts, &ws).unwrap();
@@ -130,8 +140,13 @@ fn test_project_with_remap() -> Result<()> {
     });
     let package_ids = ws.members().map(|p| p.id.clone()).collect();
     let compile_opts = ops::CompileOpts {
-        include_targets: vec![TargetKind::STARKNET_CONTRACT],
-        exclude_targets: vec![],
+        include_target_kinds: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_target_kinds: Vec::new(),
+        include_target_names: Vec::new(),
+        features: ops::FeaturesOpts {
+            features: ops::FeaturesSelector::AllFeatures,
+            no_default_features: true,
+        },
     };
 
     ops::compile(package_ids, compile_opts, &ws).unwrap();
@@ -164,8 +179,13 @@ fn test_project_w_import_from_attachment() -> Result<()> {
     });
     let package_ids = ws.members().map(|p| p.id.clone()).collect();
     let compile_opts = ops::CompileOpts {
-        include_targets: vec![TargetKind::STARKNET_CONTRACT],
-        exclude_targets: vec![],
+        include_target_kinds: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_target_kinds: Vec::new(),
+        include_target_names: Vec::new(),
+        features: ops::FeaturesOpts {
+            features: ops::FeaturesSelector::AllFeatures,
+            no_default_features: true,
+        },
     };
 
     ops::compile(package_ids, compile_opts, &ws).unwrap();
@@ -198,8 +218,13 @@ fn test_project_with_simple_super_import() -> Result<()> {
     });
     let package_ids = ws.members().map(|p| p.id).collect();
     let compile_opts = ops::CompileOpts {
-        include_targets: vec![TargetKind::STARKNET_CONTRACT],
-        exclude_targets: vec![],
+        include_target_kinds: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_target_kinds: Vec::new(),
+        include_target_names: Vec::new(),
+        features: ops::FeaturesOpts {
+            features: ops::FeaturesSelector::AllFeatures,
+            no_default_features: true,
+        },
     };
 
     ops::compile(package_ids, compile_opts, &ws).unwrap();
@@ -232,8 +257,13 @@ fn test_project_with_external_import_resolved() -> Result<()> {
     });
     let package_ids = ws.members().map(|p| p.id).collect();
     let compile_opts = ops::CompileOpts {
-        include_targets: vec![TargetKind::STARKNET_CONTRACT],
-        exclude_targets: vec![],
+        include_target_kinds: vec![TargetKind::STARKNET_CONTRACT],
+        exclude_target_kinds: Vec::new(),
+        include_target_names: Vec::new(),
+        features: ops::FeaturesOpts {
+            features: ops::FeaturesSelector::AllFeatures,
+            no_default_features: true,
+        },
     };
 
     ops::compile(package_ids, compile_opts, &ws).unwrap();
