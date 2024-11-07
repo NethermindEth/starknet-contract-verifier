@@ -16,12 +16,14 @@ impl ToString for SupportedCairoVersions {
 
 #[derive(Debug, Clone, Copy)]
 pub enum SupportedScarbVersions {
+    V2_8_0,
     V2_8_1,
 }
 
 impl ToString for SupportedScarbVersions {
     fn to_string(&self) -> String {
         match self {
+            SupportedScarbVersions::V2_8_0 => "2.8.0".into(),
             SupportedScarbVersions::V2_8_1 => "2.8.1".into(),
         }
     }

@@ -19,7 +19,10 @@ pub struct VoyagerGeneratorWrapper;
 
 impl DynamicCompiler for VoyagerGeneratorWrapper {
     fn get_supported_scarb_versions(&self) -> Vec<SupportedScarbVersions> {
-        vec![SupportedScarbVersions::V2_8_1]
+        vec![
+            SupportedScarbVersions::V2_8_0,
+            SupportedScarbVersions::V2_8_1,
+        ]
     }
     fn get_supported_cairo_versions(&self) -> Vec<SupportedCairoVersions> {
         vec![SupportedCairoVersions::V2_8_0]

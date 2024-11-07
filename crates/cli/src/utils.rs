@@ -28,6 +28,7 @@ pub fn detect_local_tools() -> (SupportedScarbVersions, SupportedCairoVersions) 
         .collect::<Vec<&str>>()[1];
 
     let scarb_version = match scarb_version {
+        "2.8.0" => SupportedScarbVersions::V2_8_0,
         "2.8.1" => SupportedScarbVersions::V2_8_1,
         _ => panic!("Unsupported Scarb version: {}", scarb_version),
     };
