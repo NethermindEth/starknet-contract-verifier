@@ -1,11 +1,10 @@
-use camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use walkdir::{DirEntry, WalkDir};
 
 use crate::{
     api::{FileInfo, ProjectMetadataInfo},
-    args::ProjectDir,
+    args::Project,
 };
 use dyn_compiler::dyn_compiler::{DynamicCompiler, SupportedCairoVersions, SupportedScarbVersions};
 use voyager_resolver_cairo::compiler::scarb_utils::read_additional_scarb_manifest_metadata;
@@ -35,13 +34,13 @@ struct ScarbTomlRawData {
 }
 
 pub fn resolve_scarb(
-    path: ProjectDir,
+    project: Project,
     cairo_version: SupportedCairoVersions,
     scarb_version: SupportedScarbVersions,
 ) -> anyhow::Result<(Vec<FileInfo>, ProjectMetadataInfo)> {
     // Extract necessary files from the Scarb project for the verified contract
     let compiler = get_dynamic_compiler(cairo_version);
-    let contract_paths = compiler.get_contracts_to_verify_path(path.as_ref())?;
+    let contract_paths = compiler.get_contracts_to_verify_path(project.root_dir())?;
 
     // TODO move the contract selection before the resolving step as a 'pre-resolving' step
     // in order to allow for automatic contracts discovery and selection
@@ -54,19 +53,18 @@ pub fn resolve_scarb(
         ));
     }
 
-    let source_dir = Utf8PathBuf::from(path.clone());
     // Read the scarb metadata to get more information
     // TODO: switch this to using scarb-metadata
-    let scarb_toml_content = fs::read_to_string(source_dir.join("Scarb.toml"))?;
+    let scarb_toml_content = fs::read_to_string(project.manifest_path())?;
     let extracted_scarb_toml_data =
         read_additional_scarb_manifest_metadata(scarb_toml_content.as_str())?;
 
     // Compiler and extract the necessary files
-    compiler.compile_project(path.as_ref())?;
+    compiler.compile_project(project.root_dir())?;
 
     // Since we know that we extract the files into the `voyager-verify` directory,
     // we'll read the files from there.
-    let extracted_files_dir = source_dir.join("voyager-verify");
+    let extracted_files_dir = project.root_dir().join("voyager-verify");
 
     // The compiler compiles into the original scarb package name
     // As such we have to craft the correct path to the main package

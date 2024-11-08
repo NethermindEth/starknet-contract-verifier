@@ -101,7 +101,7 @@ pub fn get_external_nonlocal_packages(metadata: Metadata) -> Vec<String> {
 /// * `scarb_metadata` - A `scarb_metadata::Metadata` struct containing metadata from a Scarb project.
 pub fn update_crate_roots_from_metadata(
     db: &mut dyn SemanticGroup,
-    scarb_metadata: scarb_metadata::Metadata,
+    scarb_metadata: Metadata,
 ) {
     for unit in scarb_metadata.compilation_units {
         // Filter out test crates since these causes error when attempting

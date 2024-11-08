@@ -4,8 +4,10 @@ mod class_hash;
 mod resolver;
 mod utils;
 
+use std::env;
+
 use crate::{
-    args::ProjectDir,
+    args::Project,
     resolver::resolve_scarb,
     utils::detect_local_tools,
 };
@@ -20,10 +22,10 @@ pub struct Args {
         long,
         value_name = "DIR",
         value_hint = clap::ValueHint::DirPath,
-        value_parser = args::project_dir_value_parser,
-        default_value_t = ProjectDir::cwd().unwrap(),
+        value_parser = args::project_value_parser,
+        default_value = env::current_dir().unwrap().into_os_string()
     )]
-    pub path: ProjectDir,
+    pub path: Project,
 }
 
 fn main() -> anyhow::Result<()> {

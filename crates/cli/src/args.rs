@@ -1,97 +1,91 @@
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8PathBuf;
 use clap;
 use reqwest::Url;
+use scarb_metadata::{Metadata, MetadataCommand, MetadataCommandError};
 use spdx::LicenseId;
-use std::{
-    env, io,
-    path::{Path, PathBuf},
-    string::ToString,
-};
+use std::{env, io, path::PathBuf, string::ToString};
 use thiserror::Error;
 
 use crate::class_hash::ClassHash;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ProjectDir(Utf8PathBuf);
-
-impl ToString for ProjectDir {
-    fn to_string(&self) -> String {
-        self.0.to_string()
-    }
-}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Project(Metadata);
 
 #[derive(Error, Debug)]
-pub enum ProjectDirError {
+pub enum ProjectError {
     #[error("{0} doesn't contain Scarb project")]
-    NoScarb(Utf8PathBuf),
+    NoManifest(Utf8PathBuf),
+
+    #[error("scarb metadata command failed")]
+    MetadataError(#[from] MetadataCommandError),
+
     #[error("IO error")]
-    IO(#[from] io::Error),
+    Io(#[from] io::Error),
+
     #[error("UTF-8 error")]
     Utf8(#[from] camino::FromPathBufError),
 }
 
-impl ProjectDir {
-    fn find_scarb(dir: Utf8PathBuf) -> Result<ProjectDir, ProjectDirError> {
-        match dir.join("scarb.toml").try_exists() {
-            Ok(_) => Ok(ProjectDir(dir)),
-            Err(err) => Err(match err.kind() {
-                io::ErrorKind::NotFound => ProjectDirError::NoScarb(dir),
-                _ => ProjectDirError::from(err),
-            }),
-        }
+impl Project {
+    pub fn new(manifest: Utf8PathBuf) -> Result<Self, ProjectError> {
+        manifest.try_exists().map_err(|err| match err.kind() {
+            io::ErrorKind::NotFound => ProjectError::NoManifest(manifest.clone()),
+            _ => ProjectError::from(err),
+        })?;
+
+        let root = manifest.parent().ok_or(ProjectError::Io(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Couldn't get parent directory of Scarb manifest file",
+        )))?;
+
+        let metadata = MetadataCommand::new()
+            .json()
+            .manifest_path(&manifest)
+            .current_dir(root)
+            .exec()?;
+
+        Ok(Project(metadata))
     }
 
-    pub fn new(dir: PathBuf) -> Result<Self, ProjectDirError> {
-        let absolute = if dir.is_absolute() {
-            dir
-        } else {
-            let mut cwd = env::current_dir()?;
-            cwd.push(dir);
-            cwd
-        };
-
-        let utf8 = Utf8PathBuf::try_from(absolute)?;
-        ProjectDir::find_scarb(utf8)
+    pub fn manifest_path(&self) -> &Utf8PathBuf {
+        &self.0.workspace.manifest_path
     }
 
-    pub fn cwd() -> Result<ProjectDir, ProjectDirError> {
-        let cwd = env::current_dir()?;
-        ProjectDir::new(cwd)
+    pub fn root_dir(&self) -> &Utf8PathBuf {
+        &self.0.workspace.root
     }
-}
 
-impl From<ProjectDir> for Utf8PathBuf {
-    fn from(value: ProjectDir) -> Self {
-        value.0
-    }
-}
-
-impl AsRef<Utf8Path> for ProjectDir {
-    fn as_ref(&self) -> &Utf8Path {
-        self.0.as_path()
-    }
-}
-
-impl AsRef<Utf8PathBuf> for ProjectDir {
-    fn as_ref(&self) -> &Utf8PathBuf {
+    pub fn metadata(&self) -> &Metadata {
         &self.0
     }
 }
 
-impl AsRef<Path> for ProjectDir {
-    fn as_ref(&self) -> &Path {
-        self.0.as_std_path()
+impl ToString for Project {
+    fn to_string(&self) -> String {
+        self.manifest_path().to_string()
     }
 }
 
-impl AsRef<str> for ProjectDir {
-    fn as_ref(&self) -> &str {
-        self.0.as_str()
-    }
-}
+pub fn project_value_parser(raw: &str) -> Result<Project, ProjectError> {
+    let path = PathBuf::from(raw);
 
-pub fn project_dir_value_parser(raw: &str) -> Result<ProjectDir, ProjectDirError> {
-    ProjectDir::new(PathBuf::from(raw))
+    let absolute = if path.is_absolute() {
+        path
+    } else {
+        let mut cwd = env::current_dir()?;
+        cwd.push(path);
+        cwd
+    };
+
+    let utf8 = Utf8PathBuf::try_from(absolute)?;
+
+    let manifest = if utf8.is_file() {
+        utf8
+    } else {
+        utf8.join("Scarb.toml")
+    };
+
+    Project::new(manifest)
 }
 
 #[derive(clap::Parser)]
@@ -138,15 +132,15 @@ fn license_value_parser(license: &str) -> Result<LicenseId, String> {
 
 #[derive(clap::Args)]
 pub struct SubmitArgs {
-    /// Path to Scarb project root DIR
+    /// Path to Scarb project
     #[arg(
         long,
         value_name = "DIR",
         value_hint = clap::ValueHint::DirPath,
-        value_parser = project_dir_value_parser,
-        default_value_t = ProjectDir::cwd().unwrap(),
+        value_parser = project_value_parser,
+        default_value = env::current_dir().unwrap().into_os_string()
     )]
-    pub path: ProjectDir,
+    pub path: Project,
 
     /// Class HASH to verify
     #[arg(

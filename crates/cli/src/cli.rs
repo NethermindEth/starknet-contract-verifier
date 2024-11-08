@@ -7,7 +7,6 @@ mod utils;
 use crate::{
     api::{poll_verification_status, ApiClient, ApiClientError, VerificationJob},
     args::{Args, Commands},
-    resolver::TargetType,
     utils::detect_local_tools,
 };
 use args::SubmitArgs;
@@ -41,26 +40,15 @@ fn submit(
     private: ApiClient,
     args: &SubmitArgs,
 ) -> Result<String, ApiClientError> {
-    // Project type
-    let target_type = TargetType::ScarbProject; // by default we assume the user is in a scarb project
+    let (local_scarb_version, local_cairo_version) = detect_local_tools();
 
-    // Resolve project
-    let (project_files, project_metadata) = match target_type {
-        TargetType::File => {
-            panic!("Single contract file verification is not yet implemented, please use a scarb project instead.");
-        }
-        TargetType::ScarbProject => {
-            let (local_scarb_version, local_cairo_version) = detect_local_tools();
-            // TODO: do a first pass to find all the contracts in the project
-            // For now we keep using the hardcoded value in the scarb.toml file
-
-            resolver::resolve_scarb(
-                args.path.clone().into(),
-                local_cairo_version,
-                local_scarb_version,
-            )?
-        }
-    };
+    // TODO: do a first pass to find all the contracts in the project
+    // For now we keep using the hardcoded value in the scarb.toml file
+    let (project_files, project_metadata) = resolver::resolve_scarb(
+        args.path.clone().into(),
+        local_cairo_version,
+        local_scarb_version,
+    )?;
 
     // Check if the class exists on the network
     private.get_class(&args.hash).and_then(|does_exist| {

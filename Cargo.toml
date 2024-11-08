@@ -29,4 +29,4 @@ test-log = "0.2.11"
 
 # Starknet related dependencies
 starknet = "0.9.0"
-scarb-metadata = "1.10.0"
+scarb-metadata = "1.13.0"
