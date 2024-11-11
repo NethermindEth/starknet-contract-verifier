@@ -67,8 +67,13 @@ impl DynamicCompiler for VoyagerGeneratorWrapper {
         let ws = ops::read_workspace(config.manifest_path(), &config).unwrap();
         let package_ids = ws.members().map(|p| p.id).collect();
         let compile_opts = ops::CompileOpts {
-            include_targets: vec![TargetKind::STARKNET_CONTRACT],
-            exclude_targets: vec![],
+            include_target_kinds: vec![TargetKind::STARKNET_CONTRACT],
+            exclude_target_kinds: vec![],
+            include_target_names: vec![],
+            features: ops::FeaturesOpts {
+                features: ops::FeaturesSelector::Features(vec![]),
+                no_default_features: false,
+            },
         };
 
         ops::compile(package_ids, compile_opts, &ws)

@@ -28,5 +28,27 @@ toml = "0.4.2"
 test-log = "0.2.11"
 
 # Starknet related dependencies
-starknet = "0.9.0"
+cairo-lang-casm = "=2.8.4"
+cairo-lang-compiler = "=2.8.4"
+cairo-lang-debug = "=2.8.4"
+cairo-lang-defs = "=2.8.4"
+cairo-lang-diagnostics = "=2.8.4"
+cairo-lang-filesystem = "=2.8.4"
+cairo-lang-formatter = "=2.8.4"
+cairo-lang-language-server = "=2.8.4"
+cairo-lang-lowering = "=2.8.4"
+cairo-lang-parser = "=2.8.4"
+cairo-lang-plugins = "=2.8.4"
+cairo-lang-project = "=2.8.4"
+cairo-lang-semantic = "=2.8.4"
+cairo-lang-sierra-generator = "=2.8.4"
+cairo-lang-starknet = "=2.8.4"
+cairo-lang-syntax = "=2.8.4"
+cairo-lang-test-utils = "=2.8.4"
+cairo-lang-utils = "=2.8.4"
+scarb = { git = "https://github.com/software-mansion/scarb", version = "=2.8.4", rev = "2aa4e19" }
+# even tho this is published on crates.io, it has to match exactly git version of scarb etc.
+scarb-ui = { git = "https://github.com/software-mansion/scarb", version = "=0.1.5", rev = "2aa4e19" }
 scarb-metadata = "1.13.0"
+starknet = "0.9.0"
+

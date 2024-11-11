@@ -5,10 +5,12 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
+cairo-lang-filesystem.workspace = true
 camino.workspace = true
 comfy-table = "6.0.0"
 scarb-metadata.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 smol_str.workspace = true
 thiserror.workspace = true
 toml.workspace = true
@@ -28,7 +30,7 @@ dyn-compiler = { path = "../dyn-compiler" }
 # All resolver versions, based on scarb + cairo
 voyager-resolver-cairo = { path = "../voyager-resolver-cairo" }
 walkdir = "2.3.3"
-clap = { version = "4.5.20", features = ["derive", "unicode", "env"] }
+clap = { version = "4.5.20", features = ["derive", "unicode", "env", "string"] }
 backon = { version = "1.2.0", default-features = false, features = ["std-blocking-sleep"] }
 spdx = "0.10.6"
 
@@ -36,6 +38,6 @@ spdx = "0.10.6"
 name = "starknet-contract-verifier"
 path = "src/cli.rs"
 
-[[bin]]
-name = "starknet-contract-resolver"
-path = "src/resolver-cli.rs"
+# [[bin]]
+# name = "starknet-contract-resolver"
+# path = "src/resolver-cli.rs"

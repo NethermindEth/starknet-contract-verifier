@@ -2,8 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use cairo_lang_compiler::db::RootDatabase;
 use cairo_lang_defs::db::DefsGroup;
 use cairo_lang_defs::ids::{
-    FileIndex, GenericTypeId, ModuleFileId, ModuleId, NamedLanguageElementId,
-    TopLevelLanguageElementId, UseId, UseLongId,
+    FileIndex, GenericTypeId, LanguageElementId, ModuleFileId, ModuleId, NamedLanguageElementId, TopLevelLanguageElementId, UseId, UseLongId
 };
 use cairo_lang_filesystem::db::FilesGroup;
 use cairo_lang_filesystem::ids::{CrateId, Directory, FileId, FileLongId};
@@ -11,6 +10,7 @@ use cairo_lang_semantic::diagnostic::{NotFoundItemType, SemanticDiagnostics};
 use cairo_lang_semantic::expr::inference::InferenceId;
 use cairo_lang_semantic::items::us::get_use_segments;
 use cairo_lang_semantic::resolve::{ResolvedGenericItem, Resolver};
+use cairo_lang_semantic::VarId;
 use cairo_lang_syntax::node::ast::{MaybeModuleBody, UsePath, UsePathLeaf};
 use cairo_lang_syntax::node::{ast, Terminal, TypedSyntaxNode};
 use cairo_lang_utils::ordered_hash_map::OrderedHashMap;
@@ -276,7 +276,11 @@ pub fn collect_crate_module_files(
             FileLongId::OnDisk(path) => Ok(path),
             FileLongId::Virtual(_) => {
                 Err(anyhow!("Expected OnDisk file for module {:?}", module_id))
-            }
+            },
+            FileLongId::External(_) => Err(anyhow!(
+                "Expected package internal for module {:?}",
+                module_id
+            )),
         }?;
         let module_file_data = get_module_file(db, *module_id);
 
@@ -339,6 +343,7 @@ pub fn get_module_file(db: &RootDatabase, module_id: ModuleId) -> Option<FileDat
             .find(|file_id| match db.lookup_intern_file(**file_id) {
                 FileLongId::OnDisk(_) => true,
                 FileLongId::Virtual(_) => false,
+                FileLongId::External(_) => false,
             })?;
     match db.lookup_intern_file(*module_file) {
         FileLongId::OnDisk(path) => Some(FileData {
@@ -348,6 +353,7 @@ pub fn get_module_file(db: &RootDatabase, module_id: ModuleId) -> Option<FileDat
             index: 0,
         }),
         FileLongId::Virtual(_) => None,
+        FileLongId::External(_) => None,
     }
 }
 
@@ -417,7 +423,7 @@ pub fn extract_file_imports(
 
     // Resolve the module's imports
     // the resolver depends on the current module file id
-    let mut diagnostics = SemanticDiagnostics::new(file_data.id);
+    let mut diagnostics = SemanticDiagnostics::default();
 
     for (use_id, (use_path, use_mod_id)) in module_uses.iter() {
         // Use Path needs to break down into segments
@@ -487,8 +493,8 @@ pub fn extract_file_imports(
 fn get_full_path(db: &RootDatabase, resolved_item: &ResolvedGenericItem) -> String {
     match resolved_item {
         ResolvedGenericItem::Trait(trait_id) => trait_id.full_path(db),
-        ResolvedGenericItem::Constant(const_id) => const_id.full_path(db),
         ResolvedGenericItem::Module(module_id) => module_id.full_path(db),
+        ResolvedGenericItem::GenericConstant(const_id) => const_id.full_path(db),
         ResolvedGenericItem::GenericFunction(generic_func_id) => {
             match generic_func_id {
                 GenericFunctionId::Free(id) => id.full_path(db),
@@ -497,6 +503,7 @@ fn get_full_path(db: &RootDatabase, resolved_item: &ResolvedGenericItem) -> Stri
                     //TODO figure out whether trait_id or impl_id is required here
                     id.function.full_path(db)
                 }
+                GenericFunctionId::Trait(id) => id.trait_function(db).full_path(db)
             }
         }
         ResolvedGenericItem::TraitFunction(trait_func_id) => trait_func_id.full_path(db),
@@ -511,7 +518,10 @@ fn get_full_path(db: &RootDatabase, resolved_item: &ResolvedGenericItem) -> Stri
         ResolvedGenericItem::Variant(variant) => variant.enum_id.full_path(db),
         ResolvedGenericItem::Impl(impl_id) => impl_id.full_path(db),
         ResolvedGenericItem::GenericImplAlias(impl_alias) => impl_alias.full_path(db),
-        ResolvedGenericItem::Variable(body_func_id, _var_id) => body_func_id.full_path(db),
+        ResolvedGenericItem::Variable(var_id) => match var_id {
+            VarId::Param(id) => id.full_path(db),
+            VarId::Local(id) => id.parent_module(db).full_path(db),
+        }
     }
 }
 

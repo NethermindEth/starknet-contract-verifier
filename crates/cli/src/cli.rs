@@ -3,12 +3,14 @@ mod args;
 mod class_hash;
 mod resolver;
 mod utils;
+mod voyager;
 
 use crate::{
     api::{poll_verification_status, ApiClient, ApiClientError, VerificationJob},
     args::{Args, Commands},
     utils::detect_local_tools,
 };
+use anyhow::anyhow;
 use args::SubmitArgs;
 use clap::Parser;
 
@@ -48,7 +50,8 @@ fn submit(
         args.path.clone().into(),
         local_cairo_version,
         local_scarb_version,
-    )?;
+    )
+    .map_err(|err| anyhow!(err.to_string()))?;
 
     // Check if the class exists on the network
     private.get_class(&args.hash).and_then(|does_exist| {
