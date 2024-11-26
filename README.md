@@ -1,79 +1,37 @@
-# starknet-contract-verifier
+# Starknet Contract Verifier
 
-`starknet-contract-verifier` is a contract class verification cli that allows you to verify your starknet classes on a block explorer.
-
-#### The list of the block explorer we currently support are:
-- [Voyager Starknet block explorer](https://voyager.online).
+`starknet-contract-verifier` is a command-line tool for verifying your Starknet classes on supported block explorers.
 
 
-#### We currently support the following Cairo version & Scarb version.
-- [x] Cairo 1.1.0 & Scarb v0.4.0
-- [x] Cairo 1.1.1 & Scarb v0.4.1
-- [x] Cairo 2.0.1 & Scarb v0.5.1
-- [x] Cairo 2.0.2 & Scarb v0.5.2
-- [x] Cairo 2.1.0 & Scarb v0.6.1
-- [x] Cairo 2.1.1 & Scarb v0.6.2
-- [x] Cairo 2.2.0 & Scarb v0.7.0
-- [x] Cairo & Scarb 2.3.0
-- [x] Cairo & Scarb 2.3.1
-- [x] Cairo & Scarb 2.4.0
-- [x] Cairo & Scarb 2.4.1
-- [x] Cairo & Scarb 2.4.2
-- [x] Cairo & Scarb 2.4.3
-- [x] Cairo & Scarb 2.4.4
-- [x] Cairo & Scarb 2.5.0
-- [x] Cairo & Scarb 2.5.1
-- [x] Cairo & Scarb 2.5.2
-- [x] Cairo & Scarb 2.5.3
-- [x] Cairo & Scarb 2.5.4
-- [x] Cairo & Scarb 2.6.0
-- [x] Cairo & Scarb 2.6.1
-- [x] Cairo & Scarb 2.6.2
-- [x] Cairo & Scarb 2.6.3
-- [x] Cairo 2.6.3 & Scarb 2.6.4
-- [x] Cairo 2.6.4 & Scarb 2.6.5
-- [x] Cairo 2.7.0 & Scarb 2.7.0
-- [x] Cairo 2.7.1 & Scarb 2.7.1
-- [x] Cairo 2.8.0 & Scarb 2.8.0
-- [x] Cairo 2.8.0 & Scarb 2.8.1
-- [x] Cairo 2.8.2 & Scarb 2.8.2
-- [x] Cairo 2.8.2 & Scarb 2.8.3
-- [x] Cairo 2.8.4 & Scarb 2.8.4
+## Supported Block Explorers
 
-The source code release for each version is available at their respective branch at `release/2.<major_version>.<minor_version>`. For example, the release for `2.4.3` would live at `release/2.4.3`.
+Currently, this tool supports:
+
+- [Voyager Starknet Block Explorer](https://voyager.online)
 
 
-## Getting started
+## Supported Versions
 
-### Prerequisite
+We support the following Cairo and Scarb versions:
+
+- **Cairo 1.1.0 & Scarb 0.4.0** through **Cairo 2.8.4 & Scarb 2.8.4**
+
+Source code for each release is available under its respective branch (e.g., `release/2.4.3` for version 2.4.3).
+
+
+## Getting Started
+
+### Prerequisites
 
 #### Installing Scarb
 
-This CLI relies upon Scarb for dependencies resolving during compilation and thus require you to have Scarb installed for it to work properly. You can install Scarb following the instruction on their documentation at https://docs.swmansion.com/scarb.
+This CLI relies on Scarb for dependency resolution during compilation. Install Scarb by following the official [installation guide](https://docs.swmansion.com/scarb).
 
-Note that CLI version that you install should follow the version of the Scarb you have installed for it to work as expected.
+Ensure that the CLI version you install matches your Scarb version for compatibility.
 
-<!-- #### Getting an api key
+### Configuration for Verification
 
-The verification CLI uses the public API of the block explorer under the hood, as such you will have to obtain your API key in order to start using the verifier.
-
-You can get an API key from Voyager here with this form [https://forms.gle/34RE6d4aiiv16HoW6](https://forms.gle/34RE6d4aiiv16HoW6).
-
-You can then set the api key via setting the environment variables.
-
-```
-API_KEY=<Your api key>
-```
-
-If you want to set the api key manually on each verifier call, you can also attach the variables like so:
-
-```
-API_KEY=<Your api key> starknet-contract-verifier
-``` -->
-
-#### Adding configuration for the verification
-
-In order to start verification, you'll need to add a table in your `Scarb.toml` as such:
+To begin verification, add the following table to your `Scarb.toml`:
 
 ```toml
 [package]
@@ -86,89 +44,90 @@ starknet = ">=2.4.0"
 [[target.starknet-contract]]
 sierra = true
 
-# Add the following section
+# Add this section
 [tool.voyager]
-my_contract = { path = "main.cairo" }
+MyContract = { path = "main.cairo" }
 ```
 
-The path should be set to the path of whichever contract you would like to verify, relative to your `src` directory. For the example above, the cairo contract is located at `src/main.cairo` and as such the path should be set to `main.cairo`.
+- Replace `main.cairo` with the relative path to your contract file inside the `src` directory. For example, if your contract is located at `src/main.cairo`, the path should be set to `main.cairo`.
+- Only one contract is supported per verification (multi-contract verification is not yet supported).
+- Replace `MyContract` with your contract's name. For example, if your contract is defined as shown below, the key should be set to `MyContract`:
+```tocairo
+#[starknet::contract]
+mod MyContract {
+    ...
+}
+```
 
-Note that only one contract should be provided in this section as multi contract verification is not supported yet.
+### Verification Process
 
-### Verification
-
-First do a clone of this repository.
+1. Clone this repository:
 
 ```bash
 git clone git@github.com:NethermindEth/starknet-contract-verifier.git
 ```
 
-After cloning the repository, checkout to the release branch corresponding to the cairo version that your contract uses. For example, if you write your contract in `cairo 2.5.4`, you would do the following:
+2. Check out the release branch corresponding to your Cairo version:
 
 ```bash
 cd starknet-contract-verifier
-git checkout release/2.5.4
+git checkout release/<version>
 ```
 
-To start the verifier, you can do the following command, and a prompt should guide you through the verification process.
+3. Start the verifier and follow the prompts:
 
 ```bash
 cargo run --bin starknet-contract-verifier
 ```
 
-If you are using `asdf` for the management of scarb binary on a project basis, you should make sure that the verifier runs in the directory of the project so that the verifier will detect and use the correct `scarb` binary for that project.
+If you manage your Scarb binary with `asdf`, ensure the verifier runs in your project directory to use the correct binary.
 
-You can build the binaries and add it to path to make it easier to use the verifier.
+## Building the Verifier
+
+You can build the binaries and add them to your system's `PATH`:
 
 ```bash
-# build all binaries
+# Build all binaries
 cargo build --all --release
 
-# then add build target directory to path 
+# Add the target directory to your PATH
 # depending on your shell this might be different.
 # Add the following to the end of your shell configuration file
 export PATH="$PATH:/path/to/starknet-contract-verifier/target/release"
 
-# you should now be able to call the verifier directly if build succeeds.
+# Now you can call the verifier directly
 starknet-contract-verifier
 ```
 
-You should be greeted with prompts that asks for the details of your cairo project & contracts, and will be guided step by step through the verification process.
+This enables a more seamless experience.
 
 ## Building from source
 
-If you are developing and building the project from source, you will first need to install rust.
+If developing, install Rust:
 
 ```bash
 curl https://sh.rustup.rs -sSf | sh -s
 ```
 
-> Note: Builds for 2.4.3 and below only works with < Rust 1.77. As such please make sure that you have the correct rust version before building.
+> Note: Versions 2.4.3 and below require Rust < 1.77. Please ensure the correct Rust version for compatibility.
 
-To build the project, simply do
+To build:
 
 ```bash
 cargo build
 ```
 
-and the project should start building.
-
 ## Limitations and Known Issues
 
-There's a few known issue with the current implementation of this verifier.
+### 1. Reorganized Modules After Verification
 
+The verifier may reorganize module structures during dependency resolution, resulting in a generated project that differs slightly from the original.
 
-### 1. Rearranging and restructure of the resulting verified files
+### 2. Version Constraints in `Scarb.toml`
 
-It's possible that your modules get re-arranged after verification as the verifier tries to resolve your dependencies from the main contract and re-generate them into a new project. This is known and we are working towards making the generated project look as closely as possible with the original module structure.
-
-
-### 2. Scarb.toml specified starknet versioning affects which binaries work with the verifier
-
-The verifier would usually work cairo compiler versions that are lower than its version given no breaking changes between compiler versions, meaning using a `2.4.3` verifier with a compiler version of less than 2.4.3 would work as long as you specify in your `Scarb.toml` file the starknet version with a range including the verifier version (for example, `>=2.4.0` & `2.2.0` usually works for verifier `2.4.3`) If you use strict versioning for your starknet version in form of `=2.4.3` for example, it would stop working with verifier of other versions.
+- The verifier works with Cairo compiler versions lower than its own (provided no breaking changes).
+- Using strict versioning (e.g., `=2.4.3`) in `Scarb.toml` may restrict compatibility with other verifier versions. Consider using ranges (`>=2.4.0`) for greater flexibility.
 
 ## Contributing
 
-We welcome any form of contribution to this project! 
-
-To start, you can take a look at the issues that's available for taking and work on whichever you might be interested in. Do leave a comment so we can assign the issue to you!
+We welcome contributions! Check the [issues](https://github.com/NethermindEth/starknet-contract-verifier/issues) and comment on one you're interested in so we can assign it to you.
