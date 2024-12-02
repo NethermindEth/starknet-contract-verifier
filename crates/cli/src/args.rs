@@ -26,6 +26,7 @@ pub enum ProjectError {
     Utf8(#[from] camino::FromPathBufError),
 }
 
+#[allow(dead_code)]
 impl Project {
     pub fn new(manifest: Utf8PathBuf) -> Result<Self, ProjectError> {
         manifest.try_exists().map_err(|err| match err.kind() {
@@ -154,6 +155,13 @@ pub struct SubmitArgs {
     #[arg(long, value_name = "NAME")]
     pub name: String,
 
+    /// Wait indefinitely for verification result
+    #[arg(
+         long,
+         default_value_t = false
+    )]
+    pub watch: bool,
+
     /// SPDX license identifier
     #[arg(
         long,
@@ -257,7 +265,7 @@ impl clap::Args for Network {
                     ),
                 ])
                 .required_if_eq("network", "custom")
-                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
+                // .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
         )
         .arg(
             clap::Arg::new("private")
@@ -270,7 +278,7 @@ impl clap::Args for Network {
                     ("network", "testnet", "https://sepolia.voyager.online"),
                 ])
                 .required_if_eq("network", "custom")
-                .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
+                // .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
         )
     }
 
@@ -289,7 +297,7 @@ impl clap::Args for Network {
                     ),
                 ])
                 .required_if_eq("network", "custom")
-                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
+                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL")
         )
         .arg(
             clap::Arg::new("private")
@@ -301,7 +309,7 @@ impl clap::Args for Network {
                     ("network", "testnet", "https://sepolia-api.voyager.online"),
                 ])
                 .required_if_eq("network", "custom")
-                .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
+                // .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
         )
     }
 }

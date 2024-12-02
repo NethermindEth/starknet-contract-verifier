@@ -1,27 +1,16 @@
-use std::{
-    fmt::Display,
-    fs,
-    path::PathBuf,
-    time::Duration,
-};
+use std::{fmt::Display, fs, path::PathBuf, time::Duration};
 
 use anyhow::anyhow;
-use backon::{
-    BlockingRetryable,
-    ExponentialBuilder,
-};
-use dyn_compiler::dyn_compiler::{SupportedCairoVersions, SupportedScarbVersions};
+use backon::{BlockingRetryable, ExponentialBuilder};
 use reqwest::{
     blocking::{self, multipart, Client},
     StatusCode,
 };
+use semver;
 use thiserror::Error;
 use url::Url;
 
-use crate::{
-    args::Network,
-    class_hash::ClassHash,
-};
+use crate::class_hash::ClassHash;
 
 #[derive(Debug, serde::Deserialize)]
 pub enum VerifyJobStatus {
@@ -215,7 +204,6 @@ impl ApiClient {
             }
         }
 
-
         let data = response.json::<VerificationJob>()?;
         match VerifyJobStatus::from(data.status) {
             VerifyJobStatus::Success => return Ok(Some(data)),
@@ -264,41 +252,23 @@ pub struct VerificationJob {
     license: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct FileInfo {
     pub name: String,
     pub path: PathBuf,
 }
 
-pub fn does_class_exist(network: Network, class_hash: &ClassHash) -> Result<bool, ApiClientError> {
-    let api = ApiClient::new(network.private)?;
-    api.get_class(class_hash)
-}
-
 #[derive(Debug, Clone)]
 pub struct ProjectMetadataInfo {
-    pub cairo_version: SupportedCairoVersions,
-    pub scarb_version: SupportedScarbVersions,
+    pub cairo_version: semver::Version,
+    pub scarb_version: semver::Version,
     pub project_dir_path: String,
     pub contract_file: String,
 }
 
-pub fn dispatch_class_verification_job(
-    _api_key: &str,
-    network: Network,
-    class_hash: ClassHash,
-    license: &str,
-    name: &str,
-    project_metadata: ProjectMetadataInfo,
-    files: Vec<FileInfo>,
-) -> Result<String, ApiClientError> {
-    let api = ApiClient::new(network.public)?;
-    api.verify_class(class_hash, license, name, project_metadata, files)
-}
-
 pub enum Status {
     InProgress,
-    Finished(ApiClientError)
+    Finished(ApiClientError),
 }
 
 fn is_is_progress(status: &Status) -> bool {
@@ -327,7 +297,7 @@ pub fn poll_verification_status(
                 .with_max_times(0)
                 .with_min_delay(Duration::from_secs(2))
                 .with_max_delay(Duration::from_secs(300)) // 5 mins
-                .with_max_times(20)
+                .with_max_times(20),
         )
         .when(is_is_progress)
         .notify(|_, dur: Duration| {
@@ -335,10 +305,10 @@ pub fn poll_verification_status(
         })
         .call()
         .map_err(|err| match err {
-            Status::InProgress =>
-                ApiClientError::Other(anyhow!("Verification job is still in progress")),
-            Status::Finished(e) =>
-                e,
+            Status::InProgress => {
+                ApiClientError::Other(anyhow!("Verification job is still in progress"))
+            }
+            Status::Finished(e) => e,
         })
 }
 
