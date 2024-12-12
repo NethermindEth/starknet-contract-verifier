@@ -5,7 +5,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use itertools::Itertools;
 use scarb_metadata::PackageMetadata;
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 use thiserror::Error;
 use verifier::{
     api::{
@@ -30,7 +30,7 @@ pub enum CliError {
     NotDeclared(ClassHash),
 
     #[error(
-        "No contracts selected for verification. Add [tool.voyager] section to Scorb.toml file"
+        "No contracts selected for verification. Add [tool.voyager] section to Scarb.toml file"
     )]
     NoTarget,
 
@@ -63,9 +63,6 @@ fn main() -> anyhow::Result<()> {
         network_url: network,
         network: _,
     } = Args::parse();
-
-    println!("public: {:?}", network.public);
-    println!("private: {:?}", network.private);
     let public = ApiClient::new(network.public)?;
     let private = ApiClient::new(network.private)?;
 
@@ -91,23 +88,33 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
 
     let mut packages: Vec<PackageMetadata> = vec![];
     resolver::gather_packages(metadata, &mut packages)?;
-    let sources = packages
-        .iter()
-        .flat_map(resolver::package_sources)
-        .collect_vec();
+
+    let mut sources: Vec<Utf8PathBuf> = vec![];
+    for package in &packages {
+        let mut package_sources = resolver::package_sources(package)?;
+        sources.append(&mut package_sources);
+    }
 
     let prefix = resolver::biggest_common_prefix(&sources, args.path.root_dir());
-    let manifest = metadata
-        .runtime_manifest
+    let manifest_path = voyager::manifest_path(metadata);
+    let manifest = manifest_path
         .strip_prefix(&prefix)
         .map_err(|_| CliError::StripPrefix {
-            path: metadata.runtime_manifest.clone(),
+            path: manifest_path.clone(),
             prefix: prefix.clone(),
         })?;
-    let files: HashMap<String, PathBuf> = HashMap::from([(
-        manifest.to_string(),
-        metadata.runtime_manifest.clone().into_std_path_buf(),
-    )]);
+
+    let mut files: HashMap<String, Utf8PathBuf> = sources
+        .iter()
+        .map(|p| -> Result<(String, Utf8PathBuf), CliError> {
+            let name = p.strip_prefix(&prefix).map_err(|_| CliError::StripPrefix {
+                path: p.clone(),
+                prefix: prefix.clone(),
+            })?;
+            Ok((name.to_string(), p.clone()))
+        })
+        .try_collect()?;
+    files.insert(manifest.to_string(), voyager::manifest_path(metadata).clone());
 
     let tool_sections = voyager::tool_section(metadata)?;
 
@@ -122,9 +129,9 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
                 to_submit,
                 contract_names,
             )));
-        } else if contract_names.len() != 1 {
-            return Err(CliError::MultipleContracts);
         }
+    } else if contract_names.len() != 1 {
+        return Err(CliError::MultipleContracts);
     }
 
     let cairo_version = metadata.app_version_info.cairo.version.clone();
@@ -133,8 +140,10 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
     for (package_id, tools) in &tool_sections {
         for (contract_name, voyager) in tools {
             // We should probably remove this and submit everything
-            if Some(contract_name.clone()) != args.contract {
-                continue;
+            if let Some(to_submit) = args.contract.to_owned() {
+                if &to_submit != contract_name {
+                    continue;
+                }
             }
 
             let package_meta = metadata.get_package(package_id).ok_or(CliError::from(
@@ -195,7 +204,10 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
                     project_meta,
                     files
                         .into_iter()
-                        .map(|(name, path)| FileInfo { name, path })
+                        .map(|(name, path)| FileInfo {
+                            name,
+                            path: path.into_std_path_buf(),
+                        })
                         .collect_vec(),
                 )
                 .map_err(CliError::from);
