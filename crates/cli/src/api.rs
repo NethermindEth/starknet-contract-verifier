@@ -1,6 +1,5 @@
 use std::{fmt::Display, fs, path::PathBuf, time::Duration};
 
-use anyhow::anyhow;
 use backon::{BlockingRetryable, ExponentialBuilder};
 use reqwest::{
     blocking::{self, multipart, Client},
@@ -10,7 +9,10 @@ use semver;
 use thiserror::Error;
 use url::Url;
 
-use crate::class_hash::ClassHash;
+use crate::{
+    class_hash::ClassHash,
+    errors::{self, RequestFailure},
+};
 
 #[derive(Debug, serde::Deserialize)]
 pub enum VerifyJobStatus {
@@ -19,6 +21,15 @@ pub enum VerifyJobStatus {
     CompileFailed,
     Fail,
     Success,
+}
+
+#[derive(Debug, Error)]
+pub enum VerificationError {
+    #[error("Compilation failed: {0}")]
+    CompilationFailure(String),
+
+    #[error("Compilation failed: {0}")]
+    VerificationFailure(String),
 }
 
 // TODO: Option blindness?
@@ -59,12 +70,24 @@ pub struct ApiClient {
 pub enum ApiClientError {
     #[error("{0} cannot be base, provide valid URL")]
     CannotBeBase(Url),
+
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
+
+    #[error("Verification job is still in progress")]
+    InProgress,
+
+    #[error(transparent)]
+    Failure(#[from] errors::RequestFailure),
+
+    #[error("Job {0} not found")]
+    JobNotFound(String),
+
+    #[error(transparent)]
+    Verify(#[from] VerificationError),
+
     #[error(transparent)]
     IoError(#[from] std::io::Error),
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
 }
 
 /**
@@ -95,20 +118,20 @@ impl ApiClient {
     }
 
     pub fn get_class(&self, class_hash: &ClassHash) -> Result<bool, ApiClientError> {
+        let url = self.get_class_url(&class_hash);
         let result = self
             .client
-            .get(self.get_class_url(&class_hash))
-            // shouldn't `?` be enough?
+            .get(url.clone())
             .send()
-            .map_err(ApiClientError::Reqwest)?;
+            .map_err(ApiClientError::from)?;
 
         match result.status() {
             StatusCode::OK => Ok(true),
             StatusCode::NOT_FOUND => Ok(false),
-            _ => Err(ApiClientError::Other(anyhow::anyhow!(
-                "Unexpected status code {} when trying to get class hash with error {}",
+            _ => Err(ApiClientError::from(RequestFailure::new(
+                url,
                 result.status(),
-                result.text()?
+                result.text()?,
             ))),
         }
     }
@@ -146,9 +169,11 @@ impl ApiClient {
             body = body.text(format!("files__{}", file.name.clone()), file_content);
         }
 
+        let url = self.verify_class_url(class_hash);
+
         let response = self
             .client
-            .post(self.verify_class_url(class_hash))
+            .post(url.clone())
             .multipart(body)
             // shouldn't `?` be enough?
             .send()
@@ -156,22 +181,18 @@ impl ApiClient {
 
         match response.status() {
             StatusCode::OK => (),
-            StatusCode::NOT_FOUND => {
-                return Err(ApiClientError::Other(anyhow!("Job not found")));
-            }
             StatusCode::BAD_REQUEST => {
-                let err_response = response.json::<ApiError>()?;
-
-                return Err(ApiClientError::Other(anyhow!(
-                    "Failed to dispatch verification job with status 400: {}",
-                    err_response.error
+                return Err(ApiClientError::from(RequestFailure::new(
+                    url,
+                    StatusCode::BAD_REQUEST,
+                    response.json::<ApiError>()?.error,
                 )));
             }
-            unknown_status_code => {
-                return Err(ApiClientError::Other(anyhow!(
-                    "Failed to dispatch verification job with status {}: {}",
-                    unknown_status_code,
-                    response.text()?
+            status_code => {
+                return Err(ApiClientError::from(RequestFailure::new(
+                    url,
+                    status_code,
+                    response.text()?,
                 )));
             }
         }
@@ -179,7 +200,7 @@ impl ApiClient {
         Ok(response.json::<VerificationJobDispatch>()?.job_id)
     }
 
-    pub fn get_job_status_url(&self, job_id: String) -> Url {
+    pub fn get_job_status_url(&self, job_id: impl AsRef<str>) -> Url {
         let mut url = self.base.clone();
         url.path_segments_mut()
             .expect("")
@@ -187,19 +208,21 @@ impl ApiClient {
         url
     }
 
-    pub fn get_job_status(&self, job_id: String) -> Result<JobStatus, ApiClientError> {
-        let response = self.client.get(self.get_job_status_url(job_id)).send()?;
+    pub fn get_job_status(
+        &self,
+        job_id: impl Into<String> + Clone,
+    ) -> Result<JobStatus, ApiClientError> {
+        let url = self.get_job_status_url(job_id.clone().into());
+        let response = self.client.get(url.clone()).send()?;
 
         match response.status() {
             StatusCode::OK => (),
-            StatusCode::NOT_FOUND => {
-                return Err(ApiClientError::Other(anyhow!("Job not found")));
-            }
-            unknown_status_code => {
-                return Err(ApiClientError::Other(anyhow!(
-                    "Unexpected status code: {}, with error message: {}",
-                    unknown_status_code,
-                    response.text()?
+            StatusCode::NOT_FOUND => return Err(ApiClientError::JobNotFound(job_id.into())),
+            status_code => {
+                return Err(ApiClientError::from(RequestFailure::new(
+                    url,
+                    status_code,
+                    response.text()?,
                 )));
             }
         }
@@ -208,17 +231,17 @@ impl ApiClient {
         match VerifyJobStatus::from(data.status) {
             VerifyJobStatus::Success => return Ok(Some(data)),
             VerifyJobStatus::Fail => {
-                return Err(ApiClientError::Other(anyhow!(
-                    "Failed to verify: {:?}",
-                    data.status_description
-                        .unwrap_or("unknown failure".to_owned())
-                )))
+                return Err(ApiClientError::from(
+                    VerificationError::VerificationFailure(
+                        data.status_description
+                            .unwrap_or("unknown failure".to_owned()),
+                    ),
+                ))
             }
             VerifyJobStatus::CompileFailed => {
-                return Err(ApiClientError::Other(anyhow!(
-                    "Compilation failed: {:?}",
+                return Err(ApiClientError::from(VerificationError::CompilationFailure(
                     data.status_description
-                        .unwrap_or("unknown failure".to_owned())
+                        .unwrap_or("unknown failure".to_owned()),
                 )))
             }
             _ => Ok(None),
@@ -305,46 +328,7 @@ pub fn poll_verification_status(
         })
         .call()
         .map_err(|err| match err {
-            Status::InProgress => {
-                ApiClientError::Other(anyhow!("Verification job is still in progress"))
-            }
+            Status::InProgress => ApiClientError::InProgress,
             Status::Finished(e) => e,
         })
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::env;
-
-//     #[test]
-//     fn test_getting_default_voyager_endpoints() {
-//         let selected_network = Network::Sepolia;
-//         let actual_network_api = get_network_api(selected_network);
-
-//         // Assert that the internal api is correct
-//         assert_eq!(actual_network_api.0, "https://sepolia.voyager.online");
-//         // Assert that the public api is correct``
-//         assert_eq!(
-//             actual_network_api.1,
-//             "https://sepolia-api.voyager.online/beta"
-//         );
-//     }
-
-//     #[test]
-//     fn test_getting_custom_endpoints() {
-//         let my_internal_api_url = "https://my-instance-internal-api.com";
-//         let my_public_api_url = "https://my-instance-public-api.com";
-//         // set env vars for this testing case
-//         env::set_var("CUSTOM_INTERNAL_API_ENDPOINT_URL", my_internal_api_url);
-//         env::set_var("CUSTOM_PUBLIC_API_ENDPOINT_URL", my_public_api_url);
-
-//         let selected_network = Network::Custom;
-//         let actual_network_api = get_network_api(selected_network);
-
-//         // Assert that the internal api is correct
-//         assert_eq!(actual_network_api.0, my_internal_api_url);
-//         // Assert that the public api is correct``
-//         assert_eq!(actual_network_api.1, my_public_api_url);
-//     }
-// }

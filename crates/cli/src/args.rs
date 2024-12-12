@@ -13,8 +13,8 @@ pub struct Project(Metadata);
 
 #[derive(Error, Debug)]
 pub enum ProjectError {
-    #[error("{0} doesn't contain Scarb project")]
-    NoManifest(Utf8PathBuf),
+    #[error("{0} doesn't contain Scarb project manifest")]
+    MissingManifest(Utf8PathBuf),
 
     #[error("scarb metadata command failed")]
     MetadataError(#[from] MetadataCommandError),
@@ -30,7 +30,7 @@ pub enum ProjectError {
 impl Project {
     pub fn new(manifest: Utf8PathBuf) -> Result<Self, ProjectError> {
         manifest.try_exists().map_err(|err| match err.kind() {
-            io::ErrorKind::NotFound => ProjectError::NoManifest(manifest.clone()),
+            io::ErrorKind::NotFound => ProjectError::MissingManifest(manifest.clone()),
             _ => ProjectError::from(err),
         })?;
 
@@ -156,10 +156,7 @@ pub struct SubmitArgs {
     pub name: String,
 
     /// Wait indefinitely for verification result
-    #[arg(
-         long,
-         default_value_t = false
-    )]
+    #[arg(long, default_value_t = false)]
     pub watch: bool,
 
     /// SPDX license identifier
@@ -169,6 +166,10 @@ pub struct SubmitArgs {
         value_parser = license_value_parser,
     )]
     pub license: Option<LicenseId>,
+
+    /// Select contract for submission
+    #[arg(long, value_name = "NAME")]
+    pub contract: Option<String>,
 }
 
 #[derive(clap::ValueEnum, Clone)]
@@ -264,8 +265,9 @@ impl clap::Args for Network {
                         "https://sepolia-api.voyager.online/beta",
                     ),
                 ])
-                .required_if_eq("network", "custom")
-                // .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
+                .required_if_eq("network", "custom"),
+            // this would overwrite the defaults in _all_ the cases
+            // .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
         )
         .arg(
             clap::Arg::new("private")
@@ -277,8 +279,9 @@ impl clap::Args for Network {
                     ("network", "mainnet", "https://voyager.online"),
                     ("network", "testnet", "https://sepolia.voyager.online"),
                 ])
-                .required_if_eq("network", "custom")
-                // .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
+                .required_if_eq("network", "custom"),
+            // this would overwrite the defaults in _all_ the cases
+            // .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
         )
     }
 
@@ -296,8 +299,9 @@ impl clap::Args for Network {
                         "https://sepolia-api.voyager.online/beta",
                     ),
                 ])
-                .required_if_eq("network", "custom")
-                .env("CUSTOM_PUBLIC_API_ENDPOINT_URL")
+                .required_if_eq("network", "custom"),
+            // this would overwrite the defaults in _all_ the cases
+            // .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
         )
         .arg(
             clap::Arg::new("private")
@@ -308,8 +312,9 @@ impl clap::Args for Network {
                     ("network", "mainnet", "https://api.voyager.online"),
                     ("network", "testnet", "https://sepolia-api.voyager.online"),
                 ])
-                .required_if_eq("network", "custom")
-                // .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
+                .required_if_eq("network", "custom"),
+            // this would overwrite the defaults in _all_ the cases
+            // .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
         )
     }
 }
