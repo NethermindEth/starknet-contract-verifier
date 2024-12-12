@@ -1,24 +1,22 @@
-mod api;
 mod args;
-mod class_hash;
-mod errors;
-mod resolver;
-mod voyager;
+use crate::args::{Args, Commands, SubmitArgs};
 
-use crate::{
-    api::{poll_verification_status, ApiClient, ApiClientError, VerificationJob},
-    args::{Args, Commands, SubmitArgs},
-    resolver::ResolverError,
-};
-use api::{FileInfo, ProjectMetadataInfo};
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
-use class_hash::ClassHash;
 use itertools::Itertools;
 use scarb_metadata::PackageMetadata;
 use std::{collections::HashMap, path::PathBuf};
 use thiserror::Error;
-use voyager::VoyagerError;
+use verifier::{
+    api::{
+        poll_verification_status, ApiClient, ApiClientError, FileInfo, ProjectMetadataInfo,
+        VerificationJob,
+    },
+    class_hash::ClassHash,
+    errors,
+    resolver::{self, ResolverError},
+    voyager::{self, VoyagerError},
+};
 
 #[derive(Debug, Error)]
 pub enum CliError {
@@ -125,7 +123,7 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
                 contract_names,
             )));
         } else if contract_names.len() != 1 {
-            return Err(CliError::MultipleContracts)
+            return Err(CliError::MultipleContracts);
         }
     }
 

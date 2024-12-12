@@ -1,53 +1,33 @@
-[workspace]
-members = [
-  "crates/cli",
-]
-"resolver" = "2"
-
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-repository = "https://github.com/NethermindEth/starknet-contract-verifier"
+[package]
+authors = ["Nethermind"]
+description = "`Contract class verification tool that allows you to verify your starknet classes on a block explorer."
 license = "Apache-2.0"
-license-file = "LICENSE"
+name = "starknet-contract-verifier"
+repository = "https://github.com/NethermindEth/starknet-contract-verifier"
+version = "1.0.0-rc.1"
+default-run = "starknet-contract-verifier"
+edition = "2021"
 
-[workspace.dependencies]
+[dependencies]
 anyhow = "1.0.66"
+backon = { version = "1.2.0", default-features = false, features = ["std-blocking-sleep"] }
 camino = { version = "1.1.2", features = ["serde1"] }
-env_logger = "0.9.3"
-indoc = "1.0.7"
+clap = { version = "4.5.20", features = ["derive", "unicode", "env", "string"] }
 itertools = "0.10.3"
-pretty_assertions = "1.2.1"
+regex = "1"
+reqwest = { version = "=0.11", features = ["blocking", "json", "multipart"] }
+scarb-metadata = "1.13.0"
+semver = "1.0.23"
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0"
-smol_str = "0.2.0"
+spdx = "0.10.6"
 thiserror = "2.0.6"
-toml = "0.4.2"
-test-log = "0.2.11"
+url = "2.2.2"
+walkdir = "2.3.3"
 
-# Starknet related dependencies
-cairo-lang-casm = "=2.6.4"
-cairo-lang-compiler = "=2.6.4"
-cairo-lang-debug = "=2.6.4"
-cairo-lang-defs = "=2.6.4"
-cairo-lang-diagnostics = "=2.6.4"
-cairo-lang-filesystem = "=2.6.4"
-cairo-lang-formatter = "=2.6.4"
-cairo-lang-language-server = "=2.6.4"
-cairo-lang-lowering = "=2.6.4"
-cairo-lang-parser = "=2.6.4"
-cairo-lang-plugins = "=2.6.4"
-cairo-lang-project = "=2.6.4"
-cairo-lang-semantic = "=2.6.4"
-cairo-lang-sierra-generator = "=2.6.4"
-cairo-lang-starknet = "=2.6.4"
-cairo-lang-syntax = "=2.6.4"
-cairo-lang-test-utils = "=2.6.4"
-cairo-lang-utils = "=2.6.4"
-salsa = { package = "rust-analyzer-salsa", version = "0.17.0-pre.6" }
-scarb = { git = "https://github.com/software-mansion/scarb", version = "=2.6.5", rev = "d49f543" }
-# even tho this is published on crates.io, it has to match exactly git version of scarb etc.
-scarb-ui = { git = "https://github.com/software-mansion/scarb", version = "=0.1.3", rev = "d49f543" }
-scarb-metadata = "1.13.0"
-starknet = "0.9.0"
+[lib]
+name = "verifier"
 
+[[bin]]
+name = "starknet-contract-verifier"
+path = "src/main.rs"

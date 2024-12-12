@@ -6,7 +6,7 @@ use spdx::LicenseId;
 use std::{env, io, path::PathBuf, string::ToString};
 use thiserror::Error;
 
-use crate::class_hash::ClassHash;
+use verifier::class_hash::ClassHash;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Project(Metadata);
