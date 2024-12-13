@@ -10,7 +10,7 @@ pub enum ClassHashError {
     #[error("{0} is not valid class hash")]
     Match(String),
     #[error("Class hash regex error")]
-    Regex(#[from] regex::Error)
+    Regex(#[from] regex::Error),
 }
 
 impl ClassHash {

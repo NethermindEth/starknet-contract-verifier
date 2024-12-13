@@ -1,11 +1,7 @@
 use camino::{Utf8Path, Utf8PathBuf};
 use itertools::Itertools;
 use scarb_metadata::{Metadata, MetadataCommand, PackageMetadata};
-use std::{
-    collections::HashMap,
-    ffi::OsStr,
-    path::PathBuf,
-};
+use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
 use thiserror::Error;
 use url::Url;
 use walkdir::WalkDir;
@@ -85,7 +81,9 @@ pub fn gather_packages(
     Ok(())
 }
 
-pub fn package_sources(package_metadata: &PackageMetadata) -> Result<Vec<Utf8PathBuf>, ResolverError> {
+pub fn package_sources(
+    package_metadata: &PackageMetadata,
+) -> Result<Vec<Utf8PathBuf>, ResolverError> {
     let mut sources: Vec<Utf8PathBuf> = WalkDir::new(package_metadata.root.clone())
         .into_iter()
         .filter_map(|f| f.ok())

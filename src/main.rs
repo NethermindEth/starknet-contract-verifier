@@ -114,7 +114,10 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
             Ok((name.to_string(), p.clone()))
         })
         .try_collect()?;
-    files.insert(manifest.to_string(), voyager::manifest_path(metadata).clone());
+    files.insert(
+        manifest.to_string(),
+        voyager::manifest_path(metadata).clone(),
+    );
 
     let tool_sections = voyager::tool_section(metadata)?;
 
