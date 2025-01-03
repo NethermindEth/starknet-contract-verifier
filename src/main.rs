@@ -29,6 +29,9 @@ pub enum CliError {
     #[error("Class hash {0} is not declared")]
     NotDeclared(ClassHash),
 
+    #[error("Submit dry run")]
+    DryRun,
+
     #[error(
         "No contracts selected for verification. Add [tool.voyager] section to Scarb.toml file"
     )]
@@ -184,36 +187,76 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
                 project_dir_path: project_dir_path.to_string(),
             };
 
-            private
-                .get_class(&args.hash)
-                .map_err(CliError::from)
-                .and_then(|does_exist| {
-                    if !does_exist {
-                        Err(CliError::NotDeclared(args.hash.clone()))
-                    } else {
-                        Ok(does_exist)
+            // TODO: switch backend to use SPDX identifiers
+            let license: String = match args.license {
+                None => "No License (None)".to_string(),
+                Some(id) => match id.name {
+                    "Unlicense" => "The Unlicense (Unlicense)".to_string(),
+                    "MIT" => "MIT License (MIT)".to_string(),
+                    "GPL-2.0" => "GNU General Public License v2.0 (GNU GPLv2)".to_string(),
+                    "GPL-3.0" => "GNU General Public License v3.0 (GNU GPLv3)".to_string(),
+                    "LGPL-2.1" => {
+                        "GNU Lesser General Public License v2.1 (GNU LGPLv2.1)".to_string()
                     }
-                })?;
+                    "LGPL-3.0" => "GNU Lesser General Public License v3.0 (GNU LGPLv3)".to_string(),
+                    "BSD-2-Clause" => {
+                        r#"BSD 2-clause "Simplified" license (BSD-2-Clause)"#.to_string()
+                    }
+                    "BSD-3-Clause" => {
+                        r#"BSD 3-clause "New" Or "Revisited license (BSD-3-Clause)"#.to_string()
+                    }
+                    "MPL-2.0" => "Mozilla Public License 2.0 (MPL-2.0)".to_string(),
+                    "OSL-3.0" => "Open Software License 3.0 (OSL-3.0)".to_string(),
+                    "Apache-2.0" => "Apache 2.0 (Apache-2.0)".to_string(),
+                    "AGPL-3.0" => "GNU Affero General Public License (GNU AGPLv3)".to_string(),
+                    "BUSL-1.1" => "Business Source License (BSL 1.1)".to_string(),
+                    _ => format!("{} ({})", id.full_name, id.name),
+                },
+            };
 
-            return public
-                .verify_class(
-                    args.hash.clone(),
-                    args.license
-                        .map_or("No License (None)".to_string(), |l| {
-                            format!("{} ({})", l.full_name, l.name)
-                        })
-                        .as_ref(),
-                    args.name.as_ref(),
-                    project_meta,
-                    files
-                        .into_iter()
-                        .map(|(name, path)| FileInfo {
-                            name,
-                            path: path.into_std_path_buf(),
-                        })
-                        .collect_vec(),
-                )
-                .map_err(CliError::from);
+            println!(
+                "Submiting contract: {} from {},",
+                contract_name, contract_file
+            );
+            println!("under the name of: {},", args.name);
+            println!("licensed with: {}.", license);
+            println!("using cairo: {} and scarb {}", cairo_version, scarb_version);
+            println!("These are the files that I'm about to transfer:");
+            for (_name, path) in &files {
+                println!("{path}");
+            }
+
+            if args.execute {
+                private
+                    .get_class(&args.hash)
+                    .map_err(CliError::from)
+                    .and_then(|does_exist| {
+                        if !does_exist {
+                            Err(CliError::NotDeclared(args.hash.clone()))
+                        } else {
+                            Ok(does_exist)
+                        }
+                    })?;
+
+                return public
+                    .verify_class(
+                        args.hash.clone(),
+                        license.as_str(),
+                        args.name.as_ref(),
+                        project_meta,
+                        files
+                            .into_iter()
+                            .map(|(name, path)| FileInfo {
+                                name,
+                                path: path.into_std_path_buf(),
+                            })
+                            .collect_vec(),
+                    )
+                    .map_err(CliError::from);
+            } else {
+                println!("Nothing to do, add `--execute` flag to actually submit contract");
+                return Err(CliError::DryRun);
+            }
         }
     }
 

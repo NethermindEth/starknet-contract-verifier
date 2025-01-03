@@ -109,7 +109,10 @@ pub struct Args {
 
 #[derive(clap::Subcommand)]
 pub enum Commands {
-    /// Submit smart contract for verification
+    /// Submit smart contract for verification.
+    ///
+    /// By default it will only report back to user what it is about
+    /// to do. In order to actually execute pass --exectue flag.
     Submit(SubmitArgs),
 
     /// Check verification job status
@@ -133,6 +136,13 @@ fn license_value_parser(license: &str) -> Result<LicenseId, String> {
 
 #[derive(clap::Args)]
 pub struct SubmitArgs {
+    /// Submit contract for verification.
+    #[arg(
+        short = 'x',
+        long,
+        default_value_t = false)]
+    pub execute: bool,
+
     /// Path to Scarb project
     #[arg(
         long,
