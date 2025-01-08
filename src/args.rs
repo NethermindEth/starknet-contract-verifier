@@ -137,10 +137,7 @@ fn license_value_parser(license: &str) -> Result<LicenseId, String> {
 #[derive(clap::Args)]
 pub struct SubmitArgs {
     /// Submit contract for verification.
-    #[arg(
-        short = 'x',
-        long,
-        default_value_t = false)]
+    #[arg(short = 'x', long, default_value_t = false)]
     pub execute: bool,
 
     /// Path to Scarb project
