@@ -28,7 +28,7 @@ sierra = true
 my_contract = { path = "src/main.cairo" }
 ```
 
-The path should point to the file containing cairo module that you wish to verify. In the example above, the cairo contract in question is located at `src/main.cairo`.
+The `my_contract` field name have to match the name of the contract that we want to verify. The path should point to the file containing cairo module that you wish to verify. In the example above, the cairo contract in question is located at `src/main.cairo`.
 
 *Note* that only one contract should be provided in this section as multi contract verification is not supported yet.
 
