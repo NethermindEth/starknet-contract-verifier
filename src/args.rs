@@ -188,7 +188,7 @@ pub enum NetworkKind {
     Mainnet,
 
     /// Target Sepolia testnet
-    Testnet,
+    Sepolia,
 
     /// Target custom network
     Custom,
@@ -271,7 +271,7 @@ impl clap::Args for Network {
                     ("network", "mainnet", "https://api.voyager.online/beta"),
                     (
                         "network",
-                        "testnet",
+                        "sepolia",
                         "https://sepolia-api.voyager.online/beta",
                     ),
                 ])
@@ -287,7 +287,7 @@ impl clap::Args for Network {
                 .value_parser(Url::parse)
                 .default_value_ifs([
                     ("network", "mainnet", "https://voyager.online"),
-                    ("network", "testnet", "https://sepolia.voyager.online"),
+                    ("network", "sepolia", "https://sepolia.voyager.online"),
                 ])
                 .required_if_eq("network", "custom"),
             // this would overwrite the defaults in _all_ the cases
@@ -305,7 +305,7 @@ impl clap::Args for Network {
                     ("network", "mainnet", "https://api.voyager.online/beta"),
                     (
                         "network",
-                        "testnet",
+                        "sepolia",
                         "https://sepolia-api.voyager.online/beta",
                     ),
                 ])
@@ -320,7 +320,7 @@ impl clap::Args for Network {
                 .value_hint(clap::ValueHint::Url)
                 .default_value_ifs([
                     ("network", "mainnet", "https://api.voyager.online"),
-                    ("network", "testnet", "https://sepolia-api.voyager.online"),
+                    ("network", "sepolia", "https://sepolia-api.voyager.online"),
                 ])
                 .required_if_eq("network", "custom"),
             // this would overwrite the defaults in _all_ the cases

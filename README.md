@@ -74,7 +74,7 @@ to check the verification status. Afterwards visit [Voyager website]() and searc
 
 `starknet-contract-verifier` provides two subcommands: `submit` and `status`. For both cases user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
 - `mainnet`, main starknet newtwork,
-- `testnet`, sepolia test networ,
+- `sepolia`, test network,
 - `custom`, set provide custom addresses via `--public` and `--private arguments.
 
 #### Submiting for verification
