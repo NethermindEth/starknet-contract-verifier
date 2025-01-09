@@ -8,6 +8,10 @@ Client for the [Voyager Starknet block explorer](https://voyager.online), that a
 
 Contract verifier works with [Scarb](https://docs.swmansion.com/scarb) based projects. The tool assumes that `scarb` command is available in the envirenment and project is building properly by executing `scarb bulid`.
 
+#### Supported verisons
+
+Client is version agnostic, the Scarb/Cairo versions support is determined by the server availability. As of writing this (09/01/2025) Cairo up to 2.9.1 is supported with newer versions being added few a slight lag after release.
+
 ### Project configuration
 
 In order to verify your contract, you'll need to add a `tool.voyager` table in your `Scarb.toml`, for example:
