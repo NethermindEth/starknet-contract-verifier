@@ -6,6 +6,7 @@ use reqwest::{
     StatusCode,
 };
 use semver;
+use spdx::LicenseId;
 use thiserror::Error;
 use url::Url;
 
@@ -147,7 +148,7 @@ impl ApiClient {
     pub fn verify_class(
         &self,
         class_hash: ClassHash,
-        license: &str,
+        license: Option<LicenseId>,
         name: &str,
         project_metadata: ProjectMetadataInfo,
         files: Vec<FileInfo>,
@@ -159,10 +160,15 @@ impl ApiClient {
                 project_metadata.cairo_version.to_string(),
             )
             .text("scarb_version", project_metadata.scarb_version.to_string())
-            .text("license", license.to_string())
+            // .text("license", license.to_string())
             .text("name", name.to_string())
             .text("contract_file", project_metadata.contract_file)
             .text("project_dir_path", project_metadata.project_dir_path);
+
+        match license {
+            Some(id) => body = body.text("license", id.name),
+            _ => {}
+        }
 
         for file in files.iter() {
             let file_content = fs::read_to_string(file.path.as_path())?;
