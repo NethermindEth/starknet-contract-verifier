@@ -186,7 +186,7 @@ fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<
                 project_dir_path: project_dir_path.to_string(),
             };
 
-            println!("Submiting contract: {contract_name} from {contract_file},");
+            println!("Submitting contract: {contract_name} from {contract_file},");
             println!("under the name of: {},", args.name);
             println!(
                 "licensed with: {}.",

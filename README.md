@@ -6,9 +6,9 @@ Client for the [Voyager Starknet block explorer](https://voyager.online), that a
 
 ### Scarb
 
-Contract verifier works with [Scarb](https://docs.swmansion.com/scarb) based projects. The tool assumes that `scarb` command is available in the envirenment and project is building properly by executing `scarb bulid`.
+Contract verifier works with [Scarb](https://docs.swmansion.com/scarb) based projects. The tool assumes that `scarb` command is available in the envirenment and project is building properly by executing `scarb build`.
 
-#### Supported verisons
+#### Supported versions
 
 Client is version agnostic, the Scarb/Cairo versions support is determined by the server availability. As of writing this (09/01/2025) Cairo up to 2.9.1 is supported with newer versions being added few a slight lag after release.
 
@@ -77,11 +77,11 @@ to check the verification status. Afterwards visit [Voyager website]() and searc
 ### Verification
 
 `starknet-contract-verifier` provides two subcommands: `submit` and `status`. For both cases user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
-- `mainnet`, main starknet newtwork,
+- `mainnet`, main starknet network,
 - `sepolia`, test network,
 - `custom`, set provide custom addresses via `--public` and `--private arguments.
 
-#### Submiting for verification
+#### Submitting for verification
 
 In order to submit contract for verification user needs to provide several arguments:
 - `--path`, path to directory containing scarb project (If omitted it will use current workingi directory),

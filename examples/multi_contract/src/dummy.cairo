@@ -8,7 +8,7 @@ mod Dummy {
     #[storage]
     struct Storage {}
 
-    #[contructor]
+    #[constructor]
     fn constructor() -> () {
         return ();
     }
