@@ -1,0 +1,2 @@
+[alias]
+lint = "clippy --all-targets --all-features -- --no-deps -W clippy::pedantic -W clippy::undocumented_unsafe_blocks"
