@@ -112,7 +112,7 @@ pub enum Commands {
     /// Submit smart contract for verification.
     ///
     /// By default it will only report back to user what it is about
-    /// to do. In order to actually execute pass --exectue flag.
+    /// to do. In order to actually execute pass --execute flag.
     Submit(SubmitArgs),
 
     /// Check verification job status
@@ -193,7 +193,7 @@ pub enum NetworkKind {
 
 #[derive(Clone)]
 pub struct Network {
-    /// Custom public API adress
+    /// Custom public API address
     pub public: Url,
 
     /// Custom interval API address
