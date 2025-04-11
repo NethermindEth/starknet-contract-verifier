@@ -203,16 +203,16 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
             }
 
             if args.execute {
-                private
-                    .get_class(&args.hash)
-                    .map_err(CliError::from)
-                    .and_then(|does_exist| {
-                        if !does_exist {
-                            Err(CliError::NotDeclared(args.hash.clone()))
-                        } else {
-                            Ok(does_exist)
-                        }
-                    })?;
+                // private
+                //     .get_class(&args.hash)
+                //     .map_err(CliError::from)
+                //     .and_then(|does_exist| {
+                //         if !does_exist {
+                //             Err(CliError::NotDeclared(args.hash.clone()))
+                //         } else {
+                //             Ok(does_exist)
+                //         }
+                //     })?;
 
                 return public
                     .verify_class(
