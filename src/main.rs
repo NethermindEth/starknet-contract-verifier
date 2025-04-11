@@ -13,9 +13,7 @@ use verifier::{
         VerificationJob,
     },
     class_hash::ClassHash,
-    errors,
-    resolver::{self, ResolverError},
-    voyager::{self, VoyagerError},
+    errors, resolver, voyager,
 };
 
 #[derive(Debug, Error)]
@@ -45,7 +43,7 @@ pub enum CliError {
     MissingContract(#[from] errors::MissingContract),
 
     #[error(transparent)]
-    Resolver(#[from] ResolverError),
+    Resolver(#[from] resolver::Error),
 
     #[error("Couldn't strip {prefix} from {path}")]
     StripPrefix {
@@ -57,7 +55,7 @@ pub enum CliError {
     Utf8(#[from] camino::FromPathBufError),
 
     #[error(transparent)]
-    Voyager(#[from] VoyagerError),
+    Voyager(#[from] voyager::Error),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -72,21 +70,22 @@ fn main() -> anyhow::Result<()> {
     match &cmd {
         Commands::Submit(args) => {
             if args.license.is_none() {
-                println!("[WARNING] No license provided, defaults to All Rights Reserved")
+                println!("[WARNING] No license provided, defaults to All Rights Reserved");
             }
 
-            let job_id = submit(public, private, args)?;
-            println!("verification job id: {}", job_id);
+            let job_id = submit(&public, &private, args)?;
+            println!("verification job id: {job_id}");
         }
         Commands::Status { job } => {
-            let status = check(public, job)?;
-            println!("{status:?}")
+            let status = check(&public, job)?;
+            println!("{status:?}");
         }
     }
     Ok(())
 }
 
-fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<String, CliError> {
+#[allow(clippy::too_many_lines)]
+fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<String, CliError> {
     let metadata = args.path.metadata();
 
     let mut packages: Vec<PackageMetadata> = vec![];
@@ -129,7 +128,7 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
         .flat_map(|(_id, v)| v.iter().map(|(name, _attrs)| name.clone()).collect_vec())
         .collect_vec();
 
-    if let Some(to_submit) = args.contract.to_owned() {
+    if let Some(to_submit) = args.contract.clone() {
         if !contract_names.contains(&to_submit) {
             return Err(CliError::from(errors::MissingContract::new(
                 to_submit,
@@ -146,7 +145,7 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
     for (package_id, tools) in &tool_sections {
         for (contract_name, voyager) in tools {
             // We should probably remove this and submit everything
-            if let Some(to_submit) = args.contract.to_owned() {
+            if let Some(to_submit) = args.contract.clone() {
                 if &to_submit != contract_name {
                     continue;
                 }
@@ -187,18 +186,15 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
                 project_dir_path: project_dir_path.to_string(),
             };
 
-            println!(
-                "Submiting contract: {} from {},",
-                contract_name, contract_file
-            );
+            println!("Submiting contract: {contract_name} from {contract_file},");
             println!("under the name of: {},", args.name);
             println!(
                 "licensed with: {}.",
                 args.license.map_or("No License (None)", |id| id.name)
             );
-            println!("using cairo: {} and scarb {}", cairo_version, scarb_version);
+            println!("using cairo: {cairo_version} and scarb {scarb_version}");
             println!("These are the files that I'm about to transfer:");
-            for (_name, path) in &files {
+            for path in files.values() {
                 println!("{path}");
             }
 
@@ -207,20 +203,20 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
                     .get_class(&args.hash)
                     .map_err(CliError::from)
                     .and_then(|does_exist| {
-                        if !does_exist {
-                            Err(CliError::NotDeclared(args.hash.clone()))
-                        } else {
+                        if does_exist {
                             Ok(does_exist)
+                        } else {
+                            Err(CliError::NotDeclared(args.hash.clone()))
                         }
                     })?;
 
                 return public
                     .verify_class(
-                        args.hash.clone(),
+                        &args.hash,
                         args.license,
                         args.name.as_ref(),
                         project_meta,
-                        files
+                        &files
                             .into_iter()
                             .map(|(name, path)| FileInfo {
                                 name,
@@ -229,16 +225,16 @@ fn submit(public: ApiClient, private: ApiClient, args: &SubmitArgs) -> Result<St
                             .collect_vec(),
                     )
                     .map_err(CliError::from);
-            } else {
-                println!("Nothing to do, add `--execute` flag to actually submit contract");
-                return Err(CliError::DryRun);
             }
+
+            println!("Nothing to do, add `--execute` flag to actually submit contract");
+            return Err(CliError::DryRun);
         }
     }
 
     Err(CliError::NoTarget)
 }
 
-fn check(public: ApiClient, job_id: &String) -> Result<VerificationJob, CliError> {
+fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> {
     poll_verification_status(public, job_id).map_err(CliError::from)
 }

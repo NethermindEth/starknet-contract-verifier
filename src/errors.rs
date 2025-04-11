@@ -11,6 +11,7 @@ pub struct MissingPackage {
 }
 
 impl MissingPackage {
+    #[must_use]
     pub fn new(package_id: &PackageId, metadata: &Metadata) -> Self {
         Self {
             package_id: package_id.clone(),
@@ -21,14 +22,14 @@ impl MissingPackage {
 
 impl fmt::Display for MissingPackage {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(
+        writeln!(
             formatter,
-            "Couldn't find package: {}, workspace have those packages available:\n",
+            "Couldn't find package: {}, workspace have those packages available:",
             self.package_id
         )?;
 
         for package in &self.available {
-            writeln!(formatter, "{}", package)?;
+            writeln!(formatter, "{package}")?;
         }
 
         Ok(())
@@ -70,6 +71,7 @@ pub struct MissingContract {
 }
 
 impl MissingContract {
+    #[must_use]
     pub fn new(name: String, available: Vec<String>) -> Self {
         Self { name, available }
     }

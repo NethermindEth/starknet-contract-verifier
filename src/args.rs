@@ -1,9 +1,8 @@
 use camino::Utf8PathBuf;
-use clap;
 use reqwest::Url;
 use scarb_metadata::{Metadata, MetadataCommand, MetadataCommandError};
 use spdx::LicenseId;
-use std::{env, io, path::PathBuf, string::ToString};
+use std::{env, fmt::Display, io, path::PathBuf};
 use thiserror::Error;
 
 use verifier::class_hash::ClassHash;
@@ -28,7 +27,7 @@ pub enum ProjectError {
 
 #[allow(dead_code)]
 impl Project {
-    pub fn new(manifest: Utf8PathBuf) -> Result<Self, ProjectError> {
+    pub fn new(manifest: &Utf8PathBuf) -> Result<Self, ProjectError> {
         manifest.try_exists().map_err(|err| match err.kind() {
             io::ErrorKind::NotFound => ProjectError::MissingManifest(manifest.clone()),
             _ => ProjectError::from(err),
@@ -41,7 +40,7 @@ impl Project {
 
         let metadata = MetadataCommand::new()
             .json()
-            .manifest_path(&manifest)
+            .manifest_path(manifest)
             .current_dir(root)
             .exec()?;
 
@@ -61,9 +60,9 @@ impl Project {
     }
 }
 
-impl ToString for Project {
-    fn to_string(&self) -> String {
-        self.manifest_path().to_string()
+impl Display for Project {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.manifest_path())
     }
 }
 
@@ -86,7 +85,7 @@ pub fn project_value_parser(raw: &str) -> Result<Project, ProjectError> {
         utf8.join("Scarb.toml")
     };
 
-    Project::new(manifest)
+    Project::new(&manifest)
 }
 
 #[derive(clap::Parser)]
@@ -108,6 +107,7 @@ pub struct Args {
 }
 
 #[derive(clap::Subcommand)]
+#[allow(clippy::large_enum_variant)]
 pub enum Commands {
     /// Submit smart contract for verification.
     ///
@@ -210,7 +210,7 @@ impl clap::FromArgMatches for Network {
                 // and required_if_eq used in the clap::Args
                 // implementation for Network
                 .expect("Custom network API public Url is missig!")
-                .to_owned(),
+                .clone(),
             private: matches
                 // this cast is possible because we set value_parser
                 .get_one::<Url>("private")
@@ -218,7 +218,7 @@ impl clap::FromArgMatches for Network {
                 // and required_if_eq used in the clap::Args
                 // implementation for Network
                 .expect("Custom network API private Url is missig!")
-                .to_owned(),
+                .clone(),
         })
     }
 
@@ -242,7 +242,7 @@ impl clap::FromArgMatches for Network {
             // and required_if_eq used in the clap::Args
             // implementation for Network
             .expect("Custom network API private URL is missig!")
-            .to_owned();
+            .clone();
         self.private = matches
             // this cast is possible because we set value_parser
             .get_one::<Url>("private")
@@ -250,7 +250,7 @@ impl clap::FromArgMatches for Network {
             // and required_if_eq used in the clap::Args
             // implementation for Network
             .expect("Custom network API private URL is missig!")
-            .to_owned();
+            .clone();
         Ok(())
     }
 }

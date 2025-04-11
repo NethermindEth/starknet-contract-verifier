@@ -6,6 +6,7 @@ use reqwest::{
     StatusCode,
 };
 use semver;
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use spdx::LicenseId;
 use thiserror::Error;
 use url::Url;
@@ -15,13 +16,14 @@ use crate::{
     errors::{self, RequestFailure},
 };
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr)]
+#[repr(u8)]
 pub enum VerifyJobStatus {
-    Submitted,
-    Compiled,
-    CompileFailed,
-    Fail,
-    Success,
+    Submitted = 0,
+    Compiled = 1,
+    CompileFailed = 2,
+    Fail = 3,
+    Success = 4,
 }
 
 #[derive(Debug, Error)]
@@ -35,19 +37,6 @@ pub enum VerificationError {
 
 // TODO: Option blindness?
 type JobStatus = Option<VerificationJob>;
-
-impl From<u8> for VerifyJobStatus {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => Self::Submitted,
-            1 => Self::Compiled,
-            2 => Self::CompileFailed,
-            3 => Self::Fail,
-            4 => Self::Success,
-            _ => panic!("Unknown status: {}", value),
-        }
-    }
-}
 
 impl Display for VerifyJobStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -92,12 +81,15 @@ pub enum ApiClientError {
 }
 
 /**
- * Currently only GetJobStatus and VerifyClass are public available apis.
+ * Currently only `GetJobStatus` and `VerifyClass` are public available apis.
  * In the future, the get class api should be moved to using public apis too.
  * TODO: Change get class api to use public apis.
  */
-// TODO: Perhaps make a client and make this execute calls
 impl ApiClient {
+    /// # Errors
+    ///
+    /// Fails if provided `Url` cannot be a base. We rely on that
+    /// invariant in other methods.
     pub fn new(base: Url) -> Result<Self, ApiClientError> {
         // Test here so that we are sure path_segments_mut succeeds
         if base.cannot_be_a_base() {
@@ -110,16 +102,22 @@ impl ApiClient {
         }
     }
 
+    #[must_use]
+    #[expect(clippy::missing_panics_doc, reason = "infallible, verified at `new`")]
     pub fn get_class_url(&self, class_hash: &ClassHash) -> Url {
         let mut url = self.base.clone();
         url.path_segments_mut()
-            .expect("")
+            .expect("url cannot be at base: impossible happened")
             .extend(&["api", "class", class_hash.as_ref()]);
         url
     }
 
+    /// # Errors
+    ///
+    /// Returns `Err` if the required `class_hash` is not found or on
+    /// network failure.
     pub fn get_class(&self, class_hash: &ClassHash) -> Result<bool, ApiClientError> {
-        let url = self.get_class_url(&class_hash);
+        let url = self.get_class_url(class_hash);
         let result = self
             .client
             .get(url.clone())
@@ -137,21 +135,27 @@ impl ApiClient {
         }
     }
 
-    pub fn verify_class_url(&self, class_hash: ClassHash) -> Url {
+    #[must_use]
+    #[expect(clippy::missing_panics_doc, reason = "infallible, verified at `new`")]
+    pub fn verify_class_url(&self, class_hash: &ClassHash) -> Url {
         let mut url = self.base.clone();
         url.path_segments_mut()
-            .expect("")
+            .expect("url cannot be at base: impossible happened")
             .extend(&["class-verify", class_hash.as_ref()]);
         url
     }
 
+    /// # Errors
+    ///
+    /// Will return `Err` on network request failure or if can't
+    /// gather file contents for submission.
     pub fn verify_class(
         &self,
-        class_hash: ClassHash,
+        class_hash: &ClassHash,
         license: Option<LicenseId>,
         name: &str,
         project_metadata: ProjectMetadataInfo,
-        files: Vec<FileInfo>,
+        files: &[FileInfo],
     ) -> Result<String, ApiClientError> {
         let mut body = multipart::Form::new()
             .percent_encode_noop()
@@ -165,12 +169,11 @@ impl ApiClient {
             .text("contract_file", project_metadata.contract_file)
             .text("project_dir_path", project_metadata.project_dir_path);
 
-        match license {
-            Some(id) => body = body.text("license", id.name),
-            _ => {}
+        if let Some(id) = license {
+            body = body.text("license", id.name);
         }
 
-        for file in files.iter() {
+        for file in files {
             let file_content = fs::read_to_string(file.path.as_path())?;
             body = body.text(format!("files__{}", file.name.clone()), file_content);
         }
@@ -191,7 +194,7 @@ impl ApiClient {
                 return Err(ApiClientError::from(RequestFailure::new(
                     url,
                     StatusCode::BAD_REQUEST,
-                    response.json::<ApiError>()?.error,
+                    response.json::<Error>()?.error,
                 )));
             }
             status_code => {
@@ -206,14 +209,19 @@ impl ApiClient {
         Ok(response.json::<VerificationJobDispatch>()?.job_id)
     }
 
+    #[expect(clippy::missing_panics_doc, reason = "infallible, verified at `new`")]
     pub fn get_job_status_url(&self, job_id: impl AsRef<str>) -> Url {
         let mut url = self.base.clone();
         url.path_segments_mut()
-            .expect("")
+            .expect("url cannot be at base: impossible happened")
             .extend(&["class-verify", "job", job_id.as_ref()]);
         url
     }
 
+    /// # Errors
+    ///
+    /// Will return `Err` on network error or if the verification has
+    /// failed.
     pub fn get_job_status(
         &self,
         job_id: impl Into<String> + Clone,
@@ -234,18 +242,16 @@ impl ApiClient {
         }
 
         let data = response.json::<VerificationJob>()?;
-        match VerifyJobStatus::from(data.status) {
-            VerifyJobStatus::Success => return Ok(Some(data)),
-            VerifyJobStatus::Fail => {
-                return Err(ApiClientError::from(
-                    VerificationError::VerificationFailure(
-                        data.status_description
-                            .unwrap_or("unknown failure".to_owned()),
-                    ),
-                ))
-            }
+        match data.status {
+            VerifyJobStatus::Success => Ok(Some(data)),
+            VerifyJobStatus::Fail => Err(ApiClientError::from(
+                VerificationError::VerificationFailure(
+                    data.status_description
+                        .unwrap_or("unknown failure".to_owned()),
+                ),
+            )),
             VerifyJobStatus::CompileFailed => {
-                return Err(ApiClientError::from(VerificationError::CompilationFailure(
+                Err(ApiClientError::from(VerificationError::CompilationFailure(
                     data.status_description
                         .unwrap_or("unknown failure".to_owned()),
                 )))
@@ -256,7 +262,7 @@ impl ApiClient {
 }
 
 #[derive(Debug, serde::Deserialize)]
-pub struct ApiError {
+pub struct Error {
     error: String,
 }
 
@@ -269,7 +275,7 @@ pub struct VerificationJobDispatch {
 #[derive(Debug, serde::Deserialize)]
 pub struct VerificationJob {
     job_id: String,
-    status: u8,
+    status: VerifyJobStatus,
     status_description: Option<String>,
     class_hash: String,
     created_timestamp: Option<f64>,
@@ -307,8 +313,12 @@ fn is_is_progress(status: &Status) -> bool {
     }
 }
 
+/// # Errors
+///
+/// Will return `Err` on network error or if the verification has
+/// failed.
 pub fn poll_verification_status(
-    api: ApiClient,
+    api: &ApiClient,
     job_id: &str,
 ) -> Result<VerificationJob, ApiClientError> {
     let fetch = || -> Result<VerificationJob, Status> {
@@ -330,7 +340,7 @@ pub fn poll_verification_status(
         )
         .when(is_is_progress)
         .notify(|_, dur: Duration| {
-            println!("Job: {} didn't finish, retrying in {:?}", job_id, dur);
+            println!("Job: {job_id} didn't finish, retrying in {dur:?}");
         })
         .call()
         .map_err(|err| match err {
