@@ -7,7 +7,7 @@ use url::Url;
 use walkdir::WalkDir;
 
 #[derive(Debug, Error)]
-pub enum ResolverError {
+pub enum Error {
     #[error("Couldn't parse {name} path: {path}")]
     DependencyPath { name: String, path: String },
 
@@ -18,10 +18,14 @@ pub enum ResolverError {
     Utf8(#[from] camino::FromPathBufError),
 }
 
+/// # Errors
+///
+/// Will return `Err` if it can't read files from the directory that
+/// metadata points to.
 pub fn gather_packages(
     metadata: &Metadata,
     packages: &mut Vec<PackageMetadata>,
-) -> Result<(), ResolverError> {
+) -> Result<(), Error> {
     let mut workspace_packages: Vec<PackageMetadata> = metadata
         .packages
         .clone()
@@ -40,19 +44,16 @@ pub fn gather_packages(
     for package in &workspace_packages {
         for dependency in &package.dependencies {
             let name = &dependency.name;
-            let url =
-                Url::parse(&dependency.source.repr).map_err(|_| ResolverError::DependencyPath {
+            let url = Url::parse(&dependency.source.repr).map_err(|_| Error::DependencyPath {
+                name: name.clone(),
+                path: dependency.source.repr.clone(),
+            })?;
+
+            if url.scheme().starts_with("path") {
+                let path = url.to_file_path().map_err(|()| Error::DependencyPath {
                     name: name.clone(),
                     path: dependency.source.repr.clone(),
                 })?;
-
-            if url.scheme().starts_with("path") {
-                let path = url
-                    .to_file_path()
-                    .map_err(|_| ResolverError::DependencyPath {
-                        name: name.clone(),
-                        path: dependency.source.repr.clone(),
-                    })?;
                 dependencies.insert(name.clone(), path);
             }
         }
@@ -63,7 +64,7 @@ pub fn gather_packages(
     // filter out dependencies already covered by workspace
     let out_of_workspace_dependencies: HashMap<&String, &PathBuf> = dependencies
         .iter()
-        .filter(|&(k, _)| !workspace_packages_names.contains(&k))
+        .filter(|&(k, _)| !workspace_packages_names.contains(k))
         .collect();
 
     for (name, manifest) in out_of_workspace_dependencies {
@@ -71,7 +72,7 @@ pub fn gather_packages(
             .json()
             .manifest_path(manifest)
             .exec()
-            .map_err(|_| ResolverError::MetadataError {
+            .map_err(|_| Error::MetadataError {
                 name: name.clone(),
                 path: manifest.clone(),
             })?;
@@ -81,27 +82,27 @@ pub fn gather_packages(
     Ok(())
 }
 
-pub fn package_sources(
-    package_metadata: &PackageMetadata,
-) -> Result<Vec<Utf8PathBuf>, ResolverError> {
+/// # Errors
+///
+/// Will return `Err` if it can't read files from the directory that
+/// metadata points to.
+pub fn package_sources(package_metadata: &PackageMetadata) -> Result<Vec<Utf8PathBuf>, Error> {
     let mut sources: Vec<Utf8PathBuf> = WalkDir::new(package_metadata.root.clone())
         .into_iter()
-        .filter_map(|f| f.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|f| f.file_type().is_file())
         .filter(|f| {
             if let Some(ext) = f.path().extension() {
-                if ext == OsStr::new(CAIRO_EXT) {
-                    return true;
-                }
+                return ext == OsStr::new(CAIRO_EXT);
             };
 
-            return false;
+            false
         })
-        .map(|dir_entry| dir_entry.into_path())
+        .map(walkdir::DirEntry::into_path)
         .map(Utf8PathBuf::try_from)
         .try_collect()?;
 
-    sources.push(package_metadata.manifest_path.clone().into());
+    sources.push(package_metadata.manifest_path.clone());
     let package_root = &package_metadata.root;
 
     if let Some(lic) = package_metadata
@@ -111,7 +112,7 @@ pub fn package_sources(
         .map(Utf8Path::new)
         .map(Utf8Path::to_path_buf)
     {
-        sources.push(package_root.join(lic))
+        sources.push(package_root.join(lic));
     }
 
     if let Some(readme) = package_metadata
@@ -128,12 +129,12 @@ pub fn package_sources(
 }
 
 pub fn biggest_common_prefix<P: AsRef<Utf8Path> + Clone>(
-    paths: &Vec<Utf8PathBuf>,
+    paths: &[Utf8PathBuf],
     first_guess: P,
 ) -> Utf8PathBuf {
-    let mut ancestors = Utf8Path::ancestors(first_guess.as_ref());
+    let ancestors = Utf8Path::ancestors(first_guess.as_ref());
     let mut biggest_prefix: &Utf8Path = first_guess.as_ref();
-    while let Some(prefix) = ancestors.next() {
+    for prefix in ancestors {
         if paths.iter().all(|src| src.starts_with(prefix)) {
             biggest_prefix = prefix;
             break;

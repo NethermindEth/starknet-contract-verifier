@@ -17,6 +17,10 @@ impl ClassHash {
     const NORMALIZED_LENGTH: usize = 66;
     const PATTERN: &str = r"^0x[a-fA-F0-9]+$";
 
+    /// # Errors
+    ///
+    /// Will fail if the `raw` dosn't match class hash regex, i.e. it
+    /// has to start with "0x" followed by 64 hexadecimal digits.
     pub fn new(raw: &str) -> Result<Self, ClassHashError> {
         let re = Regex::new(Self::PATTERN)?;
 
@@ -36,7 +40,7 @@ impl fmt::Display for ClassHash {
 
 impl AsRef<str> for ClassHash {
     fn as_ref(&self) -> &str {
-        &self.0.as_str()
+        self.0.as_str()
     }
 }
 

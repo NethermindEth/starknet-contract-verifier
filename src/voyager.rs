@@ -14,9 +14,9 @@ pub struct Voyager {
 }
 
 #[derive(Debug, Error)]
-pub enum VoyagerError {
+pub enum Error {
     #[error(transparent)]
-    DeserializationEorror(#[from] serde_json::Error),
+    Deserialization(#[from] serde_json::Error),
 }
 
 // Use this instead of metadata.runtime_manifest, because of:
@@ -25,6 +25,7 @@ pub enum VoyagerError {
 // > empty path upon deserializing from scarb metadata call. In this
 // >  case, fall back to WorkspaceMetadata.manifest field value.
 // but I've actually got this in scarb 0.5.1, so...
+#[must_use]
 pub fn manifest_path(metadata: &Metadata) -> &Utf8PathBuf {
     if metadata.runtime_manifest == Utf8PathBuf::new() {
         &metadata.workspace.manifest_path
@@ -33,7 +34,10 @@ pub fn manifest_path(metadata: &Metadata) -> &Utf8PathBuf {
     }
 }
 
-pub fn tool_section(metadata: &Metadata) -> Result<HashMap<PackageId, ContractMap>, VoyagerError> {
+/// # Errors
+///
+/// Will return `Err` if `tool.voyager` section can't be deserialized.
+pub fn tool_section(metadata: &Metadata) -> Result<HashMap<PackageId, ContractMap>, Error> {
     let mut voyager: HashMap<PackageId, ContractMap> = HashMap::new();
     for package in &metadata.packages {
         if !metadata.workspace.members.contains(&package.id) {
@@ -42,7 +46,7 @@ pub fn tool_section(metadata: &Metadata) -> Result<HashMap<PackageId, ContractMa
 
         if let Some(tool) = package.tool_metadata("voyager") {
             let contracts =
-                serde_json::from_value::<ContractMap>(tool.clone()).map_err(VoyagerError::from)?;
+                serde_json::from_value::<ContractMap>(tool.clone()).map_err(Error::from)?;
             voyager.insert(package.id.clone(), contracts);
         }
     }
