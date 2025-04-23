@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 use verifier::{
     api::{
-        poll_verification_status, ApiClient, ApiClientError, FileInfo, ProjectMetadataInfo,
+        poll_verification_status, ApiClient, ApiClientError, ProjectMetadataInfo,
         VerificationJob,
     },
     class_hash::ClassHash,
@@ -183,7 +183,8 @@ fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<
                 cairo_version: cairo_version.clone(),
                 scarb_version: scarb_version.clone(),
                 contract_file: contract_file.to_string(),
-                project_dir_path: project_dir_path.to_string(),
+                project_dir_path: project_dir_path.into(),
+                package_name: package_meta.name.clone(),
             };
 
             println!("Submitting contract: {contract_name} from {contract_file},");
@@ -216,13 +217,7 @@ fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<
                         args.license,
                         args.name.as_ref(),
                         project_meta,
-                        &files
-                            .into_iter()
-                            .map(|(name, path)| FileInfo {
-                                name,
-                                path: path.into_std_path_buf(),
-                            })
-                            .collect_vec(),
+                        files,
                     )
                     .map_err(CliError::from);
             }
