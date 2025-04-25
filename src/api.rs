@@ -166,18 +166,17 @@ impl ApiClient {
     pub fn verify_class(
         &self,
         class_hash: &ClassHash,
-        license: Option<LicenseId>,
         name: &str,
-        project_metadata: ProjectMetadataInfo,
-        files: HashMap<String, Utf8PathBuf>,
+        contract_metadata: ContractMetadataInfo,
+        files: &HashMap<String, Utf8PathBuf>,
     ) -> Result<String, ApiClientError> {
         let body = Body {
-            compiler_version: project_metadata.cairo_version,
-            scarb_version: project_metadata.scarb_version,
-            project_dir_path: project_metadata.project_dir_path,
+            compiler_version: contract_metadata.cairo_version,
+            scarb_version: contract_metadata.scarb_version,
+            project_dir_path: contract_metadata.project_dir_path,
             name: name.to_string(),
-            license: license.map(|l| l.name.to_string()),
-            package_name: project_metadata.package_name,
+            license: contract_metadata.license.map(|l| l.name.to_string()),
+            package_name: contract_metadata.package_name,
             files: files
                 .iter()
                 .map(|(name, path)| -> Result<(String, String), io::Error> {
@@ -297,11 +296,12 @@ pub struct VerificationJob {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProjectMetadataInfo {
+pub struct ContractMetadataInfo {
     pub cairo_version: semver::Version,
     pub scarb_version: semver::Version,
+    pub name: String,
+    pub license: Option<LicenseId>,
     pub project_dir_path: Utf8PathBuf,
-    pub contract_file: String,
     pub package_name: String,
 }
 

@@ -123,7 +123,7 @@ pub enum Commands {
     },
 }
 
-fn license_value_parser(license: &str) -> Result<LicenseId, String> {
+pub fn license_value_parser(license: &str) -> Result<LicenseId, String> {
     let id = spdx::license_id(license);
     id.ok_or({
         let guess = spdx::imprecise_license_id(license)
@@ -136,10 +136,6 @@ fn license_value_parser(license: &str) -> Result<LicenseId, String> {
 
 #[derive(clap::Args)]
 pub struct SubmitArgs {
-    /// Submit contract for verification.
-    #[arg(short = 'x', long, default_value_t = false)]
-    pub execute: bool,
-
     /// Path to Scarb project
     #[arg(
         long,
@@ -158,25 +154,25 @@ pub struct SubmitArgs {
     )]
     pub hash: ClassHash,
 
+    /// Select contract for submission
+    #[arg(long, value_name = "NAME")]
+    pub contract: String,
+
+    /// Select package which contains contract
+    #[arg(long, value_name = "PACKAGE")]
+    pub package: Option<String>,
+
     /// Desired class NAME
     #[arg(long, value_name = "NAME")]
     pub name: String,
 
+    /// Submit contract for verification.
+    #[arg(short = 'x', long, default_value_t = false)]
+    pub execute: bool,
+
     /// Wait indefinitely for verification result
     #[arg(long, default_value_t = false)]
     pub watch: bool,
-
-    /// SPDX license identifier
-    #[arg(
-        long,
-        value_name = "SPDX",
-        value_parser = license_value_parser,
-    )]
-    pub license: Option<LicenseId>,
-
-    /// Select contract for submission
-    #[arg(long, value_name = "NAME")]
-    pub contract: Option<String>,
 }
 
 #[derive(clap::ValueEnum, Clone)]
