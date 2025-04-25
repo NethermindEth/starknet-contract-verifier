@@ -4,32 +4,17 @@ use std::fmt::{self, Formatter};
 use thiserror::Error;
 use url::Url;
 
-#[derive(Clone, Debug, Error)]
-pub enum PackageIdentifier {
-    Id(PackageId),
-    Name(String),
-}
-
-impl fmt::Display for PackageIdentifier {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        match self {
-            PackageIdentifier::Id(p) => p.fmt(formatter),
-            PackageIdentifier::Name(n) => n.fmt(formatter),
-        }
-    }
-}
-
 #[derive(Debug, Error)]
 pub struct MissingPackage {
-    pub package_id: PackageIdentifier,
+    pub name: String,
     pub available: Vec<PackageId>,
 }
 
 impl MissingPackage {
     #[must_use]
-    pub fn new(package_id: &PackageIdentifier, metadata: &Metadata) -> Self {
+    pub fn new(name: String, metadata: &Metadata) -> Self {
         Self {
-            package_id: package_id.clone(),
+            name,
             available: metadata.workspace.members.clone(),
         }
     }
@@ -40,7 +25,7 @@ impl fmt::Display for MissingPackage {
         writeln!(
             formatter,
             "Couldn't find package: {}, workspace have those packages available:",
-            self.package_id
+            self.name
         )?;
 
         for package in &self.available {

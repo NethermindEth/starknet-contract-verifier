@@ -32,23 +32,11 @@ pub enum CliError {
     #[error("{0}")]
     InvalidLicense(String),
 
-    #[error(
-        "No contracts selected for verification. Add [tool.voyager] section to Scarb.toml file"
-    )]
-    NoTarget,
-
-    #[error("Only single contract verification is supported. Select one with --contract argument")]
-    MultipleContracts,
-
     #[error(transparent)]
     NoPackageSelected(#[from] errors::NoPackageSelected),
 
     #[error("Couldn't find any packages. Is the manifest file valid?")]
     NoPackages,
-
-    // TODO: Display suggestions
-    #[error(transparent)]
-    MissingContract(#[from] errors::MissingContract),
 
     #[error(transparent)]
     Resolver(#[from] resolver::Error),
@@ -58,12 +46,6 @@ pub enum CliError {
         path: Utf8PathBuf,
         prefix: Utf8PathBuf,
     },
-
-    #[error(transparent)]
-    Utf8(#[from] camino::FromPathBufError),
-
-    #[error(transparent)]
-    Voyager(#[from] voyager::Error),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -109,7 +91,7 @@ fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<
                     .into_iter()
                     .find(|p| p.name == *package_name)
                     .ok_or(CliError::from(errors::MissingPackage::new(
-                        &errors::PackageIdentifier::Name(package_name),
+                        package_name,
                         metadata,
                     )))
             })?
