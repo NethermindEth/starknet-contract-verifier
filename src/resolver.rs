@@ -18,6 +18,16 @@ pub enum Error {
     Utf8(#[from] camino::FromPathBufError),
 }
 
+#[must_use]
+pub fn workspace_packages(metadata: &Metadata) -> Vec<PackageMetadata> {
+    metadata
+        .packages
+        .clone()
+        .into_iter()
+        .filter(|package_meta| metadata.workspace.members.contains(&package_meta.id))
+        .collect()
+}
+
 /// # Errors
 ///
 /// Will return `Err` if it can't read files from the directory that
@@ -26,11 +36,8 @@ pub fn gather_packages(
     metadata: &Metadata,
     packages: &mut Vec<PackageMetadata>,
 ) -> Result<(), Error> {
-    let mut workspace_packages: Vec<PackageMetadata> = metadata
-        .packages
-        .clone()
+    let mut workspace_packages: Vec<PackageMetadata> = workspace_packages(metadata)
         .into_iter()
-        .filter(|package_meta| metadata.workspace.members.contains(&package_meta.id))
         .filter(|package_meta| !packages.contains(package_meta))
         .collect();
 

@@ -1,11 +1,14 @@
-use std::{fmt::Display, fs, path::PathBuf, time::Duration};
+use std::{collections::HashMap, fmt::Display, fs, io, time::Duration};
 
 use backon::{BlockingRetryable, ExponentialBuilder};
+use camino::Utf8PathBuf;
+use itertools::Itertools;
 use reqwest::{
-    blocking::{self, multipart, Client},
+    blocking::{self, Client},
     StatusCode,
 };
 use semver;
+use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use spdx::LicenseId;
 use thiserror::Error;
@@ -24,6 +27,17 @@ pub enum VerifyJobStatus {
     CompileFailed = 2,
     Fail = 3,
     Success = 4,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Body {
+    pub compiler_version: semver::Version,
+    pub scarb_version: semver::Version,
+    pub project_dir_path: Utf8PathBuf,
+    pub name: String,
+    pub package_name: String,
+    pub license: Option<String>,
+    pub files: HashMap<String, String>,
 }
 
 #[derive(Debug, Error)]
@@ -152,38 +166,32 @@ impl ApiClient {
     pub fn verify_class(
         &self,
         class_hash: &ClassHash,
-        license: Option<LicenseId>,
         name: &str,
-        project_metadata: ProjectMetadataInfo,
-        files: &[FileInfo],
+        contract_metadata: ContractMetadataInfo,
+        files: &HashMap<String, Utf8PathBuf>,
     ) -> Result<String, ApiClientError> {
-        let mut body = multipart::Form::new()
-            .percent_encode_noop()
-            .text(
-                "compiler_version",
-                project_metadata.cairo_version.to_string(),
-            )
-            .text("scarb_version", project_metadata.scarb_version.to_string())
-            // .text("license", license.to_string())
-            .text("name", name.to_string())
-            .text("contract_file", project_metadata.contract_file)
-            .text("project_dir_path", project_metadata.project_dir_path);
-
-        if let Some(id) = license {
-            body = body.text("license", id.name);
-        }
-
-        for file in files {
-            let file_content = fs::read_to_string(file.path.as_path())?;
-            body = body.text(format!("files__{}", file.name.clone()), file_content);
-        }
+        let body = Body {
+            compiler_version: contract_metadata.cairo_version,
+            scarb_version: contract_metadata.scarb_version,
+            project_dir_path: contract_metadata.project_dir_path,
+            name: name.to_string(),
+            license: contract_metadata.license.map(|l| l.name.to_string()),
+            package_name: contract_metadata.package_name,
+            files: files
+                .iter()
+                .map(|(name, path)| -> Result<(String, String), io::Error> {
+                    let contents = fs::read_to_string(path.as_path())?;
+                    Ok((name.clone(), contents))
+                })
+                .try_collect()?,
+        };
 
         let url = self.verify_class_url(class_hash);
 
         let response = self
             .client
             .post(url.clone())
-            .multipart(body)
+            .json(&body)
             // shouldn't `?` be enough?
             .send()
             .map_err(ApiClientError::Reqwest)?;
@@ -287,18 +295,14 @@ pub struct VerificationJob {
     license: Option<String>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct FileInfo {
-    pub name: String,
-    pub path: PathBuf,
-}
-
 #[derive(Debug, Clone)]
-pub struct ProjectMetadataInfo {
+pub struct ContractMetadataInfo {
     pub cairo_version: semver::Version,
     pub scarb_version: semver::Version,
-    pub project_dir_path: String,
-    pub contract_file: String,
+    pub name: String,
+    pub license: Option<LicenseId>,
+    pub project_dir_path: Utf8PathBuf,
+    pub package_name: String,
 }
 
 pub enum Status {

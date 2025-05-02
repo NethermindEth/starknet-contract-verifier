@@ -6,15 +6,15 @@ use url::Url;
 
 #[derive(Debug, Error)]
 pub struct MissingPackage {
-    pub package_id: PackageId,
+    pub name: String,
     pub available: Vec<PackageId>,
 }
 
 impl MissingPackage {
     #[must_use]
-    pub fn new(package_id: &PackageId, metadata: &Metadata) -> Self {
+    pub fn new(name: String, metadata: &Metadata) -> Self {
         Self {
-            package_id: package_id.clone(),
+            name,
             available: metadata.workspace.members.clone(),
         }
     }
@@ -25,7 +25,7 @@ impl fmt::Display for MissingPackage {
         writeln!(
             formatter,
             "Couldn't find package: {}, workspace have those packages available:",
-            self.package_id
+            self.name
         )?;
 
         for package in &self.available {
@@ -85,5 +85,34 @@ impl fmt::Display for MissingContract {
             "Contract: {} is not defined in the manifest file. Did you mean one of: {}?",
             self.name, contracts
         )
+    }
+}
+
+#[derive(Debug, Error)]
+pub struct NoPackageSelected {
+    pub suggestions: Vec<PackageId>,
+}
+
+impl NoPackageSelected {
+    #[must_use]
+    pub fn new(metadata: &Metadata) -> Self {
+        Self {
+            suggestions: metadata.workspace.members.clone(),
+        }
+    }
+}
+
+impl fmt::Display for NoPackageSelected {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        writeln!(
+            formatter,
+            "Multiple packages found and no --package was selected. Workspace have those packages available:",
+        )?;
+
+        for package in &self.suggestions {
+            writeln!(formatter, "{package}")?;
+        }
+
+        Ok(())
     }
 }
