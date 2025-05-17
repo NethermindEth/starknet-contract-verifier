@@ -10,7 +10,7 @@ Contract verifier works with [Scarb](https://docs.swmansion.com/scarb) based pro
 
 #### Supported versions
 
-Client is version agnostic, the Scarb/Cairo versions support is determined by the server availability. As of writing this (09/01/2025) Cairo up to 2.9.1 is supported with newer versions being added few a slight lag after release.
+Client is version agnostic, the Scarb/Cairo versions support is determined by the server availability. As of writing this (17/05/2025) Cairo up to 2.11.4 is supported with newer versions being added few a slight lag after release.
 
 ### Project configuration
 
@@ -22,7 +22,7 @@ name = "my_project"
 version = "0.1.0"
 
 [dependencies]
-starknet = ">=2.4.0"
+starknet = ">=2.11.2"
 
 [[target.starknet-contract]]
 sierra = true
@@ -70,13 +70,14 @@ When successful you'll be given verification job id, which you can pass to:
 cargo run -- --network mainnet status --job <JOB_ID>
 ```
 
-to check the verification status. Afterwards visit [Voyager website]() and search for your class hash to see *verified* badge.
+to check the verification status. Afterwards visit [Voyager website](https://sepolia.voyager.online/) and search for your class hash to see *verified* badge.
 
 ## Detailed information
 
 ### Verification
 
 `starknet-contract-verifier` provides two subcommands: `submit` and `status`. For both cases user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
+
 - `mainnet`, main starknet network,
 - `sepolia`, test network,
 - `custom`, set provide custom addresses via `--public` and `--private arguments.
@@ -84,8 +85,9 @@ to check the verification status. Afterwards visit [Voyager website]() and searc
 #### Submitting for verification
 
 In order to submit contract for verification user needs to provide several arguments:
+
 - `--path`, path to directory containing scarb project (If omitted it will use current workingi directory),
-- `--name`, name which will be used in the block explorer for the verified contract, 
+- `--name`, name which will be used in the block explorer for the verified contract,
 - `--hash`, class hash of the declared contract.
 
 there are more options, each of them is documented in the `--help` output.
