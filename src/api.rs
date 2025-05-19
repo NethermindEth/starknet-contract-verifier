@@ -7,7 +7,6 @@ use reqwest::{
 };
 use semver;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use spdx::LicenseId;
 use thiserror::Error;
 use url::Url;
 
@@ -152,7 +151,7 @@ impl ApiClient {
     pub fn verify_class(
         &self,
         class_hash: &ClassHash,
-        license: Option<LicenseId>,
+        license: Option<String>,
         name: &str,
         project_metadata: ProjectMetadataInfo,
         files: &[FileInfo],
@@ -169,9 +168,18 @@ impl ApiClient {
             .text("contract_file", project_metadata.contract_file)
             .text("project_dir_path", project_metadata.project_dir_path);
 
-        if let Some(id) = license {
-            body = body.text("license", id.name);
-        }
+        // Add license using raw SPDX identifier
+        let license_value = if let Some(lic) = license {
+            if lic == "MIT" {
+                "MIT".to_string() // Ensure MIT is formatted correctly
+            } else {
+                lic
+            }
+        } else {
+            "NONE".to_string()
+        };
+
+        body = body.text("license", license_value);
 
         // Send each file as a separate field with files[] prefix
         for file in files {
@@ -185,7 +193,6 @@ impl ApiClient {
             .client
             .post(url.clone())
             .multipart(body)
-            // shouldn't `?` be enough?
             .send()
             .map_err(ApiClientError::Reqwest)?;
 

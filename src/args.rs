@@ -58,6 +58,28 @@ impl Project {
     pub fn metadata(&self) -> &Metadata {
         &self.0
     }
+
+    pub fn get_license(&self) -> Option<LicenseId> {
+        self.0.packages.first().and_then(|pkg| {
+            pkg.manifest_metadata
+                .license
+                .as_ref()
+                .and_then(|license_str| {
+                    // Handle common SPDX identifiers directly
+                    match license_str.as_str() {
+                        "MIT" => spdx::license_id("MIT License"),
+                        "Apache-2.0" => spdx::license_id("Apache License 2.0"),
+                        "GPL-3.0" => spdx::license_id("GNU General Public License v3.0 only"),
+                        "BSD-3-Clause" => spdx::license_id("BSD 3-Clause License"),
+                        // Try exact match
+                        _ => spdx::license_id(license_str).or_else(|| {
+                            // Try imprecise matching
+                            spdx::imprecise_license_id(license_str).map(|(lic, _)| lic)
+                        }),
+                    }
+                })
+        })
+    }
 }
 
 impl Display for Project {
@@ -124,14 +146,37 @@ pub enum Commands {
 }
 
 fn license_value_parser(license: &str) -> Result<LicenseId, String> {
-    let id = spdx::license_id(license);
-    id.ok_or({
-        let guess = spdx::imprecise_license_id(license)
-            .map_or(String::new(), |(lic, _): (LicenseId, usize)| {
-                format!(", do you mean: {}?", lic.name)
-            });
-        format!("Unrecognized license: {license}{guess}")
-    })
+    // First try for exact SPDX identifier match
+    if let Some(id) = spdx::license_id(license) {
+        return Ok(id);
+    }
+
+    // For common shorthand identifiers, try to map to the full name
+    let mapped_license = match license {
+        "MIT" => "MIT License",
+        "Apache-2.0" => "Apache License 2.0",
+        "GPL-3.0" => "GNU General Public License v3.0 only",
+        "BSD-3-Clause" => "BSD 3-Clause License",
+        _ => license,
+    };
+
+    // Try again with mapped name
+    if let Some(id) = spdx::license_id(mapped_license) {
+        return Ok(id);
+    }
+
+    // Try imprecise matching as a last resort
+    if let Some((lic, _)) = spdx::imprecise_license_id(license) {
+        return Ok(lic);
+    }
+
+    // Provide helpful error with suggestion if available
+    let guess = spdx::imprecise_license_id(license)
+        .map_or(String::new(), |(lic, _): (LicenseId, usize)| {
+            format!(", do you mean: {}?", lic.name)
+        });
+
+    Err(format!("Unrecognized license: {license}{guess}"))
 }
 
 #[derive(clap::Args)]
