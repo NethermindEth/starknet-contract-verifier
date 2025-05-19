@@ -7,8 +7,8 @@ version = "0.1.0"
 [dependencies]
 starknet = "2.8.4"
 
-# [dev-dependencies]
-# cairo_test = "2.8.4"
+[dev-dependencies]
+assert_macros = "2.11.4"
 
 [[target.starknet-contract]]
 
