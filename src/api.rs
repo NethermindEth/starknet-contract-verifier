@@ -108,7 +108,7 @@ impl ApiClient {
         let mut url = self.base.clone();
         url.path_segments_mut()
             .expect("url cannot be at base: impossible happened")
-            .extend(&["api", "class", class_hash.as_ref()]);
+            .extend(&["classes", class_hash.as_ref()]);
         url
     }
 
@@ -164,7 +164,7 @@ impl ApiClient {
                 project_metadata.cairo_version.to_string(),
             )
             .text("scarb_version", project_metadata.scarb_version.to_string())
-            // .text("license", license.to_string())
+            .text("package_name", name.to_string())
             .text("name", name.to_string())
             .text("contract_file", project_metadata.contract_file)
             .text("project_dir_path", project_metadata.project_dir_path);
@@ -173,9 +173,10 @@ impl ApiClient {
             body = body.text("license", id.name);
         }
 
+        // Send each file as a separate field with files[] prefix
         for file in files {
             let file_content = fs::read_to_string(file.path.as_path())?;
-            body = body.text(format!("files__{}", file.name.clone()), file_content);
+            body = body.text(format!("files[{}]", file.name), file_content);
         }
 
         let url = self.verify_class_url(class_hash);

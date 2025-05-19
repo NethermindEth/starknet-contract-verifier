@@ -85,11 +85,17 @@ fn main() -> anyhow::Result<()> {
 }
 
 #[allow(clippy::too_many_lines)]
-fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<String, CliError> {
+fn submit(public: &ApiClient, _private: &ApiClient, args: &SubmitArgs) -> Result<String, CliError> {
     let metadata = args.path.metadata();
 
     let mut packages: Vec<PackageMetadata> = vec![];
     resolver::gather_packages(metadata, &mut packages)?;
+
+    // // Get the package name from the first package in the workspace
+    // let package_name = packages
+    //     .first()
+    //     .map(|p| p.name.clone())
+    //     .ok_or_else(|| CliError::NoTarget)?;
 
     let mut sources: Vec<Utf8PathBuf> = vec![];
     for package in &packages {
@@ -187,7 +193,7 @@ fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<
             };
 
             println!("Submitting contract: {contract_name} from {contract_file},");
-            println!("under the name of: {},", args.name);
+            println!("under the name of: {},", contract_name);
             println!(
                 "licensed with: {}.",
                 args.license.map_or("No License (None)", |id| id.name)
@@ -199,22 +205,23 @@ fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<
             }
 
             if args.execute {
-                private
-                    .get_class(&args.hash)
-                    .map_err(CliError::from)
-                    .and_then(|does_exist| {
-                        if does_exist {
-                            Ok(does_exist)
-                        } else {
-                            Err(CliError::NotDeclared(args.hash.clone()))
-                        }
-                    })?;
+                // Completely bypass the class existence check
+                // private
+                //     .get_class(&args.hash)
+                //     .map_err(CliError::from)
+                //     .and_then(|does_exist| {
+                //         if does_exist {
+                //             Ok(does_exist)
+                //         } else {
+                //             Err(CliError::NotDeclared(args.hash.clone()))
+                //         }
+                //     })?;
 
                 return public
                     .verify_class(
                         &args.hash,
                         args.license,
-                        args.name.as_ref(),
+                        contract_name,
                         project_meta,
                         &files
                             .into_iter()

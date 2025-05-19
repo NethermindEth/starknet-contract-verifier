@@ -158,10 +158,6 @@ pub struct SubmitArgs {
     )]
     pub hash: ClassHash,
 
-    /// Desired class NAME
-    #[arg(long, value_name = "NAME")]
-    pub name: String,
-
     /// Wait indefinitely for verification result
     #[arg(long, default_value_t = false)]
     pub watch: bool,
