@@ -184,9 +184,9 @@ fn submit(
                 }
             }
 
-            let package_meta = metadata.get_package(package_id).ok_or(CliError::from(
-                errors::MissingPackage::new(package_id, metadata),
-            ))?;
+            let package_meta = metadata
+                .get_package(package_id)
+                .ok_or_else(|| CliError::from(errors::MissingPackage::new(package_id, metadata)))?;
             let project_dir_path = args
                 .path
                 .root_dir()

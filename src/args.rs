@@ -33,10 +33,12 @@ impl Project {
             _ => ProjectError::from(err),
         })?;
 
-        let root = manifest.parent().ok_or(ProjectError::Io(io::Error::new(
-            io::ErrorKind::NotFound,
-            "Couldn't get parent directory of Scarb manifest file",
-        )))?;
+        let root = manifest.parent().ok_or_else(|| {
+            ProjectError::Io(io::Error::new(
+                io::ErrorKind::NotFound,
+                "Couldn't get parent directory of Scarb manifest file",
+            ))
+        })?;
 
         let metadata = MetadataCommand::new()
             .json()
@@ -44,18 +46,18 @@ impl Project {
             .current_dir(root)
             .exec()?;
 
-        Ok(Project(metadata))
+        Ok(Self(metadata))
     }
 
-    pub fn manifest_path(&self) -> &Utf8PathBuf {
+    pub const fn manifest_path(&self) -> &Utf8PathBuf {
         &self.0.workspace.manifest_path
     }
 
-    pub fn root_dir(&self) -> &Utf8PathBuf {
+    pub const fn root_dir(&self) -> &Utf8PathBuf {
         &self.0.workspace.root
     }
 
-    pub fn metadata(&self) -> &Metadata {
+    pub const fn metadata(&self) -> &Metadata {
         &self.0
     }
 
@@ -191,7 +193,7 @@ pub struct SubmitArgs {
         value_name = "DIR",
         value_hint = clap::ValueHint::DirPath,
         value_parser = project_value_parser,
-        default_value = env::current_dir().unwrap().into_os_string()
+        default_value = "."
     )]
     pub path: Project,
 
@@ -243,24 +245,27 @@ pub struct Network {
 
 impl clap::FromArgMatches for Network {
     fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
-        Ok(Self {
-            public: matches
-                // this cast is possible because we set value_parser
-                .get_one::<Url>("public")
-                // This should never panic because of the default_value
-                // and required_if_eq used in the clap::Args
-                // implementation for Network
-                .expect("Custom network API public Url is missig!")
-                .clone(),
-            private: matches
-                // this cast is possible because we set value_parser
-                .get_one::<Url>("private")
-                // This should never panic because of the default_value
-                // and required_if_eq used in the clap::Args
-                // implementation for Network
-                .expect("Custom network API private Url is missig!")
-                .clone(),
-        })
+        let public = matches
+            .get_one::<Url>("public")
+            .ok_or_else(|| {
+                clap::Error::raw(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "Custom network API public URL is missing",
+                )
+            })?
+            .clone();
+
+        let private = matches
+            .get_one::<Url>("private")
+            .ok_or_else(|| {
+                clap::Error::raw(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "Custom network API private URL is missing",
+                )
+            })?
+            .clone();
+
+        Ok(Self { public, private })
     }
 
     fn from_arg_matches_mut(matches: &mut clap::ArgMatches) -> Result<Self, clap::Error> {
@@ -277,21 +282,25 @@ impl clap::FromArgMatches for Network {
         matches: &mut clap::ArgMatches,
     ) -> Result<(), clap::Error> {
         self.public = matches
-            // this cast is possible because we set value_parser
-            .get_one::<Url>("private")
-            // This should never panic because of the default_value
-            // and required_if_eq used in the clap::Args
-            // implementation for Network
-            .expect("Custom network API private URL is missig!")
+            .get_one::<Url>("public")
+            .ok_or_else(|| {
+                clap::Error::raw(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "Custom network API public URL is missing",
+                )
+            })?
             .clone();
+
         self.private = matches
-            // this cast is possible because we set value_parser
             .get_one::<Url>("private")
-            // This should never panic because of the default_value
-            // and required_if_eq used in the clap::Args
-            // implementation for Network
-            .expect("Custom network API private URL is missig!")
+            .ok_or_else(|| {
+                clap::Error::raw(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "Custom network API private URL is missing",
+                )
+            })?
             .clone();
+
         Ok(())
     }
 }
