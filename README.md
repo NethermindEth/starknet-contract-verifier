@@ -35,6 +35,8 @@ my_contract = { path = "src/main.cairo" }
 
 The `my_contract` field name has to match the name of the contract that you want to verify. The path should point to the file containing the Cairo module that you wish to verify. In the example above, the Cairo contract in question is located at `src/main.cairo`.
 
+**Important**: For workspace projects, make sure to add the `[tool.voyager]` section in the specific package's Scarb.toml file where the contract is located, not in the workspace's root Scarb.toml. The contract verifier only looks for this configuration in individual package manifest files.
+
 *Note* that only one contract should be provided in this section as multi-contract verification is not supported yet.
 
 ### Get `starknet-contract-verifier`
@@ -80,8 +82,8 @@ to check the verification status. Afterwards visit [Voyager website](https://sep
 
 `starknet-contract-verifier` provides two subcommands: `submit` and `status`. For both cases user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
 
-- `mainnet`, main starknet network (default API endpoints: https://api.voyager.online/beta and https://voyager.online)
-- `sepolia`, test network (default API endpoints: https://sepolia-api.voyager.online/beta and https://sepolia.voyager.online)
+- `mainnet`, main starknet network (default API endpoints: <https://api.voyager.online/beta> and <https://voyager.online>)
+- `sepolia`, test network (default API endpoints: <https://sepolia-api.voyager.online/beta> and <https://sepolia.voyager.online>)
 - `custom`, set custom addresses via `--public` and `--private` arguments
 
 #### Submitting for verification
