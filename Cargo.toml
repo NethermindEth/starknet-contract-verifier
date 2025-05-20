@@ -13,7 +13,9 @@ anyhow = "1.0.66"
 backon = { version = "1.2.0", default-features = false, features = ["std-blocking-sleep"] }
 camino = { version = "1.1.2", features = ["serde1"] }
 clap = { version = "4.5.20", features = ["derive", "unicode", "env", "string"] }
-itertools = "0.10.3"
+env_logger = "0.11.8"
+itertools = "0.14.0"
+log = "0.4.20"
 regex = "1"
 reqwest = { version = "=0.11", features = ["blocking", "json", "multipart"] }
 scarb-metadata = "1.13.0"

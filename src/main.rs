@@ -4,6 +4,7 @@ use crate::args::{Args, Commands, SubmitArgs};
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use itertools::Itertools;
+use log::{debug, info, warn};
 use scarb_metadata::PackageMetadata;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -59,6 +60,7 @@ pub enum CliError {
 }
 
 fn main() -> anyhow::Result<()> {
+    env_logger::init();
     let Args {
         command: cmd,
         network_url: network,
@@ -78,7 +80,7 @@ fn main() -> anyhow::Result<()> {
                     {
                         if let Some(license_value) = license_line.split('=').nth(1) {
                             let license = license_value.trim().trim_matches('"').trim_matches('\'');
-                            println!("[DEBUG] Found license in Scarb.toml: {license}");
+                            debug!("Found license in Scarb.toml: {license}");
                             // Accept any license value found
                             return Some(license.to_string());
                         }
@@ -92,15 +94,17 @@ fn main() -> anyhow::Result<()> {
                 && args.path.get_license().is_none()
                 && found_license.is_none()
             {
-                println!("[WARNING] No license provided via CLI or in Scarb.toml, defaults to All Rights Reserved");
+                warn!(
+                    "No license provided via CLI or in Scarb.toml, defaults to All Rights Reserved"
+                );
             }
 
             let job_id = submit(&public, &private, args, found_license)?;
-            println!("verification job id: {job_id}");
+            info!("verification job id: {job_id}");
         }
         Commands::Status { job } => {
             let status = check(&public, job)?;
-            println!("{status:?}");
+            info!("{status:?}");
         }
     }
     Ok(())
@@ -219,8 +223,8 @@ fn submit(
                 project_dir_path: project_dir_path.to_string(),
             };
 
-            println!("Submitting contract: {contract_name} from {contract_file},");
-            println!("under the name of: {contract_name}");
+            info!("Submitting contract: {contract_name} from {contract_file},");
+            info!("under the name of: {contract_name}");
 
             // Format the license display
             let license_display = match &license {
@@ -240,12 +244,12 @@ fn submit(
                     }
                 }
             };
-            println!("licensed with: {license_display}.");
+            info!("licensed with: {license_display}.");
 
-            println!("using cairo: {cairo_version} and scarb {scarb_version}");
-            println!("These are the files that I'm about to transfer:");
+            info!("using cairo: {cairo_version} and scarb {scarb_version}");
+            info!("These are the files that I'm about to transfer:");
             for path in files.values() {
-                println!("{path}");
+                info!("{path}");
             }
 
             if args.execute {
@@ -266,7 +270,7 @@ fn submit(
                     .map_err(CliError::from);
             }
 
-            println!("Nothing to do, add `--execute` flag to actually submit contract");
+            info!("Nothing to do, add `--execute` flag to actually submit contract");
             return Err(CliError::DryRun);
         }
     }
