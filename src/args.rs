@@ -33,10 +33,12 @@ impl Project {
             _ => ProjectError::from(err),
         })?;
 
-        let root = manifest.parent().ok_or(ProjectError::Io(io::Error::new(
-            io::ErrorKind::NotFound,
-            "Couldn't get parent directory of Scarb manifest file",
-        )))?;
+        let root = manifest.parent().ok_or_else(|| {
+            ProjectError::Io(io::Error::new(
+                io::ErrorKind::NotFound,
+                "Couldn't get parent directory of Scarb manifest file",
+            ))
+        })?;
 
         let metadata = MetadataCommand::new()
             .json()
@@ -44,19 +46,41 @@ impl Project {
             .current_dir(root)
             .exec()?;
 
-        Ok(Project(metadata))
+        Ok(Self(metadata))
     }
 
-    pub fn manifest_path(&self) -> &Utf8PathBuf {
+    pub const fn manifest_path(&self) -> &Utf8PathBuf {
         &self.0.workspace.manifest_path
     }
 
-    pub fn root_dir(&self) -> &Utf8PathBuf {
+    pub const fn root_dir(&self) -> &Utf8PathBuf {
         &self.0.workspace.root
     }
 
-    pub fn metadata(&self) -> &Metadata {
+    pub const fn metadata(&self) -> &Metadata {
         &self.0
+    }
+
+    pub fn get_license(&self) -> Option<LicenseId> {
+        self.0.packages.first().and_then(|pkg| {
+            pkg.manifest_metadata
+                .license
+                .as_ref()
+                .and_then(|license_str| {
+                    // Handle common SPDX identifiers directly
+                    match license_str.as_str() {
+                        "MIT" => spdx::license_id("MIT License"),
+                        "Apache-2.0" => spdx::license_id("Apache License 2.0"),
+                        "GPL-3.0" => spdx::license_id("GNU General Public License v3.0 only"),
+                        "BSD-3-Clause" => spdx::license_id("BSD 3-Clause License"),
+                        // Try exact match
+                        _ => spdx::license_id(license_str).or_else(|| {
+                            // Try imprecise matching
+                            spdx::imprecise_license_id(license_str).map(|(lic, _)| lic)
+                        }),
+                    }
+                })
+        })
     }
 }
 
@@ -124,14 +148,37 @@ pub enum Commands {
 }
 
 fn license_value_parser(license: &str) -> Result<LicenseId, String> {
-    let id = spdx::license_id(license);
-    id.ok_or({
-        let guess = spdx::imprecise_license_id(license)
-            .map_or(String::new(), |(lic, _): (LicenseId, usize)| {
-                format!(", do you mean: {}?", lic.name)
-            });
-        format!("Unrecognized license: {license}{guess}")
-    })
+    // First try for exact SPDX identifier match
+    if let Some(id) = spdx::license_id(license) {
+        return Ok(id);
+    }
+
+    // For common shorthand identifiers, try to map to the full name
+    let mapped_license = match license {
+        "MIT" => "MIT License",
+        "Apache-2.0" => "Apache License 2.0",
+        "GPL-3.0" => "GNU General Public License v3.0 only",
+        "BSD-3-Clause" => "BSD 3-Clause License",
+        _ => license,
+    };
+
+    // Try again with mapped name
+    if let Some(id) = spdx::license_id(mapped_license) {
+        return Ok(id);
+    }
+
+    // Try imprecise matching as a last resort
+    if let Some((lic, _)) = spdx::imprecise_license_id(license) {
+        return Ok(lic);
+    }
+
+    // Provide helpful error with suggestion if available
+    let guess = spdx::imprecise_license_id(license)
+        .map_or(String::new(), |(lic, _): (LicenseId, usize)| {
+            format!(", do you mean: {}?", lic.name)
+        });
+
+    Err(format!("Unrecognized license: {license}{guess}"))
 }
 
 #[derive(clap::Args)]
@@ -146,7 +193,7 @@ pub struct SubmitArgs {
         value_name = "DIR",
         value_hint = clap::ValueHint::DirPath,
         value_parser = project_value_parser,
-        default_value = env::current_dir().unwrap().into_os_string()
+        default_value = "."
     )]
     pub path: Project,
 
@@ -157,10 +204,6 @@ pub struct SubmitArgs {
         value_parser = ClassHash::new
     )]
     pub hash: ClassHash,
-
-    /// Desired class NAME
-    #[arg(long, value_name = "NAME")]
-    pub name: String,
 
     /// Wait indefinitely for verification result
     #[arg(long, default_value_t = false)]
@@ -202,24 +245,27 @@ pub struct Network {
 
 impl clap::FromArgMatches for Network {
     fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
-        Ok(Self {
-            public: matches
-                // this cast is possible because we set value_parser
-                .get_one::<Url>("public")
-                // This should never panic because of the default_value
-                // and required_if_eq used in the clap::Args
-                // implementation for Network
-                .expect("Custom network API public Url is missig!")
-                .clone(),
-            private: matches
-                // this cast is possible because we set value_parser
-                .get_one::<Url>("private")
-                // This should never panic because of the default_value
-                // and required_if_eq used in the clap::Args
-                // implementation for Network
-                .expect("Custom network API private Url is missig!")
-                .clone(),
-        })
+        let public = matches
+            .get_one::<Url>("public")
+            .ok_or_else(|| {
+                clap::Error::raw(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "Custom network API public URL is missing",
+                )
+            })?
+            .clone();
+
+        let private = matches
+            .get_one::<Url>("private")
+            .ok_or_else(|| {
+                clap::Error::raw(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "Custom network API private URL is missing",
+                )
+            })?
+            .clone();
+
+        Ok(Self { public, private })
     }
 
     fn from_arg_matches_mut(matches: &mut clap::ArgMatches) -> Result<Self, clap::Error> {
@@ -236,21 +282,25 @@ impl clap::FromArgMatches for Network {
         matches: &mut clap::ArgMatches,
     ) -> Result<(), clap::Error> {
         self.public = matches
-            // this cast is possible because we set value_parser
-            .get_one::<Url>("private")
-            // This should never panic because of the default_value
-            // and required_if_eq used in the clap::Args
-            // implementation for Network
-            .expect("Custom network API private URL is missig!")
+            .get_one::<Url>("public")
+            .ok_or_else(|| {
+                clap::Error::raw(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "Custom network API public URL is missing",
+                )
+            })?
             .clone();
+
         self.private = matches
-            // this cast is possible because we set value_parser
             .get_one::<Url>("private")
-            // This should never panic because of the default_value
-            // and required_if_eq used in the clap::Args
-            // implementation for Network
-            .expect("Custom network API private URL is missig!")
+            .ok_or_else(|| {
+                clap::Error::raw(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "Custom network API private URL is missing",
+                )
+            })?
             .clone();
+
         Ok(())
     }
 }

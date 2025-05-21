@@ -4,6 +4,7 @@ use crate::args::{Args, Commands, SubmitArgs};
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use itertools::Itertools;
+use log::{debug, info, warn};
 use scarb_metadata::PackageMetadata;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -59,6 +60,7 @@ pub enum CliError {
 }
 
 fn main() -> anyhow::Result<()> {
+    env_logger::init();
     let Args {
         command: cmd,
         network_url: network,
@@ -69,27 +71,62 @@ fn main() -> anyhow::Result<()> {
 
     match &cmd {
         Commands::Submit(args) => {
-            if args.license.is_none() {
-                println!("[WARNING] No license provided, defaults to All Rights Reserved");
+            // Check if we can directly access the license from the manifest
+            let license_result =
+                std::fs::read_to_string(args.path.manifest_path()).map(|toml_content| {
+                    if let Some(license_line) = toml_content
+                        .lines()
+                        .find(|line| line.trim().starts_with("license"))
+                    {
+                        if let Some(license_value) = license_line.split('=').nth(1) {
+                            let license = license_value.trim().trim_matches('"').trim_matches('\'');
+                            debug!("Found license in Scarb.toml: {license}");
+                            // Accept any license value found
+                            return Some(license.to_string());
+                        }
+                    }
+                    None
+                });
+
+            let found_license = license_result.unwrap_or(None);
+
+            if args.license.is_none()
+                && args.path.get_license().is_none()
+                && found_license.is_none()
+            {
+                warn!(
+                    "No license provided via CLI or in Scarb.toml, defaults to All Rights Reserved"
+                );
             }
 
-            let job_id = submit(&public, &private, args)?;
-            println!("verification job id: {job_id}");
+            let job_id = submit(&public, &private, args, found_license)?;
+            info!("verification job id: {job_id}");
         }
         Commands::Status { job } => {
             let status = check(&public, job)?;
-            println!("{status:?}");
+            info!("{status:?}");
         }
     }
     Ok(())
 }
 
 #[allow(clippy::too_many_lines)]
-fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<String, CliError> {
+fn submit(
+    public: &ApiClient,
+    _private: &ApiClient,
+    args: &SubmitArgs,
+    direct_license: Option<String>,
+) -> Result<String, CliError> {
     let metadata = args.path.metadata();
 
     let mut packages: Vec<PackageMetadata> = vec![];
     resolver::gather_packages(metadata, &mut packages)?;
+
+    // Get raw license string directly if we found it
+    let raw_license_str: Option<String> = direct_license;
+
+    // Get license as LicenseId for display purposes
+    let license = args.license.or_else(|| args.path.get_license());
 
     let mut sources: Vec<Utf8PathBuf> = vec![];
     for package in &packages {
@@ -151,9 +188,9 @@ fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<
                 }
             }
 
-            let package_meta = metadata.get_package(package_id).ok_or(CliError::from(
-                errors::MissingPackage::new(package_id, metadata),
-            ))?;
+            let package_meta = metadata
+                .get_package(package_id)
+                .ok_or_else(|| CliError::from(errors::MissingPackage::new(package_id, metadata)))?;
             let project_dir_path = args
                 .path
                 .root_dir()
@@ -186,35 +223,41 @@ fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<
                 project_dir_path: project_dir_path.to_string(),
             };
 
-            println!("Submitting contract: {contract_name} from {contract_file},");
-            println!("under the name of: {},", args.name);
-            println!(
-                "licensed with: {}.",
-                args.license.map_or("No License (None)", |id| id.name)
-            );
-            println!("using cairo: {cairo_version} and scarb {scarb_version}");
-            println!("These are the files that I'm about to transfer:");
+            info!("Submitting contract: {contract_name} from {contract_file},");
+            info!("under the name of: {contract_name}");
+
+            // Format the license display
+            let license_display = match &license {
+                Some(id) => match id.name {
+                    // Map common license names to their SPDX identifiers
+                    "MIT License" => "MIT",
+                    "Apache License 2.0" => "Apache-2.0",
+                    "GNU General Public License v3.0 only" => "GPL-3.0-only",
+                    "BSD 3-Clause License" => "BSD-3-Clause",
+                    other => other,
+                },
+                None => {
+                    if let Some(ref direct) = raw_license_str {
+                        direct
+                    } else {
+                        "NONE"
+                    }
+                }
+            };
+            info!("licensed with: {license_display}.");
+
+            info!("using cairo: {cairo_version} and scarb {scarb_version}");
+            info!("These are the files that I'm about to transfer:");
             for path in files.values() {
-                println!("{path}");
+                info!("{path}");
             }
 
             if args.execute {
-                private
-                    .get_class(&args.hash)
-                    .map_err(CliError::from)
-                    .and_then(|does_exist| {
-                        if does_exist {
-                            Ok(does_exist)
-                        } else {
-                            Err(CliError::NotDeclared(args.hash.clone()))
-                        }
-                    })?;
-
                 return public
                     .verify_class(
                         &args.hash,
-                        args.license,
-                        args.name.as_ref(),
+                        Some(license_display.to_string()),
+                        contract_name,
                         project_meta,
                         &files
                             .into_iter()
@@ -227,7 +270,7 @@ fn submit(public: &ApiClient, private: &ApiClient, args: &SubmitArgs) -> Result<
                     .map_err(CliError::from);
             }
 
-            println!("Nothing to do, add `--execute` flag to actually submit contract");
+            info!("Nothing to do, add `--execute` flag to actually submit contract");
             return Err(CliError::DryRun);
         }
     }

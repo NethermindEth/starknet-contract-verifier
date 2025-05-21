@@ -72,7 +72,7 @@ pub struct MissingContract {
 
 impl MissingContract {
     #[must_use]
-    pub fn new(name: String, available: Vec<String>) -> Self {
+    pub const fn new(name: String, available: Vec<String>) -> Self {
         Self { name, available }
     }
 }

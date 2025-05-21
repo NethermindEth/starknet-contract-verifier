@@ -7,7 +7,6 @@ use reqwest::{
 };
 use semver;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use spdx::LicenseId;
 use thiserror::Error;
 use url::Url;
 
@@ -16,7 +15,7 @@ use crate::{
     errors::{self, RequestFailure},
 };
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr)]
+#[derive(Clone, Debug, Deserialize_repr, Eq, PartialEq, Serialize_repr)]
 #[repr(u8)]
 pub enum VerifyJobStatus {
     Submitted = 0,
@@ -41,11 +40,11 @@ type JobStatus = Option<VerificationJob>;
 impl Display for VerifyJobStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            VerifyJobStatus::Submitted => write!(f, "Submitted"),
-            VerifyJobStatus::Compiled => write!(f, "Compiled"),
-            VerifyJobStatus::CompileFailed => write!(f, "CompileFailed"),
-            VerifyJobStatus::Fail => write!(f, "Fail"),
-            VerifyJobStatus::Success => write!(f, "Success"),
+            Self::Submitted => write!(f, "Submitted"),
+            Self::Compiled => write!(f, "Compiled"),
+            Self::CompileFailed => write!(f, "CompileFailed"),
+            Self::Fail => write!(f, "Fail"),
+            Self::Success => write!(f, "Success"),
         }
     }
 }
@@ -78,6 +77,9 @@ pub enum ApiClientError {
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
+
+    #[error("URL cannot be a base: {0}")]
+    UrlCannotBeBase(#[from] url::ParseError),
 }
 
 /**
@@ -102,14 +104,16 @@ impl ApiClient {
         }
     }
 
-    #[must_use]
-    #[expect(clippy::missing_panics_doc, reason = "infallible, verified at `new`")]
-    pub fn get_class_url(&self, class_hash: &ClassHash) -> Url {
+    /// # Errors
+    ///
+    /// Will return `Err` if the URL cannot be a base.
+    pub fn get_class_url(&self, class_hash: &ClassHash) -> Result<Url, ApiClientError> {
         let mut url = self.base.clone();
+        let url_clone = url.clone();
         url.path_segments_mut()
-            .expect("url cannot be at base: impossible happened")
-            .extend(&["api", "class", class_hash.as_ref()]);
-        url
+            .map_err(|_| ApiClientError::CannotBeBase(url_clone))?
+            .extend(&["classes", class_hash.as_ref()]);
+        Ok(url)
     }
 
     /// # Errors
@@ -117,7 +121,7 @@ impl ApiClient {
     /// Returns `Err` if the required `class_hash` is not found or on
     /// network failure.
     pub fn get_class(&self, class_hash: &ClassHash) -> Result<bool, ApiClientError> {
-        let url = self.get_class_url(class_hash);
+        let url = self.get_class_url(class_hash)?;
         let result = self
             .client
             .get(url.clone())
@@ -135,14 +139,16 @@ impl ApiClient {
         }
     }
 
-    #[must_use]
-    #[expect(clippy::missing_panics_doc, reason = "infallible, verified at `new`")]
-    pub fn verify_class_url(&self, class_hash: &ClassHash) -> Url {
+    /// # Errors
+    ///
+    /// Will return `Err` if the URL cannot be a base.
+    pub fn verify_class_url(&self, class_hash: &ClassHash) -> Result<Url, ApiClientError> {
         let mut url = self.base.clone();
+        let url_clone = url.clone();
         url.path_segments_mut()
-            .expect("url cannot be at base: impossible happened")
+            .map_err(|_| ApiClientError::CannotBeBase(url_clone))?
             .extend(&["class-verify", class_hash.as_ref()]);
-        url
+        Ok(url)
     }
 
     /// # Errors
@@ -152,7 +158,7 @@ impl ApiClient {
     pub fn verify_class(
         &self,
         class_hash: &ClassHash,
-        license: Option<LicenseId>,
+        license: Option<String>,
         name: &str,
         project_metadata: ProjectMetadataInfo,
         files: &[FileInfo],
@@ -164,27 +170,36 @@ impl ApiClient {
                 project_metadata.cairo_version.to_string(),
             )
             .text("scarb_version", project_metadata.scarb_version.to_string())
-            // .text("license", license.to_string())
+            .text("package_name", name.to_string())
             .text("name", name.to_string())
             .text("contract_file", project_metadata.contract_file)
             .text("project_dir_path", project_metadata.project_dir_path);
 
-        if let Some(id) = license {
-            body = body.text("license", id.name);
-        }
+        // Add license using raw SPDX identifier
+        let license_value = if let Some(lic) = license {
+            if lic == "MIT" {
+                "MIT".to_string() // Ensure MIT is formatted correctly
+            } else {
+                lic
+            }
+        } else {
+            "NONE".to_string()
+        };
 
+        body = body.text("license", license_value);
+
+        // Send each file as a separate field with files[] prefix
         for file in files {
             let file_content = fs::read_to_string(file.path.as_path())?;
-            body = body.text(format!("files__{}", file.name.clone()), file_content);
+            body = body.text(format!("files[{}]", file.name), file_content);
         }
 
-        let url = self.verify_class_url(class_hash);
+        let url = self.verify_class_url(class_hash)?;
 
         let response = self
             .client
             .post(url.clone())
             .multipart(body)
-            // shouldn't `?` be enough?
             .send()
             .map_err(ApiClientError::Reqwest)?;
 
@@ -209,13 +224,16 @@ impl ApiClient {
         Ok(response.json::<VerificationJobDispatch>()?.job_id)
     }
 
-    #[expect(clippy::missing_panics_doc, reason = "infallible, verified at `new`")]
-    pub fn get_job_status_url(&self, job_id: impl AsRef<str>) -> Url {
+    /// # Errors
+    ///
+    /// Will return `Err` if the URL cannot be a base.
+    pub fn get_job_status_url(&self, job_id: impl AsRef<str>) -> Result<Url, ApiClientError> {
         let mut url = self.base.clone();
+        let url_clone = url.clone();
         url.path_segments_mut()
-            .expect("url cannot be at base: impossible happened")
+            .map_err(|_| ApiClientError::CannotBeBase(url_clone))?
             .extend(&["class-verify", "job", job_id.as_ref()]);
-        url
+        Ok(url)
     }
 
     /// # Errors
@@ -226,7 +244,7 @@ impl ApiClient {
         &self,
         job_id: impl Into<String> + Clone,
     ) -> Result<JobStatus, ApiClientError> {
-        let url = self.get_job_status_url(job_id.clone().into());
+        let url = self.get_job_status_url(job_id.clone().into())?;
         let response = self.client.get(url.clone()).send()?;
 
         match response.status() {
@@ -247,13 +265,13 @@ impl ApiClient {
             VerifyJobStatus::Fail => Err(ApiClientError::from(
                 VerificationError::VerificationFailure(
                     data.status_description
-                        .unwrap_or("unknown failure".to_owned()),
+                        .unwrap_or_else(|| "unknown failure".to_owned()),
                 ),
             )),
             VerifyJobStatus::CompileFailed => {
                 Err(ApiClientError::from(VerificationError::CompilationFailure(
                     data.status_description
-                        .unwrap_or("unknown failure".to_owned()),
+                        .unwrap_or_else(|| "unknown failure".to_owned()),
                 )))
             }
             _ => Ok(None),
@@ -306,7 +324,7 @@ pub enum Status {
     Finished(ApiClientError),
 }
 
-fn is_is_progress(status: &Status) -> bool {
+const fn is_is_progress(status: &Status) -> bool {
     match status {
         Status::InProgress => true,
         Status::Finished(_) => false,
