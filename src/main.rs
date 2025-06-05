@@ -3,6 +3,7 @@ use crate::args::{Args, Commands, SubmitArgs};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
+use colored::*;
 use itertools::Itertools;
 use log::{debug, info, warn};
 use scarb_metadata::PackageMetadata;
@@ -59,6 +60,12 @@ pub enum CliError {
     Voyager(#[from] voyager::Error),
 }
 
+fn display_verification_job_id(job_id: &str) {
+    println!();
+    println!("verification job id: {}", job_id.green().bold());
+    println!();
+}
+
 fn main() -> anyhow::Result<()> {
     env_logger::init();
     let Args {
@@ -100,7 +107,7 @@ fn main() -> anyhow::Result<()> {
             }
 
             let job_id = submit(&public, &private, args, found_license)?;
-            info!("verification job id: {job_id}");
+            display_verification_job_id(&job_id);
         }
         Commands::Status { job } => {
             let status = check(&public, job)?;
