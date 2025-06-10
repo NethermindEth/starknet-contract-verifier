@@ -1,5 +1,6 @@
 use camino::{Utf8Path, Utf8PathBuf};
 use itertools::Itertools;
+use log::debug;
 use scarb_metadata::{Metadata, MetadataCommand, PackageMetadata};
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
 use thiserror::Error;
@@ -87,14 +88,26 @@ pub fn gather_packages(
 /// Will return `Err` if it can't read files from the directory that
 /// metadata points to.
 pub fn package_sources(package_metadata: &PackageMetadata) -> Result<Vec<Utf8PathBuf>, Error> {
+    debug!("Collecting sources for package: {}", package_metadata.name);
+    debug!("Package root: {}", package_metadata.root);
+    debug!("Package manifest: {}", package_metadata.manifest_path);
+
     let mut sources: Vec<Utf8PathBuf> = WalkDir::new(package_metadata.root.clone())
         .into_iter()
         .filter_map(std::result::Result::ok)
         .filter(|f| f.file_type().is_file())
         .filter(|f| {
+            // Include Cairo files
             if let Some(ext) = f.path().extension() {
-                return ext == OsStr::new(CAIRO_EXT);
-            };
+                if ext == OsStr::new(CAIRO_EXT) {
+                    return true;
+                }
+            }
+
+            // Include Scarb.toml files (being more explicit)
+            if f.file_name() == OsStr::new("Scarb.toml") {
+                return true;
+            }
 
             false
         })
@@ -102,7 +115,11 @@ pub fn package_sources(package_metadata: &PackageMetadata) -> Result<Vec<Utf8Pat
         .map(Utf8PathBuf::try_from)
         .try_collect()?;
 
-    sources.push(package_metadata.manifest_path.clone());
+    // Ensure the package's own manifest is included
+    if !sources.contains(&package_metadata.manifest_path) {
+        sources.push(package_metadata.manifest_path.clone());
+    }
+
     let package_root = &package_metadata.root;
 
     if let Some(lic) = package_metadata
