@@ -170,7 +170,7 @@ impl ApiClient {
                 project_metadata.cairo_version.to_string(),
             )
             .text("scarb_version", project_metadata.scarb_version.to_string())
-            .text("package_name", name.to_string())
+            .text("package_name", project_metadata.package_name)
             .text("name", name.to_string())
             .text("contract_file", project_metadata.contract_file)
             .text("project_dir_path", project_metadata.project_dir_path);
@@ -317,6 +317,7 @@ pub struct ProjectMetadataInfo {
     pub scarb_version: semver::Version,
     pub project_dir_path: String,
     pub contract_file: String,
+    pub package_name: String,
 }
 
 pub enum Status {

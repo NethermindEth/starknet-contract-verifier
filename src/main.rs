@@ -165,6 +165,30 @@ fn submit(
         voyager::manifest_path(metadata).clone(),
     );
 
+    // Also ensure the workspace root Scarb.toml is included if we're in a workspace
+    let workspace_manifest = &metadata.workspace.manifest_path;
+    // Check if this is a workspace by comparing normalized paths and checking if workspace has multiple members
+    let is_workspace = workspace_manifest != manifest_path && metadata.workspace.members.len() > 1;
+    debug!("Workspace manifest: {}", workspace_manifest);
+    debug!("Current manifest: {}", manifest_path);
+    debug!("Is workspace project: {}", is_workspace);
+    debug!("Workspace members: {}", metadata.workspace.members.len());
+
+    if is_workspace {
+        let workspace_manifest_rel =
+            workspace_manifest
+                .strip_prefix(&prefix)
+                .map_err(|_| CliError::StripPrefix {
+                    path: workspace_manifest.clone(),
+                    prefix: prefix.clone(),
+                })?;
+        debug!("Including workspace root manifest: {}", workspace_manifest);
+        files.insert(
+            workspace_manifest_rel.to_string(),
+            workspace_manifest.clone(),
+        );
+    }
+
     let tool_sections = voyager::tool_section(metadata)?;
 
     let contract_names: Vec<String> = tool_sections
@@ -228,6 +252,7 @@ fn submit(
                 scarb_version: scarb_version.clone(),
                 contract_file: contract_file.to_string(),
                 project_dir_path: project_dir_path.to_string(),
+                package_name: package_meta.name.clone(),
             };
 
             info!("Submitting contract: {contract_name} from {contract_file},");
