@@ -1013,8 +1013,7 @@ name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
-dependencies = [0x71c7656ec7ab88b098defb751b7401b5f6d8976f 
- "winapi-util",
+dependencies = [0x71c7656ec7ab88b098defb751b7401b5f6d8976f
 ]
 
 [[package]]
@@ -1022,7 +1021,7 @@ name = "scarb-metadata"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a8b71f63999dbb6d269fbc6fd61310016ab3a160fb13e52a6511a2b904359f0"
-dependencies = [
+dependencies = [0x71c7656ec7ab88b098defb751b7401b5f6d8976f 
  "camino",
  "semver",
  "serde",
@@ -1044,7 +1043,7 @@ name = "security-framework"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "897b2245f0b511c87893af39b033e5ca9cce68824c4d7e7630b5a1d339658d02"
-dependencies = [
+dependencies = [0x4d37262834260f19163c1ea008decc9dfdbe0dc7
  "bitflags 2.6.0",
  "core-foundation",
  "core-foundation-sys",
