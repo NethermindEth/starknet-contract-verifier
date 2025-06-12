@@ -2,6 +2,53 @@
 
 Client for the [Voyager Starknet block explorer](https://voyager.online), that allows you to verify your starknet classes.
 
+## Installation
+
+### Pre-built Binaries
+
+Download the latest release from the [GitHub Releases](https://github.com/NethermindEth/starknet-contract-verifier/releases) page.
+
+```bash
+# Linux (AMD64)
+curl -L https://github.com/NethermindEth/starknet-contract-verifier/releases/latest/download/starknet-contract-verifier-linux-amd64 -o starknet-contract-verifier
+chmod +x starknet-contract-verifier
+
+# macOS (Apple Silicon)
+curl -L https://github.com/NethermindEth/starknet-contract-verifier/releases/latest/download/starknet-contract-verifier-macos-arm64 -o starknet-contract-verifier
+chmod +x starknet-contract-verifier
+
+# Windows users can download the .exe file directly from the releases page
+```
+
+### Using npm
+
+```bash
+npm install -g starknet-contract-verifier
+```
+
+### Using Docker
+
+```bash
+docker run --rm -v $(pwd):/project nethermindeth/starknet-contract-verifier --network sepolia verify --class-hash <YOUR_CONTRACT_CLASS_HASH> --contract-name <YOUR_CONTRACT_NAME> --path /project --execute
+```
+
+### Using Homebrew (macOS & Linux)
+
+```bash
+brew install nethermindeth/tap/starknet-contract-verifier
+```
+
+### Building from Source
+
+If you prefer to build from source:
+
+```bash
+git clone https://github.com/NethermindEth/starknet-contract-verifier.git
+cd starknet-contract-verifier
+cargo build --release
+# The binary will be in target/release/starknet-contract-verifier
+```
+
 ## Quickstart guide
 
 ### Scarb
@@ -14,7 +61,9 @@ Client is version agnostic, the Scarb/Cairo versions support is determined by th
 
 ### Project configuration
 
-In order to verify your contract, you'll need to add a `tool.voyager` table in your `Scarb.toml`, for example:
+You no longer need to add a `tool.voyager` table in your `Scarb.toml`. The contract verifier now automatically detects your contract files.
+
+For license information, you can specify it in your Scarb.toml:
 
 ```toml
 [package]
@@ -27,51 +76,40 @@ starknet = ">=2.11.2"
 
 [[target.starknet-contract]]
 sierra = true
-
-# Add the following section
-[tool.voyager]
-my_contract = { path = "src/main.cairo" }
 ```
 
-The `my_contract` field name has to match the name of the contract that you want to verify. The path should point to the file containing the Cairo module that you wish to verify. In the example above, the Cairo contract in question is located at `src/main.cairo`.
+Alternatively, you can provide the license via the `--license` CLI argument when verifying your contract.
 
-**Important**: For workspace projects, make sure to add the `[tool.voyager]` section in the specific package's Scarb.toml file where the contract is located, not in the workspace's root Scarb.toml. The contract verifier only looks for this configuration in individual package manifest files.
+**Important**: For workspace projects with multiple packages, you must use the `--package` argument to specify which package to verify.
 
-*Note* that only one contract should be provided in this section as multi-contract verification is not supported yet.
+### Verify your contract
 
-### Get `starknet-contract-verifier`
-
-Right now in order to obtain the `starknet-contract-verifier`, clone this repository:
+Once you have the verifier installed, execute:
 
 ```bash
-git clone https://github.com/NethermindEth/starknet-contract-verifier.git
-cd starknet-contract-verifier
-```
-
-### Setup rust
-
-`starknet-contract-verifier` is a rust/cargo project. In order to build it you'll need rust and cargo set up. You can do it easily using [rustup](https://rustup.rs/).
-
-```bash
-curl https://sh.rustup.rs -sSf | sh -s
-```
-
-### Submit your contract
-
-You are good to go, execute:
-
-```bash
-cargo run -- --network sepolia submit \
-  --hash <YOUR_CONTRACT_CLASS_HASH> \
+starknet-contract-verifier --network sepolia verify \
+  --class-hash <YOUR_CONTRACT_CLASS_HASH> \
+  --contract-name <YOUR_CONTRACT_NAME> \
   --path <PATH_TO_YOUR_SCARB_PROJECT> \
   --license <SPDX_LICENSE_ID> # if not provided in Scarb.toml
-  --execute \
+  --execute
+```
+
+For workspace projects (multiple packages), you'll need to specify the package:
+
+```bash
+starknet-contract-verifier --network sepolia verify \
+  --class-hash <YOUR_CONTRACT_CLASS_HASH> \
+  --contract-name <YOUR_CONTRACT_NAME> \
+  --package <PACKAGE_ID> \
+  --path <PATH_TO_YOUR_SCARB_PROJECT> \
+  --execute
 ```
 
 When successful you'll be given verification job id, which you can pass to:
 
 ```bash
-cargo run -- --network sepolia status --job <JOB_ID>
+starknet-contract-verifier --network sepolia status --job <JOB_ID>
 ```
 
 to check the verification status. Afterwards visit [Voyager website](https://sepolia.voyager.online/) and search for your class hash to see the *verified* badge.
@@ -80,26 +118,29 @@ to check the verification status. Afterwards visit [Voyager website](https://sep
 
 ### Verification
 
-`starknet-contract-verifier` provides two subcommands: `submit` and `status`. For both cases user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
+`starknet-contract-verifier` provides two subcommands: `verify` and `status`. For both cases user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
 
 - `mainnet`, main starknet network (default API endpoints: <https://api.voyager.online/beta> and <https://voyager.online>)
 - `sepolia`, test network (default API endpoints: <https://sepolia-api.voyager.online/beta> and <https://sepolia.voyager.online>)
 - `custom`, set custom addresses via `--public` and `--private` arguments
 
-#### Submitting for verification
+#### Verification process
 
-In order to submit contract for verification user needs to provide several arguments:
+In order to verify a contract, you need to provide several arguments:
 
+- `--class-hash`, class hash of the declared contract
+- `--contract-name`, name of the contract to verify
 - `--path`, path to directory containing scarb project (If omitted it will use current working directory)
-- `--hash`, class hash of the declared contract
 - `--execute`, flag to actually execute the verification (without this flag, it will only show what would be done)
 - `--license`, SPDX license identifier (optional, will use license from Scarb.toml if defined there, otherwise defaults to "All Rights Reserved")
   - The license should be a valid [SPDX license identifier](https://spdx.org/licenses/) such as MIT, Apache-2.0, etc.
 - `--watch`, wait indefinitely for verification result (optional)
+- `--package`, specify which package to verify (required for workspace projects with multiple packages)
+- `--verifier`, specify which verifier to use (default: walnut)
 
 There are more options, each of them is documented in the `--help` output.
 
-If the submission is successful, client will output the verification job id.
+If the verification submission is successful, client will output the verification job id.
 
 #### Checking job status
 
