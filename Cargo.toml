@@ -1,12 +1,14 @@
 [package]
 authors = ["Nethermind"]
-description = "`Contract class verification tool that allows you to verify your starknet classes on a block explorer."
+description = "Contract class verification tool that allows you to verify your starknet classes on a block explorer."
 license = "Apache-2.0"
 name = "starknet-contract-verifier"
 repository = "https://github.com/NethermindEth/starknet-contract-verifier"
 version = "1.0.0-rc.1"
 default-run = "starknet-contract-verifier"
 edition = "2021"
+keywords = ["starknet", "blockchain", "verification", "smart-contracts", "ethereum"]
+categories = ["command-line-utilities", "blockchain", "development-tools"]
 
 [dependencies]
 anyhow = "1.0.66"

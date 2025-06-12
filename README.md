@@ -4,49 +4,8 @@ Client for the [Voyager Starknet block explorer](https://voyager.online), that a
 
 ## Installation
 
-### Pre-built Binaries
-
-Download the latest release from the [GitHub Releases](https://github.com/NethermindEth/starknet-contract-verifier/releases) page.
-
 ```bash
-# Linux (AMD64)
-curl -L https://github.com/NethermindEth/starknet-contract-verifier/releases/latest/download/starknet-contract-verifier-linux-amd64 -o starknet-contract-verifier
-chmod +x starknet-contract-verifier
-
-# macOS (Apple Silicon)
-curl -L https://github.com/NethermindEth/starknet-contract-verifier/releases/latest/download/starknet-contract-verifier-macos-arm64 -o starknet-contract-verifier
-chmod +x starknet-contract-verifier
-
-# Windows users can download the .exe file directly from the releases page
-```
-
-### Using npm
-
-```bash
-npm install -g starknet-contract-verifier
-```
-
-### Using Docker
-
-```bash
-docker run --rm -v $(pwd):/project nethermindeth/starknet-contract-verifier --network sepolia verify --class-hash <YOUR_CONTRACT_CLASS_HASH> --contract-name <YOUR_CONTRACT_NAME> --path /project --execute
-```
-
-### Using Homebrew (macOS & Linux)
-
-```bash
-brew install nethermindeth/tap/starknet-contract-verifier
-```
-
-### Building from Source
-
-If you prefer to build from source:
-
-```bash
-git clone https://github.com/NethermindEth/starknet-contract-verifier.git
-cd starknet-contract-verifier
-cargo build --release
-# The binary will be in target/release/starknet-contract-verifier
+cargo install starknet-contract-verifier
 ```
 
 ## Quickstart guide
