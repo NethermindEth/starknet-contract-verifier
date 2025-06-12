@@ -181,12 +181,6 @@ fn license_value_parser(license: &str) -> Result<LicenseId, String> {
     Err(format!("Unrecognized license: {license}{guess}"))
 }
 
-#[derive(clap::ValueEnum, Clone, Debug)]
-pub enum VerifierKind {
-    /// Use walnut verifier
-    Walnut,
-}
-
 #[derive(clap::Args)]
 pub struct VerifyArgs {
     /// Execute verification (otherwise dry run)
@@ -230,10 +224,6 @@ pub struct VerifyArgs {
     /// Select package for verification (required for workspace projects)
     #[arg(long, value_name = "PACKAGE_ID")]
     pub package: Option<String>,
-
-    /// Verifier to use
-    #[arg(long, value_enum, default_value_t = VerifierKind::Walnut)]
-    pub verifier: VerifierKind,
 }
 
 #[derive(clap::ValueEnum, Clone)]

@@ -88,11 +88,11 @@ Once you have the verifier installed, execute:
 
 ```bash
 starknet-contract-verifier --network sepolia verify \
-  --class-hash <YOUR_CONTRACT_CLASS_HASH> \
-  --contract-name <YOUR_CONTRACT_NAME> \
-  --path <PATH_TO_YOUR_SCARB_PROJECT> \
-  --license <SPDX_LICENSE_ID> # if not provided in Scarb.toml
-  --execute
+    --class-hash <YOUR_CONTRACT_CLASS_HASH> \
+    --contract-name <YOUR_CONTRACT_NAME> \
+    --path <PATH_TO_YOUR_SCARB_PROJECT> \
+    --license <SPDX_LICENSE_ID> # if not provided in Scarb.toml
+    --execute
 ```
 
 For workspace projects (multiple packages), you'll need to specify the package:
@@ -136,7 +136,6 @@ In order to verify a contract, you need to provide several arguments:
   - The license should be a valid [SPDX license identifier](https://spdx.org/licenses/) such as MIT, Apache-2.0, etc.
 - `--watch`, wait indefinitely for verification result (optional)
 - `--package`, specify which package to verify (required for workspace projects with multiple packages)
-- `--verifier`, specify which verifier to use (default: walnut)
 
 There are more options, each of them is documented in the `--help` output.
 

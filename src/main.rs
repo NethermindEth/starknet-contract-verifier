@@ -193,18 +193,14 @@ fn submit(
 
     // Filter packages based on the --package argument if provided
     let filtered_packages: Vec<&PackageMetadata> = if let Some(package_id) = &args.package {
-        packages
-            .iter()
-            .filter(|p| p.id.to_string() == *package_id)
-            .collect()
+        packages.iter().filter(|p| p.name == *package_id).collect()
     } else {
         packages.iter().collect()
     };
 
     if filtered_packages.is_empty() {
         if let Some(package_id) = &args.package {
-            let available_packages: Vec<String> =
-                packages.iter().map(|p| p.id.to_string()).collect();
+            let available_packages: Vec<String> = packages.iter().map(|p| p.name.clone()).collect();
             return Err(CliError::from(errors::MissingContract::new(
                 package_id.clone(),
                 available_packages,
@@ -216,8 +212,7 @@ fn submit(
     if args.package.is_none() {
         // For workspace projects, package is required
         if is_workspace {
-            let available_packages: Vec<String> =
-                packages.iter().map(|p| p.id.to_string()).collect();
+            let available_packages: Vec<String> = packages.iter().map(|p| p.name.clone()).collect();
             return Err(CliError::from(errors::MissingContract::new(
                 "Workspace project detected - use --package argument".to_string(),
                 available_packages,
@@ -256,7 +251,6 @@ fn submit(
     // Find the main source file for the package (conventionally src/lib.cairo or src/main.cairo)
     let possible_main_paths = vec!["src/lib.cairo", "src/main.cairo"];
 
-    // let contract_path = package_meta.root.join("src");
     let mut contract_file_path = None;
 
     for path in possible_main_paths {
@@ -272,7 +266,8 @@ fn submit(
         // Get all source files from this package
         let package_source_files = sources
             .iter()
-            .filter(|path| path.starts_with(&package_meta.root)).find(|path| path.extension() == Some("cairo"))
+            .filter(|path| path.starts_with(&package_meta.root))
+            .find(|path| path.extension() == Some("cairo"))
             .cloned();
 
         contract_file_path = package_source_files;
@@ -296,7 +291,6 @@ fn submit(
     };
 
     info!("Verifying contract: {contract_name} from {contract_file}");
-    info!("using verifier: {:?}", args.verifier);
 
     // Format the license display
     let license_display = match &license {
@@ -411,6 +405,39 @@ fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> 
                 println!("Failed: {}", format_timestamp(updated));
             }
         }
+        VerifyJobStatus::Processing => {
+            println!("\n⏳ Contract verification is being processed...");
+            println!("Job ID: {}", status.job_id());
+            println!("Status: Processing");
+            if let Some(created) = status.created_timestamp() {
+                println!("Started: {}", format_timestamp(created));
+            }
+            if let Some(updated) = status.updated_timestamp() {
+                println!("Last updated: {}", format_timestamp(updated));
+            }
+            println!("\nUse the same command to check progress later.");
+        }
+        VerifyJobStatus::Submitted => {
+            println!("\n⏳ Verification job submitted and waiting for processing...");
+            println!("Job ID: {}", status.job_id());
+            println!("Status: Submitted");
+            if let Some(created) = status.created_timestamp() {
+                println!("Submitted: {}", format_timestamp(created));
+            }
+            println!("\nUse the same command to check progress later.");
+        }
+        VerifyJobStatus::Compiled => {
+            println!("\n⏳ Contract compiled successfully, verification in progress...");
+            println!("Job ID: {}", status.job_id());
+            println!("Status: Compiled");
+            if let Some(created) = status.created_timestamp() {
+                println!("Started: {}", format_timestamp(created));
+            }
+            if let Some(updated) = status.updated_timestamp() {
+                println!("Last updated: {}", format_timestamp(updated));
+            }
+            println!("\nUse the same command to check progress later.");
+        }
         _ => {
             println!("\n⏳ Verification in progress...");
             println!("Job ID: {}", status.job_id());
@@ -421,6 +448,7 @@ fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> 
             if let Some(updated) = status.updated_timestamp() {
                 println!("Last updated: {}", format_timestamp(updated));
             }
+            println!("\nUse the same command to check progress later.");
         }
     }
 

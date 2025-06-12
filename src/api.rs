@@ -23,6 +23,9 @@ pub enum VerifyJobStatus {
     CompileFailed = 2,
     Fail = 3,
     Success = 4,
+    Processing = 5,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Error)]
@@ -45,6 +48,8 @@ impl Display for VerifyJobStatus {
             Self::CompileFailed => write!(f, "CompileFailed"),
             Self::Fail => write!(f, "Fail"),
             Self::Success => write!(f, "Success"),
+            Self::Processing => write!(f, "Processing"),
+            Self::Unknown => write!(f, "Unknown"),
         }
     }
 }
@@ -274,7 +279,10 @@ impl ApiClient {
                         .unwrap_or_else(|| "unknown failure".to_owned()),
                 )))
             }
-            _ => Ok(None),
+            VerifyJobStatus::Submitted
+            | VerifyJobStatus::Compiled
+            | VerifyJobStatus::Processing
+            | VerifyJobStatus::Unknown => Ok(None),
         }
     }
 }
