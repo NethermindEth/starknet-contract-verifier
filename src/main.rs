@@ -1,5 +1,5 @@
 mod args;
-use crate::args::{Args, Commands, VerifierKind, VerifyArgs};
+use crate::args::{Args, Commands, VerifyArgs};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, Utc};
@@ -7,7 +7,7 @@ use clap::Parser;
 use colored::*;
 use itertools::Itertools;
 use log::{debug, info, warn};
-use scarb_metadata::{PackageId, PackageMetadata};
+use scarb_metadata::PackageMetadata;
 use std::collections::HashMap;
 use std::time::{Duration, UNIX_EPOCH};
 use thiserror::Error;
@@ -256,7 +256,7 @@ fn submit(
     // Find the main source file for the package (conventionally src/lib.cairo or src/main.cairo)
     let possible_main_paths = vec!["src/lib.cairo", "src/main.cairo"];
 
-    let contract_path = package_meta.root.join("src");
+    // let contract_path = package_meta.root.join("src");
     let mut contract_file_path = None;
 
     for path in possible_main_paths {
@@ -272,9 +272,7 @@ fn submit(
         // Get all source files from this package
         let package_source_files = sources
             .iter()
-            .filter(|path| path.starts_with(&package_meta.root))
-            .filter(|path| path.extension().map_or(false, |ext| ext == "cairo"))
-            .next()
+            .filter(|path| path.starts_with(&package_meta.root)).find(|path| path.extension() == Some("cairo"))
             .cloned();
 
         contract_file_path = package_source_files;
@@ -345,7 +343,7 @@ fn submit(
     }
 
     info!("Nothing to do, add `--execute` flag to actually verify the contract");
-    return Err(CliError::DryRun);
+    Err(CliError::DryRun)
 }
 
 fn format_timestamp(timestamp: f64) -> String {
