@@ -57,3 +57,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: crate-ci/typos@v1.26.8
+        
+  verify_publish:
+    name: Verify crates.io publishing
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      
+      - name: Check package can be published
+        run: cargo publish --dry-run

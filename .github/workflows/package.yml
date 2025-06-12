@@ -1,221 +1,34 @@
-name: Package Release
+name: Crates.io Release
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
-  homebrew:
-    name: Update Homebrew Formula
+  publish_crate:
+    name: Publish to crates.io
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
         
       - name: Get version
         id: get_version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
         
-      - name: Create Homebrew Formula
+      - name: Verify version in Cargo.toml
         run: |
-          cat > starknet-contract-verifier.rb << EOF
-          class StarknetContractVerifier < Formula
-            desc "Contract class verification tool for Starknet"
-            homepage "https://github.com/NethermindEth/starknet-contract-verifier"
-            url "https://github.com/NethermindEth/starknet-contract-verifier/archive/v${{ steps.get_version.outputs.version }}.tar.gz"
-            sha256 "REPLACE_WITH_SHA256"
-            license "Apache-2.0"
-          
-            depends_on "rust" => :build
-          
-            def install
-              system "cargo", "build", "--release"
-              bin.install "target/release/starknet-contract-verifier"
-            end
-          
-            test do
-              assert_match "starknet-contract-verifier", shell_output("#{bin}/starknet-contract-verifier --help")
-            end
-          end
-          EOF
-          
-      - name: Upload Homebrew Formula as artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: homebrew-formula
-          path: starknet-contract-verifier.rb
+          CARGO_VERSION=$(grep -m 1 'version =' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "Cargo.toml version: $CARGO_VERSION"
+          echo "Release version: ${{ steps.get_version.outputs.version }}"
+          if [ "$CARGO_VERSION" != "${{ steps.get_version.outputs.version }}" ]; then
+            echo "Error: Version in Cargo.toml ($CARGO_VERSION) does not match release version (${{ steps.get_version.outputs.version }})"
+            exit 1
+          fi
       
-      # This is a placeholder - in a real scenario, you would:
-      # 1. Create a PR to a Homebrew tap repository 
-      # 2. Or use API calls to update an existing formula
-  
-  docker:
-    name: Publish Docker Image
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-        
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: nethermindeth/starknet-contract-verifier
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            latest
-            
-      - name: Build and push
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          
-  npm:
-    name: Create NPM Package
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        
-      - name: Get version
-        id: get_version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-        
-      - name: Create package.json
-        run: |
-          cat > package.json << EOF
-          {
-            "name": "starknet-contract-verifier",
-            "version": "${{ steps.get_version.outputs.version }}",
-            "description": "Contract class verification tool for Starknet",
-            "bin": {
-              "starknet-contract-verifier": "bin/starknet-contract-verifier"
-            },
-            "scripts": {
-              "postinstall": "node install.js"
-            },
-            "files": [
-              "bin",
-              "install.js"
-            ],
-            "repository": {
-              "type": "git",
-              "url": "git+https://github.com/NethermindEth/starknet-contract-verifier.git"
-            },
-            "keywords": [
-              "starknet",
-              "contract",
-              "verification",
-              "voyager"
-            ],
-            "author": "Nethermind",
-            "license": "Apache-2.0",
-            "bugs": {
-              "url": "https://github.com/NethermindEth/starknet-contract-verifier/issues"
-            },
-            "homepage": "https://github.com/NethermindEth/starknet-contract-verifier#readme",
-            "dependencies": {
-              "node-fetch": "^2.6.7"
-            },
-            "engines": {
-              "node": ">=14"
-            }
-          }
-          EOF
-          
-      - name: Create install.js
-        run: |
-          mkdir -p bin
-          cat > install.js << EOF
-          const { execSync } = require('child_process');
-          const { createWriteStream } = require('fs');
-          const { chmod } = require('fs/promises');
-          const { platform, arch } = process;
-          const fetch = require('node-fetch');
-          const path = require('path');
-          
-          async function download() {
-            let binPath = '';
-            
-            switch (platform) {
-              case 'linux':
-                binPath = arch === 'arm64' ? 'starknet-contract-verifier-linux-arm64' : 'starknet-contract-verifier-linux-amd64';
-                break;
-              case 'darwin':
-                binPath = arch === 'arm64' ? 'starknet-contract-verifier-macos-arm64' : 'starknet-contract-verifier-macos-amd64';
-                break;
-              case 'win32':
-                binPath = 'starknet-contract-verifier-windows-amd64.exe';
-                break;
-              default:
-                throw new Error('Unsupported platform: ' + platform);
-            }
-            
-            const version = '${{ steps.get_version.outputs.version }}';
-            const url = \`https://github.com/NethermindEth/starknet-contract-verifier/releases/download/v\${version}/\${binPath}\`;
-            console.log(\`Downloading from \${url}...\`);
-            
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(\`Download failed: \${res.status} \${res.statusText}\`);
-            
-            const dest = path.join(__dirname, 'bin', platform === 'win32' ? 'starknet-contract-verifier.exe' : 'starknet-contract-verifier');
-            const fileStream = createWriteStream(dest);
-            
-            await new Promise((resolve, reject) => {
-              res.body.pipe(fileStream);
-              res.body.on('error', reject);
-              fileStream.on('finish', resolve);
-            });
-            
-            if (platform !== 'win32') {
-              await chmod(dest, 0o755);
-            }
-            
-            console.log('Download complete!');
-          }
-          
-          download().catch(e => {
-            console.error('Installation failed:', e);
-            process.exit(1);
-          });
-          EOF
-          
-      - name: Create dummy binary placeholder
-        run: |
-          echo '#!/usr/bin/env node' > bin/starknet-contract-verifier
-          echo 'console.log("This is a placeholder. Please run npm install to download the actual binary.");' >> bin/starknet-contract-verifier
-          chmod +x bin/starknet-contract-verifier
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-          registry-url: 'https://registry.npmjs.org'
-          
-      - name: Publish to NPM
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      
-      # If you don't want to actually publish yet, replace the above with:
-      # - name: Pack NPM package
-      #   run: npm pack
-      # 
-      # - name: Upload NPM package as artifact
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: npm-package
-      #     path: starknet-contract-verifier-*.tgz 
+      - name: Publish to crates.io
+        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }} 
