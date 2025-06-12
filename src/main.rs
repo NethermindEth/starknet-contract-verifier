@@ -2,17 +2,19 @@ mod args;
 use crate::args::{Args, Commands, SubmitArgs};
 
 use camino::{Utf8Path, Utf8PathBuf};
+use chrono::{DateTime, Utc};
 use clap::Parser;
 use colored::*;
 use itertools::Itertools;
 use log::{debug, info, warn};
 use scarb_metadata::PackageMetadata;
 use std::collections::HashMap;
+use std::time::{Duration, UNIX_EPOCH};
 use thiserror::Error;
 use verifier::{
     api::{
         poll_verification_status, ApiClient, ApiClientError, FileInfo, ProjectMetadataInfo,
-        VerificationJob,
+        VerificationJob, VerifyJobStatus,
     },
     class_hash::ClassHash,
     errors, resolver, voyager,
@@ -310,6 +312,83 @@ fn submit(
     Err(CliError::NoTarget)
 }
 
+fn format_timestamp(timestamp: f64) -> String {
+    let duration = Duration::from_secs_f64(timestamp);
+    if let Some(datetime) = UNIX_EPOCH.checked_add(duration) {
+        let datetime: DateTime<Utc> = datetime.into();
+        datetime.to_rfc3339()
+    } else {
+        timestamp.to_string()
+    }
+}
+
 fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> {
-    poll_verification_status(public, job_id).map_err(CliError::from)
+    let status = poll_verification_status(public, job_id).map_err(CliError::from)?;
+
+    match status.status() {
+        VerifyJobStatus::Success => {
+            println!("\n✅ Verification successful!");
+            if let Some(name) = status.name() {
+                println!("Contract name: {}", name);
+            }
+            if let Some(file) = status.contract_file() {
+                println!("Contract file: {}", file);
+            }
+            if let Some(version) = status.version() {
+                println!("Version: {}", version);
+            }
+            if let Some(license) = status.license() {
+                println!("License: {}", license);
+            }
+            if let Some(address) = status.address() {
+                println!("Contract address: {}", address);
+            }
+            println!("Class hash: {}", status.class_hash());
+            if let Some(created) = status.created_timestamp() {
+                println!("Created: {}", format_timestamp(created));
+            }
+            if let Some(updated) = status.updated_timestamp() {
+                println!("Last updated: {}", format_timestamp(updated));
+            }
+            println!("\nThe contract is now verified and visible on Voyager.");
+            println!("You can view it by searching for the class hash above.");
+        }
+        VerifyJobStatus::Fail => {
+            println!("\n❌ Verification failed!");
+            if let Some(desc) = status.status_description() {
+                println!("Reason: {}", desc);
+            }
+            if let Some(created) = status.created_timestamp() {
+                println!("Started: {}", format_timestamp(created));
+            }
+            if let Some(updated) = status.updated_timestamp() {
+                println!("Failed: {}", format_timestamp(updated));
+            }
+        }
+        VerifyJobStatus::CompileFailed => {
+            println!("\n❌ Compilation failed!");
+            if let Some(desc) = status.status_description() {
+                println!("Reason: {}", desc);
+            }
+            if let Some(created) = status.created_timestamp() {
+                println!("Started: {}", format_timestamp(created));
+            }
+            if let Some(updated) = status.updated_timestamp() {
+                println!("Failed: {}", format_timestamp(updated));
+            }
+        }
+        _ => {
+            println!("\n⏳ Verification in progress...");
+            println!("Job ID: {}", status.job_id());
+            println!("Status: {}", status.status());
+            if let Some(created) = status.created_timestamp() {
+                println!("Started: {}", format_timestamp(created));
+            }
+            if let Some(updated) = status.updated_timestamp() {
+                println!("Last updated: {}", format_timestamp(updated));
+            }
+        }
+    }
+
+    Ok(status)
 }
