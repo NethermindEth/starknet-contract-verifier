@@ -313,7 +313,7 @@ pub struct VerificationJob {
 }
 
 impl VerificationJob {
-    pub fn status(&self) -> &VerifyJobStatus {
+    pub const fn status(&self) -> &VerifyJobStatus {
         &self.status
     }
 
@@ -337,11 +337,11 @@ impl VerificationJob {
         self.status_description.as_deref()
     }
 
-    pub fn created_timestamp(&self) -> Option<f64> {
+    pub const fn created_timestamp(&self) -> Option<f64> {
         self.created_timestamp
     }
 
-    pub fn updated_timestamp(&self) -> Option<f64> {
+    pub const fn updated_timestamp(&self) -> Option<f64> {
         self.updated_timestamp
     }
 
