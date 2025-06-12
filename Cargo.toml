@@ -1,12 +1,34 @@
 [package]
 authors = ["Nethermind"]
-description = "`Contract class verification tool that allows you to verify your starknet classes on a block explorer."
+description = "Contract class verification tool that allows you to verify your starknet classes on a block explorer."
 license = "Apache-2.0"
 name = "starknet-contract-verifier"
 repository = "https://github.com/NethermindEth/starknet-contract-verifier"
-version = "1.0.0-rc.1"
+version = "0.1.0"
 default-run = "starknet-contract-verifier"
 edition = "2021"
+keywords = ["starknet", "verification", "smart-contracts", "ethereum"]
+categories = ["command-line-utilities", "development-tools"]
+include = [
+    "/src/**/*.rs",
+    "/Cargo.toml",
+    "/LICENSE",
+    "/README.md",
+]
+
+[package.metadata.cargo-package-metadata]
+ignored-files = [
+    "Cargo.lock",
+    "Cargo.toml.orig",
+    ".cargo_vcs_info.json",
+    ".github/",
+    "examples/",
+    "Dockerfile",
+    "Makefile",
+    ".cargo/",
+    "rust-toolchain",
+    ".gitignore",
+]
 
 [dependencies]
 anyhow = "1.0.66"
@@ -28,6 +50,7 @@ thiserror = "2.0.6"
 url = "2.2.2"
 walkdir = "2.3.3"
 colored = "3.0.0"
+chrono = "0.4.41"
 
 [lib]
 name = "verifier"

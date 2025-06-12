@@ -23,6 +23,9 @@ pub enum VerifyJobStatus {
     CompileFailed = 2,
     Fail = 3,
     Success = 4,
+    Processing = 5,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Error)]
@@ -45,6 +48,8 @@ impl Display for VerifyJobStatus {
             Self::CompileFailed => write!(f, "CompileFailed"),
             Self::Fail => write!(f, "Fail"),
             Self::Success => write!(f, "Success"),
+            Self::Processing => write!(f, "Processing"),
+            Self::Unknown => write!(f, "Unknown"),
         }
     }
 }
@@ -274,7 +279,10 @@ impl ApiClient {
                         .unwrap_or_else(|| "unknown failure".to_owned()),
                 )))
             }
-            _ => Ok(None),
+            VerifyJobStatus::Submitted
+            | VerifyJobStatus::Compiled
+            | VerifyJobStatus::Processing
+            | VerifyJobStatus::Unknown => Ok(None),
         }
     }
 }
@@ -289,7 +297,6 @@ pub struct VerificationJobDispatch {
     job_id: String,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, serde::Deserialize)]
 pub struct VerificationJob {
     job_id: String,
@@ -303,6 +310,52 @@ pub struct VerificationJob {
     name: Option<String>,
     version: Option<String>,
     license: Option<String>,
+}
+
+impl VerificationJob {
+    pub const fn status(&self) -> &VerifyJobStatus {
+        &self.status
+    }
+
+    pub fn class_hash(&self) -> &str {
+        &self.class_hash
+    }
+
+    pub fn job_id(&self) -> &str {
+        &self.job_id
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    pub fn contract_file(&self) -> Option<&str> {
+        self.contract_file.as_deref()
+    }
+
+    pub fn status_description(&self) -> Option<&str> {
+        self.status_description.as_deref()
+    }
+
+    pub const fn created_timestamp(&self) -> Option<f64> {
+        self.created_timestamp
+    }
+
+    pub const fn updated_timestamp(&self) -> Option<f64> {
+        self.updated_timestamp
+    }
+
+    pub fn address(&self) -> Option<&str> {
+        self.address.as_deref()
+    }
+
+    pub fn version(&self) -> Option<&str> {
+        self.version.as_deref()
+    }
+
+    pub fn license(&self) -> Option<&str> {
+        self.license.as_deref()
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]

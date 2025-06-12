@@ -133,11 +133,11 @@ pub struct Args {
 #[derive(clap::Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum Commands {
-    /// Submit smart contract for verification.
+    /// Verify smart contract.
     ///
     /// By default it will only report back to user what it is about
     /// to do. In order to actually execute pass --execute flag.
-    Submit(SubmitArgs),
+    Verify(VerifyArgs),
 
     /// Check verification job status
     Status {
@@ -182,8 +182,8 @@ fn license_value_parser(license: &str) -> Result<LicenseId, String> {
 }
 
 #[derive(clap::Args)]
-pub struct SubmitArgs {
-    /// Submit contract for verification.
+pub struct VerifyArgs {
+    /// Execute verification (otherwise dry run)
     #[arg(short = 'x', long, default_value_t = false)]
     pub execute: bool,
 
@@ -197,13 +197,13 @@ pub struct SubmitArgs {
     )]
     pub path: Project,
 
-    /// Class HASH to verify
+    /// Class hash to verify
     #[arg(
-        long,
+        long = "class-hash",
         value_name = "HASH",
         value_parser = ClassHash::new
     )]
-    pub hash: ClassHash,
+    pub class_hash: ClassHash,
 
     /// Wait indefinitely for verification result
     #[arg(long, default_value_t = false)]
@@ -217,9 +217,13 @@ pub struct SubmitArgs {
     )]
     pub license: Option<LicenseId>,
 
-    /// Select contract for submission
-    #[arg(long, value_name = "NAME")]
-    pub contract: Option<String>,
+    /// Contract name for submission
+    #[arg(long = "contract-name", value_name = "NAME")]
+    pub contract_name: String,
+
+    /// Select package for verification (required for workspace projects)
+    #[arg(long, value_name = "PACKAGE_ID")]
+    pub package: Option<String>,
 }
 
 #[derive(clap::ValueEnum, Clone)]
