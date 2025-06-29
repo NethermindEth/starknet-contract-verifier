@@ -357,19 +357,19 @@ fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> 
         VerifyJobStatus::Success => {
             println!("\n✅ Verification successful!");
             if let Some(name) = status.name() {
-                println!("Contract name: {}", name);
+                println!("Contract name: {name}");
             }
             if let Some(file) = status.contract_file() {
-                println!("Contract file: {}", file);
+                println!("Contract file: {file}");
             }
             if let Some(version) = status.version() {
-                println!("Version: {}", version);
+                println!("Version: {version}");
             }
             if let Some(license) = status.license() {
-                println!("License: {}", license);
+                println!("License: {license}");
             }
             if let Some(address) = status.address() {
-                println!("Contract address: {}", address);
+                println!("Contract address: {address}");
             }
             println!("Class hash: {}", status.class_hash());
             if let Some(created) = status.created_timestamp() {
@@ -384,7 +384,7 @@ fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> 
         VerifyJobStatus::Fail => {
             println!("\n❌ Verification failed!");
             if let Some(desc) = status.status_description() {
-                println!("Reason: {}", desc);
+                println!("Reason: {desc}");
             }
             if let Some(created) = status.created_timestamp() {
                 println!("Started: {}", format_timestamp(created));
@@ -396,7 +396,7 @@ fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> 
         VerifyJobStatus::CompileFailed => {
             println!("\n❌ Compilation failed!");
             if let Some(desc) = status.status_description() {
-                println!("Reason: {}", desc);
+                println!("Reason: {desc}");
             }
             if let Some(created) = status.created_timestamp() {
                 println!("Started: {}", format_timestamp(created));

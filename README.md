@@ -16,11 +16,13 @@ Contract verifier works with [Scarb](https://docs.swmansion.com/scarb) based pro
 
 #### Supported versions
 
-Client is version agnostic, the Scarb/Cairo versions support is determined by the server availability. As of writing this (2024) Cairo up to 2.11.4 is supported with newer versions being added with a slight lag after release.
+Client is version agnostic, the Scarb/Cairo versions support is determined by the server availability. As of writing this (2025) Cairo up to 2.11.4 is supported with newer versions being added with a slight lag after release.
 
 ### Project configuration
 
-You no longer need to add a `tool.voyager` table in your `Scarb.toml`. The contract verifier now automatically detects your contract files.
+**⚠️ Important**: Every compiler configuration used for deployment must be placed under `[profile.release]` since the remote compiler will run `scarb --release build`. This includes any custom compiler settings, optimizations, or dependencies that are required for your contract to build correctly in the verification environment.
+
+**Note**: At the moment, Sepolia-only verification is not available. However, classes verified on mainnet will appear verified on Sepolia as well.
 
 For license information, you can specify it in your Scarb.toml:
 
@@ -35,6 +37,12 @@ starknet = ">=2.11.2"
 
 [[target.starknet-contract]]
 sierra = true
+
+[profile.release.cairo]
+# Add any compiler configurations needed for deployment here
+# For example:
+# sierra-replace-ids = false
+# inlining-strategy = "avoid"
 ```
 
 Alternatively, you can provide the license via the `--license` CLI argument when verifying your contract.
@@ -46,10 +54,10 @@ Alternatively, you can provide the license via the `--license` CLI argument when
 Once you have the verifier installed, execute:
 
 ```bash
-starknet-contract-verifier --network sepolia verify \
+starknet-contract-verifier --network mainnet verify \
     --class-hash <YOUR_CONTRACT_CLASS_HASH> \
     --contract-name <YOUR_CONTRACT_NAME> \
-    --path <PATH_TO_YOUR_SCARB_PROJECT> \
+    --path <PATH_TO_YOUR_SCARB_PROJECT> \ # if you are running outside project root
     --license <SPDX_LICENSE_ID> # if not provided in Scarb.toml
     --execute
 ```
@@ -57,18 +65,17 @@ starknet-contract-verifier --network sepolia verify \
 For workspace projects (multiple packages), you'll need to specify the package:
 
 ```bash
-starknet-contract-verifier --network sepolia verify \
+starknet-contract-verifier --network mainnet verify \
   --class-hash <YOUR_CONTRACT_CLASS_HASH> \
   --contract-name <YOUR_CONTRACT_NAME> \
   --package <PACKAGE_ID> \
-  --path <PATH_TO_YOUR_SCARB_PROJECT> \
   --execute
 ```
 
 When successful you'll be given verification job id, which you can pass to:
 
 ```bash
-starknet-contract-verifier --network sepolia status --job <JOB_ID>
+starknet-contract-verifier --network mainnet status --job <JOB_ID>
 ```
 
 to check the verification status. Afterwards visit [Voyager website](https://sepolia.voyager.online/) and search for your class hash to see the *verified* badge.
