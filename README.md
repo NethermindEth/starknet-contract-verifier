@@ -59,6 +59,7 @@ starknet-contract-verifier --network mainnet verify \
     --contract-name <YOUR_CONTRACT_NAME> \
     --path <PATH_TO_YOUR_SCARB_PROJECT> \ # if you are running outside project root
     --license <SPDX_LICENSE_ID> # if not provided in Scarb.toml
+    --lock-file \ # optional: include Scarb.lock file in verification
     --execute
 ```
 
@@ -69,6 +70,7 @@ starknet-contract-verifier --network mainnet verify \
   --class-hash <YOUR_CONTRACT_CLASS_HASH> \
   --contract-name <YOUR_CONTRACT_NAME> \
   --package <PACKAGE_ID> \
+  --lock-file \ # optional: include Scarb.lock file in verification
   --execute
 ```
 
@@ -100,6 +102,9 @@ In order to verify a contract, you need to provide several arguments:
 - `--execute`, flag to actually execute the verification (without this flag, it will only show what would be done)
 - `--license`, SPDX license identifier (optional, will use license from Scarb.toml if defined there, otherwise defaults to "All Rights Reserved")
   - The license should be a valid [SPDX license identifier](https://spdx.org/licenses/) such as MIT, Apache-2.0, etc.
+- `--lock-file`, include Scarb.lock file in verification submission (optional, defaults to false)
+  - When enabled, the tool will include the Scarb.lock file (if it exists) in the files sent to the remote API for verification
+  - This can be useful for ensuring reproducible builds by locking dependency versions
 - `--watch`, wait indefinitely for verification result (optional)
 - `--package`, specify which package to verify (required for workspace projects with multiple packages)
 

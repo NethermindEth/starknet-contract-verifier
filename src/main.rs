@@ -191,6 +191,27 @@ fn submit(
         );
     }
 
+    // Include Scarb.lock if --lock-file flag is enabled
+    if args.lock_file {
+        let lock_file_path = args.path.root_dir().join("Scarb.lock");
+        if lock_file_path.exists() {
+            let lock_file_rel =
+                lock_file_path
+                    .strip_prefix(&prefix)
+                    .map_err(|_| CliError::StripPrefix {
+                        path: lock_file_path.clone(),
+                        prefix: prefix.clone(),
+                    })?;
+            debug!("Including Scarb.lock file: {}", lock_file_path);
+            files.insert(lock_file_rel.to_string(), lock_file_path.clone());
+        } else {
+            warn!(
+                "--lock-file flag enabled but Scarb.lock not found at {}",
+                lock_file_path
+            );
+        }
+    }
+
     // Filter packages based on the --package argument if provided
     let filtered_packages: Vec<&PackageMetadata> = if let Some(package_id) = &args.package {
         packages.iter().filter(|p| p.name == *package_id).collect()
