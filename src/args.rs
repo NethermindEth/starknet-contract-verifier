@@ -115,7 +115,7 @@ pub fn project_value_parser(raw: &str) -> Result<Project, ProjectError> {
 #[derive(clap::Parser)]
 #[command(name = "Starknet Contract Verifier")]
 #[command(author = "Nethermind")]
-#[command(version = "0.1.0")]
+#[command(version)]
 #[command(about = "Verify Starknet classes on Voyager block explorer")]
 #[command(long_about = "")]
 pub struct Args {
