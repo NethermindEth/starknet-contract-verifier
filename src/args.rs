@@ -224,6 +224,10 @@ pub struct VerifyArgs {
     /// Select package for verification (required for workspace projects)
     #[arg(long, value_name = "PACKAGE_ID")]
     pub package: Option<String>,
+
+    /// Include Scarb.lock file in verification submission
+    #[arg(long, default_value_t = false)]
+    pub lock_file: bool,
 }
 
 #[derive(clap::ValueEnum, Clone)]
