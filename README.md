@@ -27,7 +27,7 @@ curl -sSL https://raw.githubusercontent.com/NethermindEth/starknet-contract-veri
 
 This script automatically detects your platform and downloads the appropriate binary.
 
-### Option 2: Install via Cargo
+### Option 3: Install via Cargo
 
 ```bash
 cargo install starknet-contract-verifier
