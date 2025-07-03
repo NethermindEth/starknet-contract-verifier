@@ -16,22 +16,27 @@ jobs:
             os: ubuntu-latest
             name: starknet-contract-verifier-linux-x86_64
             archive: tar.gz
+            use_cross: true
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             name: starknet-contract-verifier-linux-aarch64
             archive: tar.gz
+            use_cross: true
           - target: x86_64-apple-darwin
             os: macos-13
             name: starknet-contract-verifier-macos-x86_64
             archive: tar.gz
+            use_cross: false
           - target: aarch64-apple-darwin
             os: macos-14
             name: starknet-contract-verifier-macos-aarch64
             archive: tar.gz
-          - target: x86_64-pc-windows-gnu
-            os: ubuntu-latest
+            use_cross: false
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
             name: starknet-contract-verifier-windows-x86_64
             archive: zip
+            use_cross: false
 
     steps:
       - name: Checkout code
@@ -47,29 +52,31 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Install cross
+      - name: Install cross (Linux targets only)
+        if: matrix.use_cross == true
         run: cargo install cross --git https://github.com/cross-rs/cross
 
-      - name: Build binary
+      - name: Build binary (with cross)
+        if: matrix.use_cross == true
         run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build binary (native)
+        if: matrix.use_cross == false
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Package binary (Unix)
         if: matrix.archive == 'tar.gz'
         run: |
           cd target/${{ matrix.target }}/release
-          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-            BINARY_NAME="starknet-contract-verifier.exe"
-          else
-            BINARY_NAME="starknet-contract-verifier"
-          fi
-          tar czf ../../../${{ matrix.name }}.${{ matrix.archive }} $BINARY_NAME
+          tar czf ../../../${{ matrix.name }}.${{ matrix.archive }} starknet-contract-verifier
           cd ../../..
 
       - name: Package binary (Windows)
         if: matrix.archive == 'zip'
+        shell: pwsh
         run: |
           cd target/${{ matrix.target }}/release
-          zip ../../../${{ matrix.name }}.${{ matrix.archive }} starknet-contract-verifier.exe
+          Compress-Archive -Path starknet-contract-verifier.exe -DestinationPath ../../../${{ matrix.name }}.${{ matrix.archive }}
           cd ../../..
 
       - name: Upload artifact
