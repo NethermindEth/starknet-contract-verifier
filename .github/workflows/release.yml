@@ -22,27 +22,22 @@ jobs:
             os: ubuntu-latest
             name: starknet-contract-verifier-linux-x86_64
             archive: tar.gz
-            use_cross: true
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             name: starknet-contract-verifier-linux-aarch64
             archive: tar.gz
-            use_cross: true
           - target: x86_64-apple-darwin
             os: macos-13
             name: starknet-contract-verifier-macos-x86_64
             archive: tar.gz
-            use_cross: false
           - target: aarch64-apple-darwin
             os: macos-14
             name: starknet-contract-verifier-macos-aarch64
             archive: tar.gz
-            use_cross: false
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             name: starknet-contract-verifier-windows-x86_64
             archive: zip
-            use_cross: false
 
     steps:
       - name: Checkout code
@@ -58,16 +53,19 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Install cross (Linux targets only)
-        if: matrix.use_cross == true
-        run: cargo install cross --git https://github.com/cross-rs/cross
+      - name: Install cross-compilation tools (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Build binary (with cross)
-        if: matrix.use_cross == true
-        run: cross build --release --target ${{ matrix.target }}
+      - name: Configure cross-compilation
+        run: |
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          fi
 
-      - name: Build binary (native)
-        if: matrix.use_cross == false
+      - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Package binary (Unix)
