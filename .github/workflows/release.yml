@@ -47,28 +47,11 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Install cross-compilation tools (Linux ARM64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      - name: Install cross-compilation tools (Windows)
-        if: matrix.target == 'x86_64-pc-windows-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64-x86-64
-
-      - name: Configure cross-compilation
-        run: |
-          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
-            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-          elif [[ "${{ matrix.target }}" == "x86_64-pc-windows-gnu" ]]; then
-            echo "CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc" >> $GITHUB_ENV
-          fi
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cross build --release --target ${{ matrix.target }}
 
       - name: Package binary (Unix)
         if: matrix.archive == 'tar.gz'
