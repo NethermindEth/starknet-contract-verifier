@@ -74,7 +74,7 @@ jobs:
         if: matrix.archive == 'tar.gz'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.name }}.${{ matrix.archive }} starknet-contract-verifier
+          tar czf ../../../${{ matrix.name }}.${{ matrix.archive }} starknet-contract-verifier starkverify
           cd ../../..
 
       - name: Package binary (Windows)
@@ -82,14 +82,20 @@ jobs:
         shell: pwsh
         run: |
           cd target/${{ matrix.target }}/release
-          Compress-Archive -Path starknet-contract-verifier.exe -DestinationPath ../../../${{ matrix.name }}.${{ matrix.archive }}
+          Compress-Archive -Path starknet-contract-verifier.exe,starkverify.exe -DestinationPath ../../../${{ matrix.name }}.${{ matrix.archive }}
           cd ../../..
+
+      - name: Package starkverifyup scripts
+        run: |
+          tar czf starkverifyup-scripts.tar.gz starkverifyup/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: ${{ matrix.name }}.${{ matrix.archive }}
+          path: |
+            ${{ matrix.name }}.${{ matrix.archive }}
+            starkverifyup-scripts.tar.gz
 
   release:
     name: Create Release
@@ -127,6 +133,12 @@ jobs:
             # starknet-contract-verifier v${{ steps.get_version.outputs.version }}
 
             ## Quick Install
+
+            **Install with starkverifyup (Recommended):**
+            ```bash
+            curl https://get.starkverify.sh | sh
+            ```
+            Then run: `starkverifyup`
 
             **One-liner installer (Linux/macOS):**
             ```bash

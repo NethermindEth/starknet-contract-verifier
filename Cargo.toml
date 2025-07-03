@@ -59,3 +59,7 @@ name = "verifier"
 [[bin]]
 name = "starknet-contract-verifier"
 path = "src/main.rs"
+
+[[bin]]
+name = "starkverify"
+path = "src/main.rs"

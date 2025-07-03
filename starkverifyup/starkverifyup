@@ -207,7 +207,7 @@ Install the latest version of starkverify by running without any options.
 
 More installation options will be implemented. To update starkverifyup itself, run the installation command again:
 
-    curl https://get.starkverify.sh | sh
+    curl -sSL https://raw.githubusercontent.com/NethermindEth/starknet-contract-verifier/main/starkverifyup/install | sh
 
 USAGE:
     starkverifyup <OPTIONS>
