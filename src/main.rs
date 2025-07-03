@@ -399,8 +399,7 @@ fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> 
             if let Some(updated) = status.updated_timestamp() {
                 println!("Last updated: {}", format_timestamp(updated));
             }
-            println!("\nThe contract is now verified and visible on Voyager.");
-            println!("You can view it by searching for the class hash above.");
+            println!("\nThe contract is now verified and visible on Voyager at https://voyager.online/class/{} .", status.class_hash());
         }
         VerifyJobStatus::Fail => {
             println!("\n❌ Verification failed!");
