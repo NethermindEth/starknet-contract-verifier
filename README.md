@@ -4,8 +4,56 @@ Client for the [Voyager Starknet block explorer](https://voyager.online), that a
 
 ## Installation
 
+### Option 1: One-liner installer (Recommended)
+
+**Linux/macOS:**
+```bash
+curl -sSL https://raw.githubusercontent.com/NethermindEth/starknet-contract-verifier/main/install.sh | bash
+```
+
+This script automatically detects your platform and downloads the appropriate binary.
+
+### Option 2: Download pre-built binary manually
+
+**Linux (x86_64):**
+```bash
+curl -L https://github.com/NethermindEth/starknet-contract-verifier/releases/latest/download/starknet-contract-verifier-linux-x86_64.tar.gz | tar xz
+sudo mv starknet-contract-verifier /usr/local/bin/
+```
+
+**Linux (ARM64):**
+```bash
+curl -L https://github.com/NethermindEth/starknet-contract-verifier/releases/latest/download/starknet-contract-verifier-linux-aarch64.tar.gz | tar xz
+sudo mv starknet-contract-verifier /usr/local/bin/
+```
+
+**macOS (Intel):**
+```bash
+curl -L https://github.com/NethermindEth/starknet-contract-verifier/releases/latest/download/starknet-contract-verifier-macos-x86_64.tar.gz | tar xz
+sudo mv starknet-contract-verifier /usr/local/bin/
+```
+
+**macOS (Apple Silicon):**
+```bash
+curl -L https://github.com/NethermindEth/starknet-contract-verifier/releases/latest/download/starknet-contract-verifier-macos-aarch64.tar.gz | tar xz
+sudo mv starknet-contract-verifier /usr/local/bin/
+```
+
+**Windows:**
+1. Download [starknet-contract-verifier-windows-x86_64.zip](https://github.com/NethermindEth/starknet-contract-verifier/releases/latest/download/starknet-contract-verifier-windows-x86_64.zip)
+2. Extract the zip file
+3. Add the extracted directory to your PATH environment variable
+
+### Option 3: Install via Cargo
+
 ```bash
 cargo install starknet-contract-verifier
+```
+
+### Option 4: Using Docker
+
+```bash
+docker run --rm -v $(pwd):/workspace nethermind/starknet-contract-verifier --help
 ```
 
 ## Quickstart guide

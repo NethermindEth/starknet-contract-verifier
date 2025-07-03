@@ -1,0 +1,168 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: starknet-contract-verifier-linux-x86_64
+            archive: tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: starknet-contract-verifier-linux-aarch64
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-13
+            name: starknet-contract-verifier-macos-x86_64
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-14
+            name: starknet-contract-verifier-macos-aarch64
+            archive: tar.gz
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            name: starknet-contract-verifier-windows-x86_64
+            archive: zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Install cross-compilation tools (Windows)
+        if: matrix.target == 'x86_64-pc-windows-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: Configure cross-compilation
+        run: |
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          elif [[ "${{ matrix.target }}" == "x86_64-pc-windows-gnu" ]]; then
+            echo "CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc" >> $GITHUB_ENV
+          fi
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package binary (Unix)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          cd target/${{ matrix.target }}/release
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            BINARY_NAME="starknet-contract-verifier.exe"
+          else
+            BINARY_NAME="starknet-contract-verifier"
+          fi
+          tar czf ../../../${{ matrix.name }}.${{ matrix.archive }} $BINARY_NAME
+          cd ../../..
+
+      - name: Package binary (Windows)
+        if: matrix.archive == 'zip'
+        run: |
+          cd target/${{ matrix.target }}/release
+          zip ../../../${{ matrix.name }}.${{ matrix.archive }} starknet-contract-verifier.exe
+          cd ../../..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}.${{ matrix.archive }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -la ./artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./artifacts/**/*
+          generate_release_notes: true
+          name: starknet-contract-verifier v${{ steps.get_version.outputs.version }}
+          body: |
+            # starknet-contract-verifier v${{ steps.get_version.outputs.version }}
+
+            ## Quick Install
+
+            **One-liner installer (Linux/macOS):**
+            ```bash
+            curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+
+            ## Manual Installation
+
+            ### Download pre-built binaries:
+
+            **Linux (x86_64):**
+            ```bash
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/starknet-contract-verifier-linux-x86_64.tar.gz | tar xz
+            sudo mv starknet-contract-verifier /usr/local/bin/
+            ```
+
+            **Linux (ARM64):**
+            ```bash
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/starknet-contract-verifier-linux-aarch64.tar.gz | tar xz
+            sudo mv starknet-contract-verifier /usr/local/bin/
+            ```
+
+            **macOS (Intel):**
+            ```bash
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/starknet-contract-verifier-macos-x86_64.tar.gz | tar xz
+            sudo mv starknet-contract-verifier /usr/local/bin/
+            ```
+
+            **macOS (Apple Silicon):**
+            ```bash
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/starknet-contract-verifier-macos-aarch64.tar.gz | tar xz
+            sudo mv starknet-contract-verifier /usr/local/bin/
+            ```
+
+            **Windows:**
+            Download `starknet-contract-verifier-windows-x86_64.zip`, extract, and add to PATH.
+
+            ### Or install via Cargo:
+            ```bash
+            cargo install starknet-contract-verifier
+            ``` 
