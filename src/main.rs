@@ -31,9 +31,6 @@ pub enum CliError {
     #[error("Class hash {0} is not declared")]
     NotDeclared(ClassHash),
 
-    #[error("Verification dry run")]
-    DryRun,
-
     #[error("No contracts selected for verification. Use --contract-name argument")]
     NoTarget,
 
@@ -109,7 +106,9 @@ fn main() -> anyhow::Result<()> {
             }
 
             let job_id = submit(&public, &private, args, found_license)?;
-            display_verification_job_id(&job_id);
+            if job_id != "dry-run" {
+                display_verification_job_id(&job_id);
+            }
         }
         Commands::Status { job } => {
             let status = check(&public, job)?;
@@ -358,7 +357,7 @@ fn submit(
     }
 
     info!("Nothing to do, add `--execute` flag to actually verify the contract");
-    Err(CliError::DryRun)
+    Ok("dry-run".to_string())
 }
 
 fn format_timestamp(timestamp: f64) -> String {
