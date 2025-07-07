@@ -79,8 +79,9 @@ fn main() -> anyhow::Result<()> {
         Some(host) if host.contains("sepolia") => "sepolia",
         Some(host) if host.contains("voyager.online") => "mainnet",
         _ => "custom",
-    }.to_string();
-    
+    }
+    .to_string();
+
     let public = ApiClient::new(network.public)?;
     let private = ApiClient::new(network.private)?;
     let history_manager = HistoryManager::new().unwrap_or_else(|e| {
@@ -216,8 +217,8 @@ fn submit(
 
     // Also ensure the workspace root Scarb.toml is included if we're in a workspace
     let workspace_manifest = &metadata.workspace.manifest_path;
-    // Check if this is a workspace by comparing normalized paths and checking if workspace has multiple members
-    let is_workspace = workspace_manifest != manifest_path && metadata.workspace.members.len() > 1;
+    // Check if this is a workspace by checking if workspace has multiple members
+    let is_workspace = metadata.workspace.members.len() > 1;
     debug!("Workspace manifest: {}", workspace_manifest);
     debug!("Current manifest: {}", manifest_path);
     debug!("Is workspace project: {}", is_workspace);
