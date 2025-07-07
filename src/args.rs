@@ -144,6 +144,17 @@ pub enum Commands {
         /// Verification job id
         #[arg(long, value_name = "UUID")]
         job: String,
+
+        /// Watch for status changes until completion
+        #[arg(long, default_value_t = false)]
+        watch: bool,
+    },
+
+    /// List recent verification jobs
+    List {
+        /// Number of recent jobs to show
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
     },
 }
 

@@ -1,6 +1,8 @@
 mod args;
+mod history;
 mod progress;
 use crate::args::{Args, Commands, VerifyArgs};
+use crate::history::{HistoryManager, VerificationRecord};
 use crate::progress::{ApiProgress, FileProcessingProgress, ProgressIndicator};
 
 use camino::{Utf8Path, Utf8PathBuf};
@@ -11,6 +13,7 @@ use itertools::Itertools;
 use log::{debug, info, warn};
 use scarb_metadata::PackageMetadata;
 use std::collections::HashMap;
+use std::thread;
 use std::time::{Duration, UNIX_EPOCH};
 use thiserror::Error;
 use verifier::{
@@ -72,8 +75,19 @@ fn main() -> anyhow::Result<()> {
         network_url: network,
         network: _,
     } = Args::parse();
+    let network_name = match network.public.host_str() {
+        Some(host) if host.contains("sepolia") => "sepolia",
+        Some(host) if host.contains("voyager.online") => "mainnet",
+        _ => "custom",
+    }.to_string();
+    
     let public = ApiClient::new(network.public)?;
     let private = ApiClient::new(network.private)?;
+    let history_manager = HistoryManager::new().unwrap_or_else(|e| {
+        warn!("Failed to initialize history manager: {}", e);
+        // Continue without history if it fails
+        panic!("Cannot continue without history")
+    });
 
     match &cmd {
         Commands::Verify(args) => {
@@ -109,10 +123,38 @@ fn main() -> anyhow::Result<()> {
             let job_id = submit(&public, &private, args, found_license)?;
             if job_id != "dry-run" {
                 display_verification_job_id(&job_id);
+
+                // Save to history
+                let record = VerificationRecord::new(
+                    job_id.clone(),
+                    args.class_hash.to_string(),
+                    args.contract_name.clone(),
+                    network_name,
+                    Some(args.path.root_dir().to_string()),
+                    args.license.as_ref().map(|l| l.name.to_string()),
+                );
+
+                if let Err(e) = history_manager.add_verification(record) {
+                    warn!("Failed to save verification to history: {}", e);
+                }
+
+                // Auto-watch if requested
+                if args.watch {
+                    println!("\n🔍 Watching for status changes...");
+                    watch_verification_status(&public, &job_id, &history_manager)?;
+                }
             }
         }
-        Commands::Status { job } => {
-            let _status = check(&public, job)?;
+        Commands::Status { job, watch } => {
+            if *watch {
+                println!("🔍 Watching for status changes...");
+                watch_verification_status(&public, job, &history_manager)?;
+            } else {
+                let _status = check(&public, job, &history_manager)?;
+            }
+        }
+        Commands::List { limit } => {
+            list_verification_history(&history_manager, *limit)?;
         }
     }
     Ok(())
@@ -395,13 +437,23 @@ fn format_timestamp(timestamp: f64) -> String {
     }
 }
 
-fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> {
+fn check(
+    public: &ApiClient,
+    job_id: &str,
+    history_manager: &HistoryManager,
+) -> Result<VerificationJob, CliError> {
     let polling_progress = ApiProgress::new_polling();
     polling_progress.set_message(&format!("Checking status for job {}", job_id));
 
     let status = poll_verification_status(public, job_id).map_err(CliError::from)?;
 
     polling_progress.finish_and_clear();
+
+    // Update history with current status
+    let status_str = format!("{:?}", status.status());
+    if let Err(e) = history_manager.update_verification_status(job_id, status_str) {
+        warn!("Failed to update verification status in history: {}", e);
+    }
 
     match status.status() {
         VerifyJobStatus::Success => {
@@ -502,4 +554,122 @@ fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> 
     }
 
     Ok(status)
+}
+
+fn watch_verification_status(
+    public: &ApiClient,
+    job_id: &str,
+    history_manager: &HistoryManager,
+) -> Result<(), CliError> {
+    let polling_progress = ApiProgress::new_polling();
+    polling_progress.set_message(&format!("Watching job {} for completion...", job_id));
+
+    loop {
+        let status = poll_verification_status(public, job_id).map_err(CliError::from)?;
+        let status_str = format!("{:?}", status.status());
+
+        // Update history
+        if let Err(e) = history_manager.update_verification_status(job_id, status_str) {
+            warn!("Failed to update verification status in history: {}", e);
+        }
+
+        match status.status() {
+            verifier::api::VerifyJobStatus::Success => {
+                polling_progress.finish_with_message("✅ Verification completed successfully!");
+                break;
+            }
+            verifier::api::VerifyJobStatus::Fail
+            | verifier::api::VerifyJobStatus::CompileFailed => {
+                polling_progress.finish_with_message("❌ Verification failed!");
+                break;
+            }
+            verifier::api::VerifyJobStatus::Processing => {
+                polling_progress.set_message("⏳ Contract verification in progress...");
+            }
+            verifier::api::VerifyJobStatus::Submitted => {
+                polling_progress
+                    .set_message("📋 Verification job submitted, waiting for processing...");
+            }
+            verifier::api::VerifyJobStatus::Compiled => {
+                polling_progress
+                    .set_message("🔧 Contract compiled successfully, verification in progress...");
+            }
+            _ => {
+                polling_progress.set_message(&format!("⏳ Status: {:?}", status.status()));
+            }
+        }
+
+        if matches!(
+            status.status(),
+            verifier::api::VerifyJobStatus::Success
+                | verifier::api::VerifyJobStatus::Fail
+                | verifier::api::VerifyJobStatus::CompileFailed
+        ) {
+            break;
+        }
+
+        thread::sleep(Duration::from_secs(5));
+    }
+
+    // Display final status
+    check(public, job_id, history_manager)?;
+
+    Ok(())
+}
+
+fn list_verification_history(
+    history_manager: &HistoryManager,
+    limit: usize,
+) -> Result<(), CliError> {
+    let records = history_manager.list_recent_jobs(limit).map_err(|e| {
+        warn!("History error: {}", e);
+        CliError::NoTarget
+    })?;
+
+    if records.is_empty() {
+        println!("📋 No verification history found.");
+        println!("💡 Run some verifications first to see them here.");
+        return Ok(());
+    }
+
+    println!("📋 Recent verification jobs:");
+    println!();
+
+    for record in records {
+        let status_display = match &record.status {
+            Some(status) => match status.as_str() {
+                "Success" => "✅ Success".green(),
+                "Fail" => "❌ Failed".red(),
+                "CompileFailed" => "❌ Compile Failed".red(),
+                "Processing" => "⏳ Processing".yellow(),
+                "Submitted" => "📋 Submitted".blue(),
+                "Compiled" => "🔧 Compiled".cyan(),
+                _ => status.normal(),
+            },
+            None => "❓ Unknown".normal(),
+        };
+
+        println!("🔗 Job ID: {}", record.job_id.bold());
+        println!("   Contract: {}", record.contract_name);
+        println!("   Class Hash: {}", record.class_hash);
+        println!("   Network: {}", record.network);
+        println!("   Status: {}", status_display);
+        println!(
+            "   Submitted: {}",
+            record.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+        );
+        if let Some(project_path) = &record.project_path {
+            println!("   Project: {}", project_path);
+        }
+        if let Some(license) = &record.license {
+            println!("   License: {}", license);
+        }
+        println!(
+            "   🌐 View on Voyager: https://voyager.online/class/{}",
+            record.class_hash
+        );
+        println!();
+    }
+
+    Ok(())
 }
