@@ -43,7 +43,7 @@ impl FileProcessingProgress {
     }
 
     pub fn process_file(&self, filename: &str) {
-        self.bar.set_message(format!("Processing {}", filename));
+        self.bar.set_message(format!("Processing {filename}"));
         self.bar.inc(1);
     }
 

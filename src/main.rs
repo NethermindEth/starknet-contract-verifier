@@ -416,10 +416,10 @@ fn submit(
 
         match &result {
             Ok(job_id) => upload_progress
-                .finish_with_message(&format!("✅ Verification submitted! Job ID: {}", job_id)),
+                .finish_with_message(&format!("✅ Verification submitted! Job ID: {job_id}")),
             Err(e) => {
                 // Check if this is an "already verified" case
-                let error_msg = format!("{}", e);
+                let error_msg = format!("{e}");
                 if error_msg.to_lowercase().contains("already verified") {
                     upload_progress.finish_with_message("✅ Contract already verified!");
                 } else {
@@ -452,7 +452,7 @@ fn check(
     history_manager: &HistoryManager,
 ) -> Result<VerificationJob, CliError> {
     let polling_progress = ApiProgress::new_polling();
-    polling_progress.set_message(&format!("Checking status for job {}", job_id));
+    polling_progress.set_message(&format!("Checking status for job {job_id}"));
 
     let status = poll_verification_status(public, job_id).map_err(CliError::from)?;
 
@@ -571,7 +571,7 @@ fn watch_verification_status(
     history_manager: &HistoryManager,
 ) -> Result<(), CliError> {
     let polling_progress = ApiProgress::new_polling();
-    polling_progress.set_message(&format!("Watching job {} for completion...", job_id));
+    polling_progress.set_message(&format!("Watching job {job_id} for completion..."));
 
     loop {
         let status = poll_verification_status(public, job_id).map_err(CliError::from)?;
@@ -662,16 +662,16 @@ fn list_verification_history(
         println!("   Contract: {}", record.contract_name);
         println!("   Class Hash: {}", record.class_hash);
         println!("   Network: {}", record.network);
-        println!("   Status: {}", status_display);
+        println!("   Status: {status_display}");
         println!(
             "   Submitted: {}",
             record.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
         );
         if let Some(project_path) = &record.project_path {
-            println!("   Project: {}", project_path);
+            println!("   Project: {project_path}");
         }
         if let Some(license) = &record.license {
-            println!("   License: {}", license);
+            println!("   License: {license}");
         }
         println!(
             "   🌐 View on Voyager: https://voyager.online/class/{}",
