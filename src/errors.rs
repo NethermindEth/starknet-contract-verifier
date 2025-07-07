@@ -66,11 +66,41 @@ impl fmt::Display for RequestFailure {
         writeln!(formatter)?;
 
         match self.status.as_u16() {
-            400 => writeln!(formatter, "💡 This usually means invalid request data. Check your class hash and contract details.")?,
-            401 | 403 => writeln!(formatter, "💡 Authentication issue. Check your API credentials.")?,
-            404 => writeln!(formatter, "💡 Resource not found. Verify the class hash is declared on the network.")?,
-            429 => writeln!(formatter, "💡 Rate limit exceeded. Please wait before trying again.")?,
-            500..=599 => writeln!(formatter, "💡 Server error. Please try again later or contact support.")?,
+            400 => {
+                if self.msg.to_lowercase().contains("already verified") {
+                    writeln!(
+                        formatter,
+                        "✅ Good news! This contract class is already verified on Voyager."
+                    )?;
+                    writeln!(
+                        formatter,
+                        "🔗 You can view it at: https://voyager.online/class/{}",
+                        self.url
+                            .path()
+                            .split('/')
+                            .next_back()
+                            .unwrap_or("<CLASS-HASH>")
+                    )?;
+                } else {
+                    writeln!(formatter, "💡 This usually means invalid request data. Check your class hash and contract details.")?;
+                }
+            }
+            401 | 403 => writeln!(
+                formatter,
+                "💡 Authentication issue. Check your API credentials."
+            )?,
+            404 => writeln!(
+                formatter,
+                "💡 Resource not found. Verify the class hash is declared on the network."
+            )?,
+            429 => writeln!(
+                formatter,
+                "💡 Rate limit exceeded. Please wait before trying again."
+            )?,
+            500..=599 => writeln!(
+                formatter,
+                "💡 Server error. Please try again later or contact support."
+            )?,
             _ => {}
         }
 

@@ -90,6 +90,7 @@ When successful, you'll be given a verification job id. The tool automatically s
 
 **Option 1: Auto-watch (Recommended)**
 Use the `--watch` flag to automatically monitor progress:
+
 ```bash
 starknet-contract-verifier --network mainnet verify \
     --class-hash <YOUR_CONTRACT_CLASS_HASH> \
@@ -99,16 +100,19 @@ starknet-contract-verifier --network mainnet verify \
 ```
 
 **Option 2: Manual status checking**
+
 ```bash
 starknet-contract-verifier --network mainnet status --job <JOB_ID>
 ```
 
 **Option 3: Status with auto-watch**
+
 ```bash
 starknet-contract-verifier --network mainnet status --job <JOB_ID> --watch
 ```
 
 **View your verification history:**
+
 ```bash
 starknet-contract-verifier --network mainnet list
 ```
@@ -148,6 +152,7 @@ There are more options, each of them is documented in the `--help` output.
 #### Visual Feedback
 
 The tool provides comprehensive visual feedback:
+
 - 🔄 **Loading spinners** during project analysis
 - 📁 **File processing progress bars** showing which files are being processed
 - 🚀 **Upload progress indicators** during API submission
@@ -166,6 +171,7 @@ There are several ways to check verification status:
 4. **View history**: Use `list` command to see recent verification jobs
 
 **Enhanced Status Features:**
+
 - 🎨 **Colored output** for better readability
 - ⏳ **Real-time progress indicators** with spinners and progress bars
 - 📋 **Job history tracking** - all verifications are automatically saved
@@ -185,6 +191,7 @@ starknet-contract-verifier --network mainnet list --limit 20
 ```
 
 Each history entry includes:
+
 - Job ID and current status
 - Contract name and class hash
 - Network and project path
@@ -195,12 +202,14 @@ Each history entry includes:
 #### Error Handling & Troubleshooting
 
 The tool now provides **enhanced error messages** with:
+
 - 🎯 **Context-aware suggestions** for common issues
 - 💡 **"Did you mean..."** suggestions for typos
 - 📁 **Better workspace project guidance**
 - 🔧 **Actionable solutions** for most error scenarios
 
 Common issues and solutions:
+
 - **Missing package error**: The tool will list available packages and suggest the correct `--package` flag
 - **Contract not found**: Suggestions based on similar contract names
 - **License issues**: Clear guidance on valid SPDX identifiers

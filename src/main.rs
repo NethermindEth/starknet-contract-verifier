@@ -417,7 +417,15 @@ fn submit(
         match &result {
             Ok(job_id) => upload_progress
                 .finish_with_message(&format!("✅ Verification submitted! Job ID: {}", job_id)),
-            Err(_) => upload_progress.finish_with_message("❌ Upload failed"),
+            Err(e) => {
+                // Check if this is an "already verified" case
+                let error_msg = format!("{}", e);
+                if error_msg.to_lowercase().contains("already verified") {
+                    upload_progress.finish_with_message("✅ Contract already verified!");
+                } else {
+                    upload_progress.finish_with_message("❌ Upload failed");
+                }
+            }
         }
 
         return result;
