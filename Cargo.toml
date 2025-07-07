@@ -51,6 +51,7 @@ url = "2.2.2"
 walkdir = "2.3.3"
 colored = "3.0.0"
 chrono = "0.4.41"
+indicatif = "0.17.8"
 
 [lib]
 name = "verifier"

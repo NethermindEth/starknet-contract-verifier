@@ -1,5 +1,7 @@
 mod args;
+mod progress;
 use crate::args::{Args, Commands, VerifyArgs};
+use crate::progress::{ApiProgress, FileProcessingProgress, ProgressIndicator};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, Utc};
@@ -110,8 +112,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Status { job } => {
-            let status = check(&public, job)?;
-            info!("{status:?}");
+            let _status = check(&public, job)?;
         }
     }
     Ok(())
@@ -124,10 +125,14 @@ fn submit(
     args: &VerifyArgs,
     direct_license: Option<String>,
 ) -> Result<String, CliError> {
+    let loading = ProgressIndicator::new_spinner("Loading project metadata...");
+
     let metadata = args.path.metadata();
 
     let mut packages: Vec<PackageMetadata> = vec![];
     resolver::gather_packages(metadata, &mut packages)?;
+
+    loading.set_message("Analyzing project structure...");
 
     // Get raw license string directly if we found it
     let raw_license_str: Option<String> = direct_license;
@@ -140,6 +145,8 @@ fn submit(
         let mut package_sources = resolver::package_sources(package)?;
         sources.append(&mut package_sources);
     }
+
+    loading.set_message("Processing source files...");
 
     let prefix = resolver::biggest_common_prefix(&sources, args.path.root_dir());
     let manifest_path = voyager::manifest_path(metadata);
@@ -332,14 +339,23 @@ fn submit(
     };
     info!("licensed with: {license_display}");
 
+    loading.finish_and_clear();
+
     info!("using cairo: {cairo_version} and scarb {scarb_version}");
     info!("These are the files that will be used for verification:");
+
+    let file_progress = FileProcessingProgress::new(files.len());
     for path in files.values() {
+        let filename = path.file_name().unwrap_or("unknown");
+        file_progress.process_file(filename);
         info!("{path}");
     }
+    file_progress.finish();
 
     if args.execute {
-        return public
+        let upload_progress = ApiProgress::new_upload();
+
+        let result = public
             .verify_class(
                 &args.class_hash,
                 Some(license_display.to_string()),
@@ -354,6 +370,14 @@ fn submit(
                     .collect_vec(),
             )
             .map_err(CliError::from);
+
+        match &result {
+            Ok(job_id) => upload_progress
+                .finish_with_message(&format!("✅ Verification submitted! Job ID: {}", job_id)),
+            Err(_) => upload_progress.finish_with_message("❌ Upload failed"),
+        }
+
+        return result;
     }
 
     info!("ℹ️  This was a dry run. Files listed above will be submitted for verification.");
@@ -372,7 +396,12 @@ fn format_timestamp(timestamp: f64) -> String {
 }
 
 fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> {
+    let polling_progress = ApiProgress::new_polling();
+    polling_progress.set_message(&format!("Checking status for job {}", job_id));
+
     let status = poll_verification_status(public, job_id).map_err(CliError::from)?;
+
+    polling_progress.finish_and_clear();
 
     match status.status() {
         VerifyJobStatus::Success => {
