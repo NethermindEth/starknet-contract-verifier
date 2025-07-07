@@ -148,24 +148,28 @@ impl fmt::Display for MissingContract {
             writeln!(formatter)?;
             writeln!(formatter, "💡 Available packages:")?;
             for package in &self.available {
-                writeln!(formatter, "   • {}", package)?;
+                writeln!(formatter, "   • {package}")?;
             }
             writeln!(formatter)?;
             writeln!(formatter, "🔧 Try: --package <package-name>")?;
         } else {
-            writeln!(formatter, "❌ Contract '{}' not found", self.name)?;
+            writeln!(
+                formatter,
+                "❌ Contract '{name}' not found",
+                name = self.name
+            )?;
             writeln!(formatter)?;
 
             let suggestions = self.find_suggestions();
             if suggestions.len() < self.available.len() {
                 writeln!(formatter, "🔍 Did you mean one of these?")?;
                 for suggestion in &suggestions {
-                    writeln!(formatter, "   • {}", suggestion)?;
+                    writeln!(formatter, "   • {suggestion}")?;
                 }
             } else {
                 writeln!(formatter, "📋 Available contracts:")?;
                 for contract in &self.available {
-                    writeln!(formatter, "   • {}", contract)?;
+                    writeln!(formatter, "   • {contract}")?;
                 }
             }
             writeln!(formatter)?;
