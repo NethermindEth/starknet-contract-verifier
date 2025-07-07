@@ -30,7 +30,7 @@ impl fmt::Display for MissingPackage {
         writeln!(formatter)?;
         writeln!(formatter, "💡 Available packages:")?;
         for package in &self.available {
-            writeln!(formatter, "   • {}", package)?;
+            writeln!(formatter, "   • {package}")?;
         }
         writeln!(formatter)?;
         writeln!(formatter, "🔧 Try: --package <package-name>")?;
