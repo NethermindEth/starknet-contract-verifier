@@ -28,15 +28,13 @@ pub enum CliError {
     #[error(transparent)]
     MissingPackage(#[from] errors::MissingPackage),
 
-    #[error("Class hash {0} is not declared")]
+    #[error("❌ Class hash {0} is not declared on the network\n\n💡 Make sure the contract is deployed and the class hash is correct.\n🔧 Try: Check the class hash on Voyager or use 'starkli class-hash' to verify.")]
     NotDeclared(ClassHash),
 
-    #[error("No contracts selected for verification. Use --contract-name argument")]
+    #[error("❌ No contracts selected for verification\n\n💡 You need to specify which contract to verify.\n🔧 Try: --contract-name <contract-name>")]
     NoTarget,
 
-    #[error(
-        "Only single contract verification is supported. Specify with --contract-name argument"
-    )]
+    #[error("❌ Multiple contracts found\n\n💡 Only single contract verification is supported currently.\n🔧 Try: --contract-name <specific-contract-name>")]
     MultipleContracts,
 
     // TODO: Display suggestions
@@ -46,7 +44,7 @@ pub enum CliError {
     #[error(transparent)]
     Resolver(#[from] resolver::Error),
 
-    #[error("Couldn't strip {prefix} from {path}")]
+    #[error("❌ Path processing error\n\n📁 Couldn't strip prefix '{prefix}' from path '{path}'\n💡 This is usually a project structure issue. Make sure you're running from the correct directory.")]
     StripPrefix {
         path: Utf8PathBuf,
         prefix: Utf8PathBuf,
@@ -100,8 +98,9 @@ fn main() -> anyhow::Result<()> {
                 && args.path.get_license().is_none()
                 && found_license.is_none()
             {
+                warn!("⚠️  No license specified - will default to 'All Rights Reserved'");
                 warn!(
-                    "No license provided via CLI or in Scarb.toml, defaults to All Rights Reserved"
+                    "💡 Consider adding a license: --license MIT or add 'license = \"MIT\"' to your Scarb.toml"
                 );
             }
 
@@ -205,9 +204,10 @@ fn submit(
             files.insert(lock_file_rel.to_string(), lock_file_path.clone());
         } else {
             warn!(
-                "--lock-file flag enabled but Scarb.lock not found at {}",
+                "⚠️  --lock-file flag enabled but Scarb.lock not found at {}",
                 lock_file_path
             );
+            warn!("💡 Run 'scarb build' to generate Scarb.lock, or remove --lock-file flag");
         }
     }
 
@@ -356,7 +356,8 @@ fn submit(
             .map_err(CliError::from);
     }
 
-    info!("Nothing to do, add `--execute` flag to actually verify the contract");
+    info!("ℹ️  This was a dry run. Files listed above will be submitted for verification.");
+    info!("🚀 To actually verify the contract, add the --execute flag");
     Ok("dry-run".to_string())
 }
 
