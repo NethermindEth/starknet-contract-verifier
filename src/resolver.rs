@@ -97,6 +97,17 @@ pub fn package_sources(package_metadata: &PackageMetadata) -> Result<Vec<Utf8Pat
         .filter_map(std::result::Result::ok)
         .filter(|f| f.file_type().is_file())
         .filter(|f| {
+            // Exclude test directories
+            if let Some(path_str) = f.path().to_str() {
+                if path_str.contains("/tests/")
+                    || path_str.contains("/test/")
+                    || path_str.contains("/examples/")
+                    || path_str.contains("/benchmarks/")
+                {
+                    return false;
+                }
+            }
+
             // Include Cairo files
             if let Some(ext) = f.path().extension() {
                 if ext == OsStr::new(CAIRO_EXT) {
