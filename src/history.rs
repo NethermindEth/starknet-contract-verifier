@@ -73,10 +73,6 @@ impl VerificationHistory {
         }
     }
 
-    pub fn get_record(&self, job_id: &str) -> Option<&VerificationRecord> {
-        self.records.get(job_id)
-    }
-
     pub fn get_recent_records(&self, limit: usize) -> Vec<&VerificationRecord> {
         let mut records: Vec<&VerificationRecord> = self.records.values().collect();
         records.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
@@ -85,7 +81,6 @@ impl VerificationHistory {
 }
 
 pub struct HistoryManager {
-    history_dir: PathBuf,
     history_file: PathBuf,
 }
 
@@ -99,10 +94,7 @@ impl HistoryManager {
             fs::create_dir_all(&history_dir)?;
         }
 
-        Ok(Self {
-            history_dir,
-            history_file,
-        })
+        Ok(Self { history_file })
     }
 
     pub fn load_history(&self) -> Result<VerificationHistory, HistoryError> {
@@ -137,14 +129,6 @@ impl HistoryManager {
         history.update_status(job_id, status);
         self.save_history(&history)?;
         Ok(())
-    }
-
-    pub fn get_job_details(
-        &self,
-        job_id: &str,
-    ) -> Result<Option<VerificationRecord>, HistoryError> {
-        let history = self.load_history()?;
-        Ok(history.get_record(job_id).cloned())
     }
 
     pub fn list_recent_jobs(&self, limit: usize) -> Result<Vec<VerificationRecord>, HistoryError> {
