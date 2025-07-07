@@ -8,12 +8,9 @@ pub struct ProgressIndicator {
 impl ProgressIndicator {
     pub fn new_spinner(message: &str) -> Self {
         let bar = ProgressBar::new_spinner();
-        bar.set_style(
-            ProgressStyle::default_spinner()
-                .template("{spinner:.green} {msg}")
-                .unwrap()
-                .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "),
-        );
+        if let Ok(style) = ProgressStyle::default_spinner().template("{spinner:.green} {msg}") {
+            bar.set_style(style.tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
+        }
         bar.set_message(message.to_string());
         bar.enable_steady_tick(Duration::from_millis(100));
 
@@ -36,12 +33,11 @@ pub struct FileProcessingProgress {
 impl FileProcessingProgress {
     pub fn new(total_files: usize) -> Self {
         let bar = ProgressBar::new(total_files as u64);
-        bar.set_style(
-            ProgressStyle::default_bar()
-                .template("📁 Processing files [{bar:25.cyan/blue}] {pos}/{len} {msg}")
-                .unwrap()
-                .progress_chars("█▉▊▋▌▍▎▏  "),
-        );
+        if let Ok(style) = ProgressStyle::default_bar()
+            .template("📁 Processing files [{bar:25.cyan/blue}] {pos}/{len} {msg}")
+        {
+            bar.set_style(style.progress_chars("█▉▊▋▌▍▎▏  "));
+        }
 
         Self { bar }
     }
@@ -63,12 +59,10 @@ pub struct ApiProgress {
 impl ApiProgress {
     pub fn new_upload() -> Self {
         let bar = ProgressBar::new_spinner();
-        bar.set_style(
-            ProgressStyle::default_spinner()
-                .template("🚀 {msg} {spinner:.green}")
-                .unwrap()
-                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ "),
-        );
+        if let Ok(style) = ProgressStyle::default_spinner().template("🚀 {msg} {spinner:.green}")
+        {
+            bar.set_style(style.tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ "));
+        }
         bar.set_message("Uploading verification request...");
         bar.enable_steady_tick(Duration::from_millis(80));
 
@@ -77,12 +71,10 @@ impl ApiProgress {
 
     pub fn new_polling() -> Self {
         let bar = ProgressBar::new_spinner();
-        bar.set_style(
-            ProgressStyle::default_spinner()
-                .template("⏳ {msg} {spinner:.yellow}")
-                .unwrap()
-                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ "),
-        );
+        if let Ok(style) = ProgressStyle::default_spinner().template("⏳ {msg} {spinner:.yellow}")
+        {
+            bar.set_style(style.tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ "));
+        }
         bar.set_message("Checking verification status...");
         bar.enable_steady_tick(Duration::from_millis(120));
 
