@@ -2,6 +2,15 @@
 
 Client for the [Voyager Starknet block explorer](https://voyager.online), that allows you to verify your starknet classes.
 
+## ✨ Key Features
+
+- 🎯 **Enhanced User Experience**: Helpful error messages with actionable suggestions
+- ⏳ **Real-time Progress**: Visual progress indicators and status updates
+- 🔍 **Auto-watch Mode**: Automatic monitoring until verification completion
+- 📚 **Job History**: Local tracking of all verification attempts
+- 🎨 **Rich Output**: Colored status display and better formatting
+- 🔗 **Direct Links**: Easy access to verified contracts on Voyager
+
 ## Installation
 
 ```bash
@@ -60,8 +69,11 @@ starknet-contract-verifier --network mainnet verify \
     --path <PATH_TO_YOUR_SCARB_PROJECT> \ # if you are running outside project root
     --license <SPDX_LICENSE_ID> # if not provided in Scarb.toml
     --lock-file \ # optional: include Scarb.lock file in verification
+    --watch \ # optional: auto-watch until completion
     --execute
 ```
+
+The tool now provides **real-time progress indicators** and **enhanced error messages** with helpful suggestions to guide you through common issues.
 
 For workspace projects (multiple packages), you'll need to specify the package:
 
@@ -74,19 +86,40 @@ starknet-contract-verifier --network mainnet verify \
   --execute
 ```
 
-When successful you'll be given verification job id, which you can pass to:
+When successful, you'll be given a verification job id. The tool automatically saves all verification jobs to your **local history** for easy tracking.
 
+**Option 1: Auto-watch (Recommended)**
+Use the `--watch` flag to automatically monitor progress:
+```bash
+starknet-contract-verifier --network mainnet verify \
+    --class-hash <YOUR_CONTRACT_CLASS_HASH> \
+    --contract-name <YOUR_CONTRACT_NAME> \
+    --watch \
+    --execute
+```
+
+**Option 2: Manual status checking**
 ```bash
 starknet-contract-verifier --network mainnet status --job <JOB_ID>
 ```
 
-to check the verification status. Afterwards visit [Voyager website](https://sepolia.voyager.online/) and search for your class hash to see the *verified* badge.
+**Option 3: Status with auto-watch**
+```bash
+starknet-contract-verifier --network mainnet status --job <JOB_ID> --watch
+```
+
+**View your verification history:**
+```bash
+starknet-contract-verifier --network mainnet list
+```
+
+Afterwards visit [Voyager website](https://voyager.online/) and search for your class hash to see the *verified* badge.
 
 ## Detailed information
 
 ### Verification
 
-`starknet-contract-verifier` provides two subcommands: `verify` and `status`. For both cases user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
+`starknet-contract-verifier` provides three main subcommands: `verify`, `status`, and `list`. For all cases user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
 
 - `mainnet`, main starknet network (default API endpoints: <https://api.voyager.online/beta> and <https://voyager.online>)
 - `sepolia`, test network (default API endpoints: <https://sepolia-api.voyager.online/beta> and <https://sepolia.voyager.online>)
@@ -105,13 +138,70 @@ In order to verify a contract, you need to provide several arguments:
 - `--lock-file`, include Scarb.lock file in verification submission (optional, defaults to false)
   - When enabled, the tool will include the Scarb.lock file (if it exists) in the files sent to the remote API for verification
   - This can be useful for ensuring reproducible builds by locking dependency versions
-- `--watch`, wait indefinitely for verification result (optional)
+- `--watch`, automatically monitor verification progress until completion (optional)
+  - Eliminates the need to manually check status repeatedly
+  - Provides real-time updates on verification progress
 - `--package`, specify which package to verify (required for workspace projects with multiple packages)
 
 There are more options, each of them is documented in the `--help` output.
 
-If the verification submission is successful, client will output the verification job id.
+#### Visual Feedback
+
+The tool provides comprehensive visual feedback:
+- 🔄 **Loading spinners** during project analysis
+- 📁 **File processing progress bars** showing which files are being processed
+- 🚀 **Upload progress indicators** during API submission
+- ⏳ **Status monitoring** with real-time updates
+- ✅ **Success celebrations** with clear next steps
+
+If the verification submission is successful, the client will output the verification job id and automatically save it to your local history.
 
 #### Checking job status
 
-User can query the verification job status using `status` command and providing job id as the `--job` argument value. The status check will poll the server with exponential backoff until the verification is complete or fails.
+There are several ways to check verification status:
+
+1. **Auto-watch during verification**: Use `--watch` flag with the `verify` command
+2. **Manual status check**: Use `status` command with the job ID
+3. **Auto-watch status**: Use `status` command with `--watch` flag for continuous monitoring
+4. **View history**: Use `list` command to see recent verification jobs
+
+**Enhanced Status Features:**
+- 🎨 **Colored output** for better readability
+- ⏳ **Real-time progress indicators** with spinners and progress bars
+- 📋 **Job history tracking** - all verifications are automatically saved
+- 🔗 **Direct Voyager links** for easy contract browsing
+- 💡 **Helpful error messages** with actionable suggestions
+
+#### Job History Management
+
+The tool automatically maintains a history of all verification jobs in `~/.starknet-verifier/history.json`. You can:
+
+```bash
+# List recent verification jobs (default: 10)
+starknet-contract-verifier --network mainnet list
+
+# List more jobs
+starknet-contract-verifier --network mainnet list --limit 20
+```
+
+Each history entry includes:
+- Job ID and current status
+- Contract name and class hash
+- Network and project path
+- License information
+- Submission timestamp
+- Direct Voyager link
+
+#### Error Handling & Troubleshooting
+
+The tool now provides **enhanced error messages** with:
+- 🎯 **Context-aware suggestions** for common issues
+- 💡 **"Did you mean..."** suggestions for typos
+- 📁 **Better workspace project guidance**
+- 🔧 **Actionable solutions** for most error scenarios
+
+Common issues and solutions:
+- **Missing package error**: The tool will list available packages and suggest the correct `--package` flag
+- **Contract not found**: Suggestions based on similar contract names
+- **License issues**: Clear guidance on valid SPDX identifiers
+- **API errors**: Status-specific troubleshooting advice
