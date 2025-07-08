@@ -77,4 +77,54 @@ mod tests {
         let invalid_hash = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
         assert!(ClassHash::new(invalid_hash).is_err());
     }
+
+    #[test]
+    fn test_invalid_class_hash_too_long() {
+        let invalid_hash =
+            "0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da1812345";
+        assert!(ClassHash::new(invalid_hash).is_err());
+    }
+
+    #[test]
+    fn test_empty_class_hash() {
+        assert!(ClassHash::new("").is_err());
+    }
+
+    #[test]
+    fn test_class_hash_display() {
+        let hash = "0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18";
+        let class_hash = ClassHash::new(hash).unwrap();
+        assert_eq!(format!("{class_hash}"), hash);
+    }
+
+    #[test]
+    fn test_class_hash_as_ref_str() {
+        let hash = "0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18";
+        let class_hash = ClassHash::new(hash).unwrap();
+        let as_str: &str = class_hash.as_ref();
+        assert_eq!(as_str, hash);
+    }
+
+    #[test]
+    fn test_class_hash_as_ref_string() {
+        let hash = "0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18";
+        let class_hash = ClassHash::new(hash).unwrap();
+        let expected_string = hash.to_string();
+        let as_string: &String = class_hash.as_ref();
+        assert_eq!(as_string, &expected_string);
+    }
+
+    #[test]
+    fn test_class_hash_clone() {
+        let hash = "0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18";
+        let class_hash = ClassHash::new(hash).unwrap();
+        let cloned = class_hash.clone();
+        assert_eq!(class_hash, cloned);
+    }
+
+    #[test]
+    fn test_class_hash_error_display() {
+        let error = ClassHashError::Match("invalid_hash".to_string());
+        assert_eq!(format!("{error}"), "invalid_hash is not valid class hash");
+    }
 }
