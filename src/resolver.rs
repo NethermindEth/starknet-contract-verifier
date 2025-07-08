@@ -174,6 +174,7 @@ pub fn biggest_common_prefix<P: AsRef<Utf8Path> + Clone>(
 const CAIRO_EXT: &str = "cairo";
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use camino::Utf8PathBuf;

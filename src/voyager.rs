@@ -54,6 +54,7 @@ pub fn tool_section(metadata: &Metadata) -> Result<HashMap<PackageId, ContractMa
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use camino::Utf8PathBuf;

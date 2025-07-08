@@ -51,6 +51,7 @@ impl AsRef<String> for ClassHash {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
