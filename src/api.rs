@@ -30,11 +30,37 @@ pub enum VerifyJobStatus {
 
 #[derive(Debug, Error)]
 pub enum VerificationError {
-    #[error("Compilation failed: {0}")]
+    #[error("[E004] Compilation failed: {0}")]
     CompilationFailure(String),
 
-    #[error("Compilation failed: {0}")]
+    #[error("[E005] Verification failed: {0}")]
     VerificationFailure(String),
+}
+
+impl VerificationError {
+    pub const fn error_code(&self) -> &'static str {
+        match self {
+            Self::CompilationFailure(_) => "E004",
+            Self::VerificationFailure(_) => "E005",
+        }
+    }
+
+    pub fn suggestions(&self) -> Vec<&'static str> {
+        match self {
+            Self::CompilationFailure(_) => vec![
+                "Check your Cairo syntax for errors",
+                "Verify all dependencies are properly declared",
+                "Ensure your Cairo version is compatible",
+                "Run 'scarb build' locally to debug compilation issues",
+            ],
+            Self::VerificationFailure(_) => vec![
+                "Check that your contract was compiled correctly",
+                "Verify the class hash matches your contract",
+                "Ensure you're using the correct network",
+                "Check that all contract dependencies are available",
+            ],
+        }
+    }
 }
 
 // TODO: Option blindness?
@@ -62,19 +88,19 @@ pub struct ApiClient {
 
 #[derive(Error, Debug)]
 pub enum ApiClientError {
-    #[error("{0} cannot be base, provide valid URL")]
+    #[error("[E006] Invalid base URL: {0}\n\nSuggestions:\n  • Provide a valid HTTP or HTTPS URL\n  • Example: https://api.example.com\n  • Ensure the URL includes the protocol (http:// or https://)")]
     CannotBeBase(Url),
 
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
 
-    #[error("Verification job is still in progress")]
+    #[error("[E007] Verification job is still in progress\n\nSuggestions:\n  • Wait a moment before checking again\n  • Use --wait to automatically wait for completion\n  • Check the job status periodically")]
     InProgress,
 
     #[error(transparent)]
     Failure(#[from] errors::RequestFailure),
 
-    #[error("Job {0} not found")]
+    #[error("[E008] Job '{0}' not found\n\nSuggestions:\n  • Check that the job ID is correct\n  • Verify the job was submitted successfully\n  • The job may have expired from the server\n  • Try submitting a new verification request")]
     JobNotFound(String),
 
     #[error(transparent)]
@@ -83,8 +109,22 @@ pub enum ApiClientError {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
 
-    #[error("URL cannot be a base: {0}")]
+    #[error("[E009] Invalid URL format: {0}\n\nSuggestions:\n  • Check the URL format is correct\n  • Ensure proper encoding of special characters\n  • Use absolute URLs with protocol (http:// or https://)")]
     UrlCannotBeBase(#[from] url::ParseError),
+}
+
+impl ApiClientError {
+    pub const fn error_code(&self) -> &'static str {
+        match self {
+            Self::CannotBeBase(_) => "E006",
+            Self::Reqwest(_) | Self::IoError(_) => "E999", // Network errors get generic code
+            Self::InProgress => "E007",
+            Self::Failure(f) => f.error_code().as_str(),
+            Self::JobNotFound(_) => "E008",
+            Self::Verify(v) => v.error_code(),
+            Self::UrlCannotBeBase(_) => "E009",
+        }
+    }
 }
 
 /**

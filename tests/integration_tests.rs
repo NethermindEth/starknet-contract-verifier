@@ -53,16 +53,14 @@ fn test_verify_job_status_serialization() {
 #[test]
 fn test_verification_error_display() {
     let compilation_error = VerificationError::CompilationFailure("Test error".to_string());
-    assert_eq!(
-        format!("{compilation_error}"),
-        "Compilation failed: Test error"
-    );
+    let comp_message = format!("{compilation_error}");
+    assert!(comp_message.contains("[E004]"));
+    assert!(comp_message.contains("Compilation failed: Test error"));
 
     let verification_error = VerificationError::VerificationFailure("Test error".to_string());
-    assert_eq!(
-        format!("{verification_error}"),
-        "Compilation failed: Test error"
-    );
+    let verif_message = format!("{verification_error}");
+    assert!(verif_message.contains("[E005]"));
+    assert!(verif_message.contains("Verification failed: Test error"));
 }
 
 #[test]
@@ -144,7 +142,8 @@ fn test_error_handling_integration() {
     // Test that errors can be properly chained and displayed
     let class_hash_error = ClassHashError::Match("invalid".to_string());
     let error_message = format!("{class_hash_error}");
-    assert_eq!(error_message, "invalid is not valid class hash");
+    assert!(error_message.contains("[E010]"));
+    assert!(error_message.contains("Invalid class hash format"));
 
     // Test resolver errors
     let resolver_error = resolver::Error::DependencyPath {
@@ -152,7 +151,8 @@ fn test_error_handling_integration() {
         path: "/invalid/path".to_string(),
     };
     let error_message = format!("{resolver_error}");
-    assert_eq!(error_message, "Couldn't parse test_dep path: /invalid/path");
+    assert!(error_message.contains("[E012]"));
+    assert!(error_message.contains("Invalid dependency path"));
 
     // Test voyager errors
     let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();

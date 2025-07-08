@@ -23,30 +23,30 @@ use verifier::{
 #[derive(Debug, Error)]
 pub enum CliError {
     #[error(transparent)]
+    Args(#[from] crate::args::ProjectError),
+
+    #[error(transparent)]
     Api(#[from] ApiClientError),
 
     #[error(transparent)]
     MissingPackage(#[from] errors::MissingPackage),
 
-    #[error("Class hash {0} is not declared")]
+    #[error("[E015] Class hash '{0}' is not declared\n\nSuggestions:\n  • Verify the class hash is correct\n  • Check that the contract has been declared on the network\n  • Ensure you're using the correct network (mainnet/testnet)\n  • Use a block explorer to verify the class hash exists")]
     NotDeclared(ClassHash),
 
-    #[error("No contracts selected for verification. Use --contract-name argument")]
+    #[error("[E016] No contracts selected for verification\n\nSuggestions:\n  • Use --contract-name <name> to specify a contract\n  • Check that contracts are defined in [tool.voyager] section\n  • Verify your Scarb.toml contains contract definitions\n  • Use 'scarb metadata' to list available contracts")]
     NoTarget,
 
-    #[error(
-        "Only single contract verification is supported. Specify with --contract-name argument"
-    )]
+    #[error("[E017] Multiple contracts found - only single contract verification is supported\n\nSuggestions:\n  • Use --contract-name <name> to specify which contract to verify\n  • Choose one from the available contracts\n  • Verify each contract separately")]
     MultipleContracts,
 
-    // TODO: Display suggestions
     #[error(transparent)]
     MissingContract(#[from] errors::MissingContract),
 
     #[error(transparent)]
     Resolver(#[from] resolver::Error),
 
-    #[error("Couldn't strip {prefix} from {path}")]
+    #[error("[E018] Path processing error: cannot strip '{prefix}' from '{path}'\n\nThis is an internal error. Please report this issue with:\n  • The full command you ran\n  • Your project structure\n  • The contents of your Scarb.toml")]
     StripPrefix {
         path: Utf8PathBuf,
         prefix: Utf8PathBuf,
@@ -57,6 +57,24 @@ pub enum CliError {
 
     #[error(transparent)]
     Voyager(#[from] voyager::Error),
+}
+
+impl CliError {
+    pub const fn error_code(&self) -> &'static str {
+        match self {
+            Self::Args(_) => "E020",
+            Self::Api(e) => e.error_code(),
+            Self::MissingPackage(e) => e.error_code().as_str(),
+            Self::NotDeclared(_) => "E015",
+            Self::NoTarget => "E016",
+            Self::MultipleContracts => "E017",
+            Self::MissingContract(e) => e.error_code().as_str(),
+            Self::Resolver(e) => e.error_code(),
+            Self::StripPrefix { .. } => "E018",
+            Self::Utf8(_) => "E019",
+            Self::Voyager(_) => "E999",
+        }
+    }
 }
 
 fn display_verification_job_id(job_id: &str) {

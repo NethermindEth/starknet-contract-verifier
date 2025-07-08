@@ -9,14 +9,24 @@ use walkdir::WalkDir;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Couldn't parse {name} path: {path}")]
+    #[error("[E012] Invalid dependency path for '{name}': {path}\n\nSuggestions:\n  • Check that the path exists and is accessible\n  • Use relative paths from the current directory\n  • Verify the path format is correct\n  • Example: path:../my-dependency")]
     DependencyPath { name: String, path: String },
 
-    #[error("scarb metadata failed for {name}: {path}")]
+    #[error("[E013] Failed to read metadata for '{name}' at path: {path}\n\nSuggestions:\n  • Check that Scarb.toml exists at the specified path\n  • Verify the Scarb.toml file is valid\n  • Run 'scarb metadata' in the target directory to test\n  • Ensure scarb is installed and accessible")]
     MetadataError { name: String, path: PathBuf },
 
-    #[error(transparent)]
+    #[error("[E014] Path contains invalid UTF-8 characters\n\nSuggestions:\n  • Use only ASCII characters in file paths\n  • Avoid special characters in directory names\n  • Check for hidden or control characters in the path")]
     Utf8(#[from] camino::FromPathBufError),
+}
+
+impl Error {
+    pub const fn error_code(&self) -> &'static str {
+        match self {
+            Self::DependencyPath { .. } => "E012",
+            Self::MetadataError { .. } => "E013",
+            Self::Utf8(_) => "E014",
+        }
+    }
 }
 
 /// # Errors
@@ -218,10 +228,12 @@ mod tests {
             name: "test_package".to_string(),
             path: "/invalid/path".to_string(),
         };
-        assert_eq!(
-            format!("{error}"),
-            "Couldn't parse test_package path: /invalid/path"
-        );
+        let error_message = format!("{error}");
+        assert!(error_message.contains("[E012]"));
+        assert!(error_message.contains("Invalid dependency path"));
+        assert!(error_message.contains("test_package"));
+        assert!(error_message.contains("/invalid/path"));
+        assert!(error_message.contains("Check that the path exists"));
     }
 
     #[test]

@@ -7,10 +7,19 @@ pub struct ClassHash(String);
 
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum ClassHashError {
-    #[error("{0} is not valid class hash")]
+    #[error("[E010] Invalid class hash format: '{0}'\n\nExpected format: 0x followed by up to 64 hexadecimal characters\nExample: 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18\n\nSuggestions:\n  • Check that the hash starts with '0x'\n  • Verify all characters are hexadecimal (0-9, a-f, A-F)\n  • Ensure the hash is not longer than 66 characters total")]
     Match(String),
-    #[error("Class hash regex error")]
+    #[error("[E011] Internal validation error")]
     Regex(#[from] regex::Error),
+}
+
+impl ClassHashError {
+    pub const fn error_code(&self) -> &'static str {
+        match self {
+            Self::Match(_) => "E010",
+            Self::Regex(_) => "E011",
+        }
+    }
 }
 
 impl ClassHash {
@@ -126,6 +135,10 @@ mod tests {
     #[test]
     fn test_class_hash_error_display() {
         let error = ClassHashError::Match("invalid_hash".to_string());
-        assert_eq!(format!("{error}"), "invalid_hash is not valid class hash");
+        let error_message = format!("{error}");
+        assert!(error_message.contains("[E010]"));
+        assert!(error_message.contains("Invalid class hash format"));
+        assert!(error_message.contains("invalid_hash"));
+        assert!(error_message.contains("Expected format: 0x followed by"));
     }
 }

@@ -12,17 +12,28 @@ pub struct Project(Metadata);
 
 #[derive(Error, Debug)]
 pub enum ProjectError {
-    #[error("{0} doesn't contain Scarb project manifest")]
+    #[error("[E020] Scarb project manifest not found at: {0}\n\nSuggestions:\n  • Check that you're in a Scarb project directory\n  • Verify that Scarb.toml exists in the specified path\n  • Run 'scarb init' to create a new project\n  • Use --manifest-path to specify the correct path")]
     MissingManifest(Utf8PathBuf),
 
-    #[error("scarb metadata command failed")]
+    #[error("[E021] Failed to read project metadata\n\nSuggestions:\n  • Check that Scarb.toml is valid TOML format\n  • Verify all dependencies are properly declared\n  • Run 'scarb check' to validate your project\n  • Ensure scarb is installed and up to date")]
     MetadataError(#[from] MetadataCommandError),
 
-    #[error("IO error")]
+    #[error("[E022] File system error\n\nSuggestions:\n  • Check file permissions\n  • Verify the path exists and is accessible\n  • Ensure you have read access to the directory")]
     Io(#[from] io::Error),
 
-    #[error("UTF-8 error")]
+    #[error("[E023] Path contains invalid UTF-8 characters\n\nSuggestions:\n  • Use only ASCII characters in file paths\n  • Avoid special characters in directory names\n  • Check for hidden or control characters in the path")]
     Utf8(#[from] camino::FromPathBufError),
+}
+
+impl ProjectError {
+    pub const fn error_code(&self) -> &'static str {
+        match self {
+            Self::MissingManifest(_) => "E020",
+            Self::MetadataError(_) => "E021",
+            Self::Io(_) => "E022",
+            Self::Utf8(_) => "E023",
+        }
+    }
 }
 
 #[allow(dead_code)]
