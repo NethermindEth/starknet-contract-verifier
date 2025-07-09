@@ -1,6 +1,11 @@
+use lazy_static::lazy_static;
 use regex::Regex;
 use std::fmt;
 use thiserror::Error;
+
+lazy_static! {
+    static ref CLASS_HASH_REGEX: Regex = Regex::new(r"^0x[a-fA-F0-9]+$").unwrap();
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ClassHash(String);
@@ -9,31 +14,25 @@ pub struct ClassHash(String);
 pub enum ClassHashError {
     #[error("[E010] Invalid class hash format: '{0}'\n\nExpected format: 0x followed by up to 64 hexadecimal characters\nExample: 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18\n\nSuggestions:\n  • Check that the hash starts with '0x'\n  • Verify all characters are hexadecimal (0-9, a-f, A-F)\n  • Ensure the hash is not longer than 66 characters total")]
     Match(String),
-    #[error("[E011] Internal validation error")]
-    Regex(#[from] regex::Error),
 }
 
 impl ClassHashError {
     pub const fn error_code(&self) -> &'static str {
         match self {
             Self::Match(_) => "E010",
-            Self::Regex(_) => "E011",
         }
     }
 }
 
 impl ClassHash {
     const NORMALIZED_LENGTH: usize = 66;
-    const PATTERN: &str = r"^0x[a-fA-F0-9]+$";
 
     /// # Errors
     ///
     /// Will fail if the `raw` dosn't match class hash regex, i.e. it
     /// has to start with "0x" followed by 64 hexadecimal digits.
     pub fn new(raw: &str) -> Result<Self, ClassHashError> {
-        let re = Regex::new(Self::PATTERN)?;
-
-        if raw.len() <= Self::NORMALIZED_LENGTH && re.is_match(raw) {
+        if raw.len() <= Self::NORMALIZED_LENGTH && CLASS_HASH_REGEX.is_match(raw) {
             Ok(Self(raw.into()))
         } else {
             Err(ClassHashError::Match(raw.to_string()))

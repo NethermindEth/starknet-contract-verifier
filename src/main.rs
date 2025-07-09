@@ -57,6 +57,19 @@ pub enum CliError {
 
     #[error(transparent)]
     Voyager(#[from] voyager::Error),
+
+    #[error("[E019] File '{path}' exceeds maximum size limit of {max_size} bytes (actual: {actual_size} bytes)\n\nSuggestions:\n  • Reduce the file size by removing unnecessary content\n  • Split large files into smaller modules\n  • Check if the file contains generated or temporary content\n  • Use .gitignore to exclude large files that shouldn't be verified")]
+    FileSizeLimit {
+        path: Utf8PathBuf,
+        max_size: usize,
+        actual_size: usize,
+    },
+
+    #[error("[E024] File '{path}' has invalid file type (extension: {extension})\n\nSuggestions:\n  • Only include Cairo source files (.cairo)\n  • Include project configuration files (.toml, .lock)\n  • Include documentation files (.md, .txt)\n  • Remove binary or executable files from the project\n  • Allowed extensions: .cairo, .toml, .lock, .md, .txt, .json")]
+    InvalidFileType {
+        path: Utf8PathBuf,
+        extension: String,
+    },
 }
 
 impl CliError {
@@ -71,8 +84,10 @@ impl CliError {
             Self::MissingContract(e) => e.error_code().as_str(),
             Self::Resolver(e) => e.error_code(),
             Self::StripPrefix { .. } => "E018",
-            Self::Utf8(_) => "E019",
+            Self::Utf8(_) => "E023",
             Self::Voyager(_) => "E999",
+            Self::FileSizeLimit { .. } => "E019",
+            Self::InvalidFileType { .. } => "E024",
         }
     }
 }
@@ -296,7 +311,50 @@ fn build_file_map(
     // Add lock file if requested
     add_lock_file_if_requested(&mut files, args, prefix)?;
 
+    // Validate file sizes
+    validate_file_sizes(&files)?;
+
     Ok(files)
+}
+
+fn validate_file_sizes(files: &HashMap<String, Utf8PathBuf>) -> Result<(), CliError> {
+    const MAX_FILE_SIZE: usize = 1024 * 1024 * 20; // 20MB limit
+
+    for (_, path) in files {
+        // Validate file type
+        validate_file_type(path)?;
+
+        // Validate file size
+        if let Ok(metadata) = std::fs::metadata(path) {
+            let size = metadata.len() as usize;
+            if size > MAX_FILE_SIZE {
+                return Err(CliError::FileSizeLimit {
+                    path: path.clone(),
+                    max_size: MAX_FILE_SIZE,
+                    actual_size: size,
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_file_type(path: &Utf8PathBuf) -> Result<(), CliError> {
+    // Get file extension
+    let extension = path.extension().unwrap_or("");
+
+    // Define allowed file types
+    let allowed_extensions = ["cairo", "toml", "lock", "md", "txt", "json"];
+
+    // Check if extension is allowed
+    if !allowed_extensions.contains(&extension) {
+        return Err(CliError::InvalidFileType {
+            path: path.clone(),
+            extension: extension.to_string(),
+        });
+    }
+
+    Ok(())
 }
 
 fn add_manifest_files(

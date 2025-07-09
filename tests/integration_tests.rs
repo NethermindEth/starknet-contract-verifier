@@ -26,7 +26,6 @@ fn test_class_hash_integration() {
 
     match result.unwrap_err() {
         ClassHashError::Match(hash) => assert_eq!(hash, invalid_hash),
-        _ => panic!("Expected Match error"),
     }
 }
 

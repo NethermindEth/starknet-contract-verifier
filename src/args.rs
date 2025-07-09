@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use regex::Regex;
 use reqwest::Url;
 use scarb_metadata::{Metadata, MetadataCommand, MetadataCommandError};
 use spdx::LicenseId;
@@ -192,6 +193,71 @@ fn license_value_parser(license: &str) -> Result<LicenseId, String> {
     Err(format!("Unrecognized license: {license}{guess}"))
 }
 
+fn contract_name_value_parser(name: &str) -> Result<String, String> {
+    // Check for minimum length
+    if name.is_empty() {
+        return Err("Contract name cannot be empty".to_string());
+    }
+
+    // Check for maximum length (reasonable limit)
+    if name.len() > 100 {
+        return Err("Contract name cannot exceed 100 characters".to_string());
+    }
+
+    // Check for valid characters: alphanumeric, underscore, hyphen
+    let valid_chars = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
+    if !valid_chars.is_match(name) {
+        return Err(
+            "Contract name can only contain alphanumeric characters, underscores, and hyphens"
+                .to_string(),
+        );
+    }
+
+    // Check that it doesn't start with a hyphen or underscore
+    if name.starts_with('-') || name.starts_with('_') {
+        return Err("Contract name cannot start with a hyphen or underscore".to_string());
+    }
+
+    // Check that it doesn't end with a hyphen or underscore
+    if name.ends_with('-') || name.ends_with('_') {
+        return Err("Contract name cannot end with a hyphen or underscore".to_string());
+    }
+
+    // Additional security check: reject common system names
+    let reserved_names = [
+        "con", "aux", "prn", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
+        "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    ];
+    if reserved_names.contains(&name.to_lowercase().as_str()) {
+        return Err("Contract name cannot be a reserved system name".to_string());
+    }
+
+    Ok(name.to_string())
+}
+
+fn package_name_value_parser(name: &str) -> Result<String, String> {
+    // Check for minimum length
+    if name.is_empty() {
+        return Err("Package name cannot be empty".to_string());
+    }
+
+    // Check for maximum length (reasonable limit)
+    if name.len() > 100 {
+        return Err("Package name cannot exceed 100 characters".to_string());
+    }
+
+    // Check for valid characters: alphanumeric, underscore, hyphen
+    let valid_chars = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
+    if !valid_chars.is_match(name) {
+        return Err(
+            "Package name can only contain alphanumeric characters, underscores, and hyphens"
+                .to_string(),
+        );
+    }
+
+    Ok(name.to_string())
+}
+
 #[derive(clap::Args)]
 pub struct VerifyArgs {
     /// Execute verification (otherwise dry run)
@@ -229,11 +295,19 @@ pub struct VerifyArgs {
     pub license: Option<LicenseId>,
 
     /// Contract name for submission
-    #[arg(long = "contract-name", value_name = "NAME")]
+    #[arg(
+        long = "contract-name",
+        value_name = "NAME",
+        value_parser = contract_name_value_parser
+    )]
     pub contract_name: String,
 
     /// Select package for verification (required for workspace projects)
-    #[arg(long, value_name = "PACKAGE_ID")]
+    #[arg(
+        long,
+        value_name = "PACKAGE_ID",
+        value_parser = package_name_value_parser
+    )]
     pub package: Option<String>,
 
     /// Include Scarb.lock file in verification submission

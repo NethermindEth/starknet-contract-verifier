@@ -88,7 +88,6 @@ fn test_class_hash_error_with_detailed_format_info() {
         ClassHashError::Match(_) => {
             // Error has correct variant
         }
-        _ => panic!("Expected Match error"),
     }
 }
 

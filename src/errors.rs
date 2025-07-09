@@ -214,11 +214,23 @@ impl fmt::Display for RequestFailure {
                 writeln!(formatter, "  • Check if the service is running")?;
             }
             413 => {
-                writeln!(formatter, "  • The request payload is too large (maximum 10MB)")?;
-                writeln!(formatter, "  • Consider reducing the size of your project files")?;
+                writeln!(
+                    formatter,
+                    "  • The request payload is too large (maximum 10MB)"
+                )?;
+                writeln!(
+                    formatter,
+                    "  • Consider reducing the size of your project files"
+                )?;
                 writeln!(formatter, "  • Remove unnecessary files or large assets")?;
-                writeln!(formatter, "  • Try without --test-files or --lock-file flags")?;
-                writeln!(formatter, "  • Check for large binary files or dependencies")?;
+                writeln!(
+                    formatter,
+                    "  • Try without --test-files or --lock-file flags"
+                )?;
+                writeln!(
+                    formatter,
+                    "  • Check for large binary files or dependencies"
+                )?;
             }
             429 => {
                 writeln!(formatter, "  • Wait a moment before retrying")?;
