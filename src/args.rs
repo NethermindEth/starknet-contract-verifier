@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use lazy_static::lazy_static;
 use regex::Regex;
 use reqwest::Url;
 use scarb_metadata::{Metadata, MetadataCommand, MetadataCommandError};
@@ -7,6 +8,17 @@ use std::{env, fmt::Display, io, path::PathBuf};
 use thiserror::Error;
 
 use verifier::class_hash::ClassHash;
+
+fn get_name_validation_regex() -> Result<&'static Regex, String> {
+    lazy_static! {
+        static ref VALID_NAME_REGEX: Result<Regex, regex::Error> = Regex::new(r"^[a-zA-Z0-9_-]+$");
+    }
+
+    match VALID_NAME_REGEX.as_ref() {
+        Ok(regex) => Ok(regex),
+        Err(_) => Err("Internal regex compilation error".to_string()),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Project(Metadata);
@@ -205,8 +217,8 @@ fn contract_name_value_parser(name: &str) -> Result<String, String> {
     }
 
     // Check for valid characters: alphanumeric, underscore, hyphen
-    let valid_chars = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
-    if !valid_chars.is_match(name) {
+    let regex = get_name_validation_regex()?;
+    if !regex.is_match(name) {
         return Err(
             "Contract name can only contain alphanumeric characters, underscores, and hyphens"
                 .to_string(),
@@ -247,8 +259,8 @@ fn package_name_value_parser(name: &str) -> Result<String, String> {
     }
 
     // Check for valid characters: alphanumeric, underscore, hyphen
-    let valid_chars = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
-    if !valid_chars.is_match(name) {
+    let regex = get_name_validation_regex()?;
+    if !regex.is_match(name) {
         return Err(
             "Package name can only contain alphanumeric characters, underscores, and hyphens"
                 .to_string(),

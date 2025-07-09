@@ -217,7 +217,7 @@ impl ApiClient {
             ApiClientError::from(RequestFailure::new(
                 url.clone(),
                 StatusCode::OK,
-                format!("Failed to parse JSON response: {}", e),
+                format!("Failed to parse JSON response: {e}"),
             ))
         })?;
 

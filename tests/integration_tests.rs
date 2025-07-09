@@ -26,6 +26,7 @@ fn test_class_hash_integration() {
 
     match result.unwrap_err() {
         ClassHashError::Match(hash) => assert_eq!(hash, invalid_hash),
+        ClassHashError::RegexError => panic!("Unexpected regex error in test"),
     }
 }
 

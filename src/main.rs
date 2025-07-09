@@ -122,7 +122,7 @@ fn main() -> anyhow::Result<()> {
                 if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
                     eprintln!("\nSuggestions:");
                     for suggestion in verification_error.suggestions() {
-                        eprintln!("  • {}", suggestion);
+                        eprintln!("  • {suggestion}");
                     }
                 } else if let CliError::Api(ApiClientError::Failure(ref _request_failure)) = e {
                     // RequestFailure errors already include suggestions in their display
@@ -138,7 +138,7 @@ fn main() -> anyhow::Result<()> {
                 if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
                     eprintln!("\nSuggestions:");
                     for suggestion in verification_error.suggestions() {
-                        eprintln!("  • {}", suggestion);
+                        eprintln!("  • {suggestion}");
                     }
                 } else if let CliError::Api(ApiClientError::Failure(ref _request_failure)) = e {
                     // RequestFailure errors already include suggestions in their display
@@ -320,7 +320,7 @@ fn build_file_map(
 fn validate_file_sizes(files: &HashMap<String, Utf8PathBuf>) -> Result<(), CliError> {
     const MAX_FILE_SIZE: usize = 1024 * 1024 * 20; // 20MB limit
 
-    for (_, path) in files {
+    for path in files.values() {
         // Validate file type
         validate_file_type(path)?;
 

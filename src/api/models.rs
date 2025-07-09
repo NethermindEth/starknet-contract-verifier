@@ -83,14 +83,14 @@ impl VerificationJob {
         self.license.as_deref()
     }
 
-    pub fn is_completed(&self) -> bool {
+    pub const fn is_completed(&self) -> bool {
         matches!(
             self.status,
             VerifyJobStatus::Success | VerifyJobStatus::Fail | VerifyJobStatus::CompileFailed
         )
     }
 
-    pub fn has_failed(&self) -> bool {
+    pub const fn has_failed(&self) -> bool {
         matches!(
             self.status,
             VerifyJobStatus::Fail | VerifyJobStatus::CompileFailed
