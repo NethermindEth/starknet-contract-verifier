@@ -1,4 +1,6 @@
 use camino::Utf8PathBuf;
+use lazy_static::lazy_static;
+use regex::Regex;
 use reqwest::Url;
 use scarb_metadata::{Metadata, MetadataCommand, MetadataCommandError};
 use spdx::LicenseId;
@@ -7,22 +9,44 @@ use thiserror::Error;
 
 use verifier::class_hash::ClassHash;
 
+fn get_name_validation_regex() -> Result<&'static Regex, String> {
+    lazy_static! {
+        static ref VALID_NAME_REGEX: Result<Regex, regex::Error> = Regex::new(r"^[a-zA-Z0-9_-]+$");
+    }
+
+    match VALID_NAME_REGEX.as_ref() {
+        Ok(regex) => Ok(regex),
+        Err(_) => Err("Internal regex compilation error".to_string()),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Project(Metadata);
 
 #[derive(Error, Debug)]
 pub enum ProjectError {
-    #[error("{0} doesn't contain Scarb project manifest")]
+    #[error("[E020] Scarb project manifest not found at: {0}\n\nSuggestions:\n  • Check that you're in a Scarb project directory\n  • Verify that Scarb.toml exists in the specified path\n  • Run 'scarb init' to create a new project\n  • Use --manifest-path to specify the correct path")]
     MissingManifest(Utf8PathBuf),
 
-    #[error("scarb metadata command failed")]
+    #[error("[E021] Failed to read project metadata\n\nSuggestions:\n  • Check that Scarb.toml is valid TOML format\n  • Verify all dependencies are properly declared\n  • Run 'scarb check' to validate your project\n  • Ensure scarb is installed and up to date")]
     MetadataError(#[from] MetadataCommandError),
 
-    #[error("IO error")]
+    #[error("[E022] File system error\n\nSuggestions:\n  • Check file permissions\n  • Verify the path exists and is accessible\n  • Ensure you have read access to the directory")]
     Io(#[from] io::Error),
 
-    #[error("UTF-8 error")]
+    #[error("[E023] Path contains invalid UTF-8 characters\n\nSuggestions:\n  • Use only ASCII characters in file paths\n  • Avoid special characters in directory names\n  • Check for hidden or control characters in the path")]
     Utf8(#[from] camino::FromPathBufError),
+}
+
+impl ProjectError {
+    pub const fn error_code(&self) -> &'static str {
+        match self {
+            Self::MissingManifest(_) => "E020",
+            Self::MetadataError(_) => "E021",
+            Self::Io(_) => "E022",
+            Self::Utf8(_) => "E023",
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -181,6 +205,71 @@ fn license_value_parser(license: &str) -> Result<LicenseId, String> {
     Err(format!("Unrecognized license: {license}{guess}"))
 }
 
+fn contract_name_value_parser(name: &str) -> Result<String, String> {
+    // Check for minimum length
+    if name.is_empty() {
+        return Err("Contract name cannot be empty".to_string());
+    }
+
+    // Check for maximum length (reasonable limit)
+    if name.len() > 100 {
+        return Err("Contract name cannot exceed 100 characters".to_string());
+    }
+
+    // Check for valid characters: alphanumeric, underscore, hyphen
+    let regex = get_name_validation_regex()?;
+    if !regex.is_match(name) {
+        return Err(
+            "Contract name can only contain alphanumeric characters, underscores, and hyphens"
+                .to_string(),
+        );
+    }
+
+    // Check that it doesn't start with a hyphen or underscore
+    if name.starts_with('-') || name.starts_with('_') {
+        return Err("Contract name cannot start with a hyphen or underscore".to_string());
+    }
+
+    // Check that it doesn't end with a hyphen or underscore
+    if name.ends_with('-') || name.ends_with('_') {
+        return Err("Contract name cannot end with a hyphen or underscore".to_string());
+    }
+
+    // Additional security check: reject common system names
+    let reserved_names = [
+        "con", "aux", "prn", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
+        "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    ];
+    if reserved_names.contains(&name.to_lowercase().as_str()) {
+        return Err("Contract name cannot be a reserved system name".to_string());
+    }
+
+    Ok(name.to_string())
+}
+
+fn package_name_value_parser(name: &str) -> Result<String, String> {
+    // Check for minimum length
+    if name.is_empty() {
+        return Err("Package name cannot be empty".to_string());
+    }
+
+    // Check for maximum length (reasonable limit)
+    if name.len() > 100 {
+        return Err("Package name cannot exceed 100 characters".to_string());
+    }
+
+    // Check for valid characters: alphanumeric, underscore, hyphen
+    let regex = get_name_validation_regex()?;
+    if !regex.is_match(name) {
+        return Err(
+            "Package name can only contain alphanumeric characters, underscores, and hyphens"
+                .to_string(),
+        );
+    }
+
+    Ok(name.to_string())
+}
+
 #[derive(clap::Args)]
 pub struct VerifyArgs {
     /// Execute verification (otherwise dry run)
@@ -218,16 +307,28 @@ pub struct VerifyArgs {
     pub license: Option<LicenseId>,
 
     /// Contract name for submission
-    #[arg(long = "contract-name", value_name = "NAME")]
+    #[arg(
+        long = "contract-name",
+        value_name = "NAME",
+        value_parser = contract_name_value_parser
+    )]
     pub contract_name: String,
 
     /// Select package for verification (required for workspace projects)
-    #[arg(long, value_name = "PACKAGE_ID")]
+    #[arg(
+        long,
+        value_name = "PACKAGE_ID",
+        value_parser = package_name_value_parser
+    )]
     pub package: Option<String>,
 
     /// Include Scarb.lock file in verification submission
     #[arg(long, default_value_t = false)]
     pub lock_file: bool,
+
+    /// Include test files from src/ directory in verification submission
+    #[arg(long, default_value_t = false)]
+    pub test_files: bool,
 }
 
 #[derive(clap::ValueEnum, Clone)]

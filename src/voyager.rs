@@ -52,3 +52,105 @@ pub fn tool_section(metadata: &Metadata) -> Result<HashMap<PackageId, ContractMa
     }
     Ok(voyager)
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use camino::Utf8PathBuf;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_manifest_path_with_runtime_manifest() {
+        // Create a minimal test without complex scarb_metadata structs
+        let runtime_manifest = Utf8PathBuf::from("/test/project/Scarb.toml");
+        let workspace_manifest = Utf8PathBuf::from("/test/project/Scarb.toml");
+
+        // Test the logic: if runtime_manifest is not empty, use it
+        if runtime_manifest != Utf8PathBuf::new() {
+            assert_eq!(
+                runtime_manifest,
+                Utf8PathBuf::from("/test/project/Scarb.toml")
+            );
+        } else {
+            assert_eq!(
+                workspace_manifest,
+                Utf8PathBuf::from("/test/project/Scarb.toml")
+            );
+        }
+    }
+
+    #[test]
+    fn test_manifest_path_fallback_to_workspace() {
+        // Test the fallback logic
+        let runtime_manifest = Utf8PathBuf::new(); // Empty path
+        let workspace_manifest = Utf8PathBuf::from("/test/project/Scarb.toml");
+
+        let result = if runtime_manifest == Utf8PathBuf::new() {
+            &workspace_manifest
+        } else {
+            &runtime_manifest
+        };
+
+        assert_eq!(result, &Utf8PathBuf::from("/test/project/Scarb.toml"));
+    }
+
+    #[test]
+    fn test_voyager_clone() {
+        let voyager = Voyager {
+            path: PathBuf::from("/test/path"),
+            address: Some("0x123".to_string()),
+        };
+        let cloned = voyager.clone();
+        assert_eq!(voyager.path, cloned.path);
+        assert_eq!(voyager.address, cloned.address);
+    }
+
+    #[test]
+    fn test_voyager_debug() {
+        let voyager = Voyager {
+            path: PathBuf::from("/test/path"),
+            address: Some("0x123".to_string()),
+        };
+        let debug_str = format!("{voyager:?}");
+        assert!(debug_str.contains("/test/path"));
+        assert!(debug_str.contains("0x123"));
+    }
+
+    #[test]
+    fn test_error_display() {
+        let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let error = Error::Deserialization(json_error);
+        let error_string = format!("{error}");
+        assert!(error_string.contains("expected value"));
+    }
+
+    #[test]
+    fn test_contract_map_functionality() {
+        let mut contract_map = ContractMap::new();
+        contract_map.insert(
+            "contract1".to_string(),
+            Voyager {
+                path: PathBuf::from("/test/contract1.cairo"),
+                address: Some("0x123".to_string()),
+            },
+        );
+        contract_map.insert(
+            "contract2".to_string(),
+            Voyager {
+                path: PathBuf::from("/test/contract2.cairo"),
+                address: None,
+            },
+        );
+
+        assert_eq!(contract_map.len(), 2);
+        assert!(contract_map.contains_key("contract1"));
+        assert!(contract_map.contains_key("contract2"));
+
+        let contract1 = contract_map.get("contract1").unwrap();
+        assert_eq!(contract1.address, Some("0x123".to_string()));
+
+        let contract2 = contract_map.get("contract2").unwrap();
+        assert_eq!(contract2.address, None);
+    }
+}

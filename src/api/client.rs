@@ -1,90 +1,27 @@
-use std::{fmt::Display, fs, path::PathBuf, time::Duration};
+use std::{fs, time::Duration};
 
 use backon::{BlockingRetryable, ExponentialBuilder};
 use reqwest::{
     blocking::{self, multipart, Client},
     StatusCode,
 };
-use semver;
-use serde_repr::{Deserialize_repr, Serialize_repr};
-use thiserror::Error;
 use url::Url;
 
-use crate::{
-    class_hash::ClassHash,
-    errors::{self, RequestFailure},
+use crate::{class_hash::ClassHash, errors::RequestFailure};
+
+use super::errors::{ApiClientError, VerificationError};
+use super::models::{
+    Error, FileInfo, ProjectMetadataInfo, VerificationJob, VerificationJobDispatch,
 };
-
-#[derive(Clone, Debug, Deserialize_repr, Eq, PartialEq, Serialize_repr)]
-#[repr(u8)]
-pub enum VerifyJobStatus {
-    Submitted = 0,
-    Compiled = 1,
-    CompileFailed = 2,
-    Fail = 3,
-    Success = 4,
-    Processing = 5,
-    #[serde(other)]
-    Unknown,
-}
-
-#[derive(Debug, Error)]
-pub enum VerificationError {
-    #[error("Compilation failed: {0}")]
-    CompilationFailure(String),
-
-    #[error("Compilation failed: {0}")]
-    VerificationFailure(String),
-}
+use super::types::VerifyJobStatus;
 
 // TODO: Option blindness?
 type JobStatus = Option<VerificationJob>;
-
-impl Display for VerifyJobStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Submitted => write!(f, "Submitted"),
-            Self::Compiled => write!(f, "Compiled"),
-            Self::CompileFailed => write!(f, "CompileFailed"),
-            Self::Fail => write!(f, "Fail"),
-            Self::Success => write!(f, "Success"),
-            Self::Processing => write!(f, "Processing"),
-            Self::Unknown => write!(f, "Unknown"),
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct ApiClient {
     base: Url,
     client: Client,
-}
-
-#[derive(Error, Debug)]
-pub enum ApiClientError {
-    #[error("{0} cannot be base, provide valid URL")]
-    CannotBeBase(Url),
-
-    #[error(transparent)]
-    Reqwest(#[from] reqwest::Error),
-
-    #[error("Verification job is still in progress")]
-    InProgress,
-
-    #[error(transparent)]
-    Failure(#[from] errors::RequestFailure),
-
-    #[error("Job {0} not found")]
-    JobNotFound(String),
-
-    #[error(transparent)]
-    Verify(#[from] VerificationError),
-
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
-
-    #[error("URL cannot be a base: {0}")]
-    UrlCannotBeBase(#[from] url::ParseError),
 }
 
 /**
@@ -217,6 +154,13 @@ impl ApiClient {
                     response.json::<Error>()?.error,
                 )));
             }
+            StatusCode::PAYLOAD_TOO_LARGE => {
+                return Err(ApiClientError::from(RequestFailure::new(
+                    url,
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    "Request payload too large. Maximum allowed size is 10MB.".to_string(),
+                )));
+            }
             status_code => {
                 return Err(ApiClientError::from(RequestFailure::new(
                     url,
@@ -264,19 +208,63 @@ impl ApiClient {
             }
         }
 
-        let data = response.json::<VerificationJob>()?;
+        let response_text = response.text()?;
+        log::debug!("Raw API Response: {}", response_text);
+
+        let data: VerificationJob = serde_json::from_str(&response_text).map_err(|e| {
+            log::error!("Failed to parse JSON response: {}", e);
+            log::error!("Response text: {}", response_text);
+            ApiClientError::from(RequestFailure::new(
+                url.clone(),
+                StatusCode::OK,
+                format!("Failed to parse JSON response: {e}"),
+            ))
+        })?;
+
+        // Debug logging to see the actual response
+        log::debug!("Parsed API Response: job_id={}, status={:?}, status_description={:?}, message={:?}, error_category={:?}", 
+                   data.job_id, data.status, data.status_description, data.message, data.error_category);
+
         match data.status {
             VerifyJobStatus::Success => Ok(Some(data)),
-            VerifyJobStatus::Fail => Err(ApiClientError::from(
-                VerificationError::VerificationFailure(
-                    data.status_description
-                        .unwrap_or_else(|| "unknown failure".to_owned()),
-                ),
-            )),
+            VerifyJobStatus::Fail => {
+                let error_message = data
+                    .message
+                    .or_else(|| data.status_description.clone())
+                    .unwrap_or_else(|| "unknown failure".to_owned());
+
+                // Parse specific error types from the server response
+                let parsed_error = if error_message.contains("Payload too large")
+                    || error_message.contains("payload too large")
+                {
+                    "Request payload too large. The project files exceed the maximum allowed size of 10MB. Try reducing file sizes or removing unnecessary files."
+                } else {
+                    &error_message
+                };
+
+                Err(ApiClientError::from(
+                    VerificationError::VerificationFailure(parsed_error.to_owned()),
+                ))
+            }
             VerifyJobStatus::CompileFailed => {
+                let error_message = data
+                    .message
+                    .or_else(|| data.status_description.clone())
+                    .unwrap_or_else(|| "unknown failure".to_owned());
+
+                // Parse specific error types from the server response
+                let parsed_error = if error_message.contains("Payload too large")
+                    || error_message.contains("payload too large")
+                {
+                    "Request payload too large. The project files exceed the maximum allowed size of 10MB. Try reducing file sizes or removing unnecessary files."
+                } else if error_message.contains("Couldn't connect to cairo compilation service") {
+                    "Cairo compilation service is currently unavailable. Please try again later."
+                } else {
+                    &error_message
+                };
+
                 Err(ApiClientError::from(VerificationError::CompilationFailure(
-                    data.status_description
-                        .unwrap_or_else(|| "unknown failure".to_owned()),
+                    parsed_error.to_owned(),
                 )))
             }
             VerifyJobStatus::Submitted
@@ -285,92 +273,16 @@ impl ApiClient {
             | VerifyJobStatus::Unknown => Ok(None),
         }
     }
-}
 
-#[derive(Debug, serde::Deserialize)]
-pub struct Error {
-    error: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct VerificationJobDispatch {
-    job_id: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct VerificationJob {
-    job_id: String,
-    status: VerifyJobStatus,
-    status_description: Option<String>,
-    class_hash: String,
-    created_timestamp: Option<f64>,
-    updated_timestamp: Option<f64>,
-    address: Option<String>,
-    contract_file: Option<String>,
-    name: Option<String>,
-    version: Option<String>,
-    license: Option<String>,
-}
-
-impl VerificationJob {
-    pub const fn status(&self) -> &VerifyJobStatus {
-        &self.status
+    /// # Errors
+    ///
+    /// Will return `Err` on network error or if the verification has failed.
+    pub fn get_verification_job(&self, job_id: &str) -> Result<VerificationJob, ApiClientError> {
+        match self.get_job_status(job_id)? {
+            Some(job) => Ok(job),
+            None => Err(ApiClientError::InProgress),
+        }
     }
-
-    pub fn class_hash(&self) -> &str {
-        &self.class_hash
-    }
-
-    pub fn job_id(&self) -> &str {
-        &self.job_id
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-
-    pub fn contract_file(&self) -> Option<&str> {
-        self.contract_file.as_deref()
-    }
-
-    pub fn status_description(&self) -> Option<&str> {
-        self.status_description.as_deref()
-    }
-
-    pub const fn created_timestamp(&self) -> Option<f64> {
-        self.created_timestamp
-    }
-
-    pub const fn updated_timestamp(&self) -> Option<f64> {
-        self.updated_timestamp
-    }
-
-    pub fn address(&self) -> Option<&str> {
-        self.address.as_deref()
-    }
-
-    pub fn version(&self) -> Option<&str> {
-        self.version.as_deref()
-    }
-
-    pub fn license(&self) -> Option<&str> {
-        self.license.as_deref()
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct FileInfo {
-    pub name: String,
-    pub path: PathBuf,
-}
-
-#[derive(Debug, Clone)]
-pub struct ProjectMetadataInfo {
-    pub cairo_version: semver::Version,
-    pub scarb_version: semver::Version,
-    pub project_dir_path: String,
-    pub contract_file: String,
-    pub package_name: String,
 }
 
 pub enum Status {

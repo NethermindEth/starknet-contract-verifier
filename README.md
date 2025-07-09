@@ -60,6 +60,7 @@ starknet-contract-verifier --network mainnet verify \
     --path <PATH_TO_YOUR_SCARB_PROJECT> \ # if you are running outside project root
     --license <SPDX_LICENSE_ID> # if not provided in Scarb.toml
     --lock-file \ # optional: include Scarb.lock file in verification
+    --test-files \ # optional: include test files from src/ directory in verification
     --execute
 ```
 
@@ -71,6 +72,7 @@ starknet-contract-verifier --network mainnet verify \
   --contract-name <YOUR_CONTRACT_NAME> \
   --package <PACKAGE_ID> \
   --lock-file \ # optional: include Scarb.lock file in verification
+  --test-files \ # optional: include test files from src/ directory in verification
   --execute
 ```
 
@@ -105,6 +107,10 @@ In order to verify a contract, you need to provide several arguments:
 - `--lock-file`, include Scarb.lock file in verification submission (optional, defaults to false)
   - When enabled, the tool will include the Scarb.lock file (if it exists) in the files sent to the remote API for verification
   - This can be useful for ensuring reproducible builds by locking dependency versions
+- `--test-files`, include test files from src/ directory in verification submission (optional, defaults to false)
+  - When enabled, the tool will include test files (files with "test" or "tests" in their path) that are located within the src/ directory
+  - This can be useful when your contract depends on test utilities or helper functions for verification
+  - Only affects files within the src/ directory; test files in dedicated test directories are still excluded
 - `--watch`, wait indefinitely for verification result (optional)
 - `--package`, specify which package to verify (required for workspace projects with multiple packages)
 
