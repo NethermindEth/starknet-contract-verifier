@@ -396,7 +396,7 @@ fn add_workspace_manifest_if_needed(
                     path: workspace_manifest.clone(),
                     prefix: prefix.to_path_buf(),
                 })?;
-        debug!("Including workspace root manifest: {}", workspace_manifest);
+        debug!("Including workspace root manifest: {workspace_manifest}");
         files.insert(
             workspace_manifest_rel.to_string(),
             workspace_manifest.clone(),
@@ -421,13 +421,10 @@ fn add_lock_file_if_requested(
                         path: lock_file_path.clone(),
                         prefix: prefix.to_path_buf(),
                     })?;
-            debug!("Including Scarb.lock file: {}", lock_file_path);
+            debug!("Including Scarb.lock file: {lock_file_path}");
             files.insert(lock_file_rel.to_string(), lock_file_path.clone());
         } else {
-            warn!(
-                "--lock-file flag enabled but Scarb.lock not found at {}",
-                lock_file_path
-            );
+            warn!("--lock-file flag enabled but Scarb.lock not found at {lock_file_path}");
         }
     }
     Ok(())
