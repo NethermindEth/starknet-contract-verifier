@@ -98,6 +98,17 @@ pub fn gather_packages(
 /// Will return `Err` if it can't read files from the directory that
 /// metadata points to.
 pub fn package_sources(package_metadata: &PackageMetadata) -> Result<Vec<Utf8PathBuf>, Error> {
+    package_sources_with_test_files(package_metadata, false)
+}
+
+/// # Errors
+///
+/// Will return `Err` if it can't read files from the directory that
+/// metadata points to.
+pub fn package_sources_with_test_files(
+    package_metadata: &PackageMetadata,
+    include_test_files: bool,
+) -> Result<Vec<Utf8PathBuf>, Error> {
     debug!("Collecting sources for package: {}", package_metadata.name);
     debug!("Package root: {}", package_metadata.root);
     debug!("Package manifest: {}", package_metadata.manifest_path);
@@ -107,8 +118,18 @@ pub fn package_sources(package_metadata: &PackageMetadata) -> Result<Vec<Utf8Pat
         .filter_map(std::result::Result::ok)
         .filter(|f| f.file_type().is_file())
         .filter(|f| {
-            // Exclude test directories
+            // Check if this is a test file
             if let Some(path_str) = f.path().to_str() {
+                // Check if the path contains test directories but only if it's in src/
+                let is_in_src = path_str.contains("/src/");
+                let has_test_in_path = path_str.contains("/test") || path_str.contains("/tests/");
+
+                if is_in_src && has_test_in_path {
+                    // This is a test file in src/
+                    return include_test_files;
+                }
+
+                // Exclude test directories outside src/
                 if path_str.contains("/tests/")
                     || path_str.contains("/test/")
                     || path_str.contains("/examples/")

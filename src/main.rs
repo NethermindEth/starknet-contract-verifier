@@ -103,13 +103,33 @@ fn main() -> anyhow::Result<()> {
 
             license::warn_if_no_license(&license_info);
 
-            let job_id = submit(&public, &private, args, &license_info)?;
+            let job_id = submit(&public, &private, args, &license_info).map_err(|e| {
+                if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
+                    eprintln!("\nSuggestions:");
+                    for suggestion in verification_error.suggestions() {
+                        eprintln!("  • {}", suggestion);
+                    }
+                } else if let CliError::Api(ApiClientError::Failure(ref _request_failure)) = e {
+                    // RequestFailure errors already include suggestions in their display
+                }
+                e
+            })?;
             if job_id != "dry-run" {
                 display_verification_job_id(&job_id);
             }
         }
         Commands::Status { job } => {
-            let status = check(&public, job)?;
+            let status = check(&public, job).map_err(|e| {
+                if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
+                    eprintln!("\nSuggestions:");
+                    for suggestion in verification_error.suggestions() {
+                        eprintln!("  • {}", suggestion);
+                    }
+                } else if let CliError::Api(ApiClientError::Failure(ref _request_failure)) = e {
+                    // RequestFailure errors already include suggestions in their display
+                }
+                e
+            })?;
             info!("{status:?}");
         }
     }
@@ -126,7 +146,7 @@ fn submit(
 
     // Gather packages and sources
     let packages = gather_packages_and_validate(metadata, args)?;
-    let sources = collect_source_files(metadata, &packages)?;
+    let sources = collect_source_files(metadata, &packages, args.test_files)?;
 
     // Prepare project structure
     let (file_infos, package_meta, contract_file, project_dir_path) =
@@ -196,10 +216,12 @@ fn gather_packages_and_validate(
 fn collect_source_files(
     _metadata: &scarb_metadata::Metadata,
     packages: &[PackageMetadata],
+    include_test_files: bool,
 ) -> Result<Vec<Utf8PathBuf>, CliError> {
     let mut sources: Vec<Utf8PathBuf> = vec![];
     for package in packages {
-        let mut package_sources = resolver::package_sources(package)?;
+        let mut package_sources =
+            resolver::package_sources_with_test_files(package, include_test_files)?;
         sources.append(&mut package_sources);
     }
     Ok(sources)

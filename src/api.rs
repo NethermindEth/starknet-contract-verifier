@@ -47,18 +47,42 @@ impl VerificationError {
 
     pub fn suggestions(&self) -> Vec<&'static str> {
         match self {
-            Self::CompilationFailure(_) => vec![
-                "Check your Cairo syntax for errors",
-                "Verify all dependencies are properly declared",
-                "Ensure your Cairo version is compatible",
-                "Run 'scarb build' locally to debug compilation issues",
-            ],
-            Self::VerificationFailure(_) => vec![
-                "Check that your contract was compiled correctly",
-                "Verify the class hash matches your contract",
-                "Ensure you're using the correct network",
-                "Check that all contract dependencies are available",
-            ],
+            Self::CompilationFailure(msg) => {
+                if msg.contains("payload too large") || msg.contains("Payload too large") {
+                    vec![
+                        "The project files exceed the maximum allowed size of 10MB",
+                        "Try removing unnecessary files or large assets",
+                        "Use --test-files flag only when necessary",
+                        "Remove --lock-file flag if not needed",
+                        "Check for large binary files or dependencies",
+                    ]
+                } else {
+                    vec![
+                        "Check your Cairo syntax for errors",
+                        "Verify all dependencies are properly declared",
+                        "Ensure your Cairo version is compatible",
+                        "Run 'scarb build' locally to debug compilation issues",
+                    ]
+                }
+            },
+            Self::VerificationFailure(msg) => {
+                if msg.contains("payload too large") || msg.contains("Payload too large") {
+                    vec![
+                        "The project files exceed the maximum allowed size of 10MB",
+                        "Try removing unnecessary files or large assets",
+                        "Use --test-files flag only when necessary",
+                        "Remove --lock-file flag if not needed",
+                        "Check for large binary files or dependencies",
+                    ]
+                } else {
+                    vec![
+                        "Check that your contract was compiled correctly",
+                        "Verify the class hash matches your contract",
+                        "Ensure you're using the correct network",
+                        "Check that all contract dependencies are available",
+                    ]
+                }
+            },
         }
     }
 }
@@ -257,6 +281,13 @@ impl ApiClient {
                     response.json::<Error>()?.error,
                 )));
             }
+            StatusCode::PAYLOAD_TOO_LARGE => {
+                return Err(ApiClientError::from(RequestFailure::new(
+                    url,
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    "Request payload too large. Maximum allowed size is 10MB.".to_string(),
+                )));
+            }
             status_code => {
                 return Err(ApiClientError::from(RequestFailure::new(
                     url,
@@ -304,19 +335,58 @@ impl ApiClient {
             }
         }
 
-        let data = response.json::<VerificationJob>()?;
+        let response_text = response.text()?;
+        log::debug!("Raw API Response: {}", response_text);
+        
+        let data: VerificationJob = serde_json::from_str(&response_text)
+            .map_err(|e| {
+                log::error!("Failed to parse JSON response: {}", e);
+                log::error!("Response text: {}", response_text);
+                ApiClientError::from(RequestFailure::new(
+                    url.clone(),
+                    StatusCode::OK,
+                    format!("Failed to parse JSON response: {}", e)
+                ))
+            })?;
+        
+        // Debug logging to see the actual response
+        log::debug!("Parsed API Response: job_id={}, status={:?}, status_description={:?}, message={:?}, error_category={:?}", 
+                   data.job_id, data.status, data.status_description, data.message, data.error_category);
+        
         match data.status {
             VerifyJobStatus::Success => Ok(Some(data)),
-            VerifyJobStatus::Fail => Err(ApiClientError::from(
-                VerificationError::VerificationFailure(
-                    data.status_description
-                        .unwrap_or_else(|| "unknown failure".to_owned()),
-                ),
-            )),
+            VerifyJobStatus::Fail => {
+                let error_message = data.message
+                    .or_else(|| data.status_description.clone())
+                    .unwrap_or_else(|| "unknown failure".to_owned());
+                
+                // Parse specific error types from the server response
+                let parsed_error = if error_message.contains("Payload too large") || error_message.contains("payload too large") {
+                    "Request payload too large. The project files exceed the maximum allowed size of 10MB. Try reducing file sizes or removing unnecessary files."
+                } else {
+                    &error_message
+                };
+                
+                Err(ApiClientError::from(
+                    VerificationError::VerificationFailure(parsed_error.to_owned()),
+                ))
+            },
             VerifyJobStatus::CompileFailed => {
+                let error_message = data.message
+                    .or_else(|| data.status_description.clone())
+                    .unwrap_or_else(|| "unknown failure".to_owned());
+                
+                // Parse specific error types from the server response
+                let parsed_error = if error_message.contains("Payload too large") || error_message.contains("payload too large") {
+                    "Request payload too large. The project files exceed the maximum allowed size of 10MB. Try reducing file sizes or removing unnecessary files."
+                } else if error_message.contains("Couldn't connect to cairo compilation service") {
+                    "Cairo compilation service is currently unavailable. Please try again later."
+                } else {
+                    &error_message
+                };
+                
                 Err(ApiClientError::from(VerificationError::CompilationFailure(
-                    data.status_description
-                        .unwrap_or_else(|| "unknown failure".to_owned()),
+                    parsed_error.to_owned(),
                 )))
             }
             VerifyJobStatus::Submitted
@@ -342,7 +412,9 @@ pub struct VerificationJob {
     job_id: String,
     status: VerifyJobStatus,
     status_description: Option<String>,
-    class_hash: String,
+    message: Option<String>,
+    error_category: Option<String>,
+    class_hash: Option<String>,
     created_timestamp: Option<f64>,
     updated_timestamp: Option<f64>,
     address: Option<String>,
@@ -358,7 +430,7 @@ impl VerificationJob {
     }
 
     pub fn class_hash(&self) -> &str {
-        &self.class_hash
+        self.class_hash.as_deref().unwrap_or("unknown")
     }
 
     pub fn job_id(&self) -> &str {
@@ -375,6 +447,14 @@ impl VerificationJob {
 
     pub fn status_description(&self) -> Option<&str> {
         self.status_description.as_deref()
+    }
+
+    pub fn message(&self) -> Option<&str> {
+        self.message.as_deref()
+    }
+
+    pub fn error_category(&self) -> Option<&str> {
+        self.error_category.as_deref()
     }
 
     pub const fn created_timestamp(&self) -> Option<f64> {

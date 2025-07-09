@@ -239,6 +239,10 @@ pub struct VerifyArgs {
     /// Include Scarb.lock file in verification submission
     #[arg(long, default_value_t = false)]
     pub lock_file: bool,
+
+    /// Include test files from src/ directory in verification submission
+    #[arg(long, default_value_t = false)]
+    pub test_files: bool,
 }
 
 #[derive(clap::ValueEnum, Clone)]
