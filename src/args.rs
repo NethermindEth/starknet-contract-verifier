@@ -140,13 +140,33 @@ pub fn project_value_parser(raw: &str) -> Result<Project, ProjectError> {
 #[command(name = "Starknet Contract Verifier")]
 #[command(author = "Nethermind")]
 #[command(version)]
-#[command(about = "Verify Starknet classes on Voyager block explorer")]
-#[command(long_about = "")]
+#[command(about = "Verify Starknet smart contracts on block explorers")]
+#[command(long_about = "
+A command-line tool for verifying Starknet smart contracts on block explorers.
+
+This tool allows you to verify that the source code of a deployed contract matches
+the bytecode on the blockchain. It supports multiple networks (mainnet, testnet, custom)
+and automatically handles project dependencies and source file collection.
+
+Examples:
+  # Verify a contract on mainnet
+  starknet-contract-verifier --network mainnet verify --execute \\
+    --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
+    --contract-name MyContract
+
+  # Check verification status
+  starknet-contract-verifier --network mainnet status --job job-id-here
+
+  # Dry run (preview what would be submitted)
+  starknet-contract-verifier --network mainnet verify \\
+    --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
+    --contract-name MyContract
+")]
 pub struct Args {
     #[command(subcommand)]
     pub command: Commands,
 
-    /// Network to verify on
+    /// Network to verify on (mainnet, sepolia, or custom)
     #[arg(long, value_enum)]
     pub network: NetworkKind,
 
@@ -157,15 +177,27 @@ pub struct Args {
 #[derive(clap::Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum Commands {
-    /// Verify smart contract.
+    /// Verify a smart contract against its deployed bytecode
     ///
-    /// By default it will only report back to user what it is about
-    /// to do. In order to actually execute pass --execute flag.
+    /// Submits the contract source code for verification against the deployed
+    /// bytecode on the blockchain. By default performs a dry run showing what
+    /// would be submitted. Use --execute to actually submit the verification.
+    ///
+    /// Example:
+    ///   starknet-contract-verifier --network mainnet verify --execute \
+    ///     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \
+    ///     --contract-name `MyContract`
     Verify(VerifyArgs),
 
-    /// Check verification job status
+    /// Check the status of a verification job
+    ///
+    /// Queries the verification service for the current status of a submitted
+    /// verification job. The job ID is returned when you submit a verification.
+    ///
+    /// Example:
+    ///   starknet-contract-verifier --network mainnet status --job 12345678-1234-1234-1234-123456789012
     Status {
-        /// Verification job id
+        /// Verification job ID (UUID format)
         #[arg(long, value_name = "UUID")]
         job: String,
     },
@@ -272,11 +304,11 @@ fn package_name_value_parser(name: &str) -> Result<String, String> {
 
 #[derive(clap::Args)]
 pub struct VerifyArgs {
-    /// Execute verification (otherwise dry run)
+    /// Execute verification (otherwise performs dry run)
     #[arg(short = 'x', long, default_value_t = false)]
     pub execute: bool,
 
-    /// Path to Scarb project
+    /// Path to Scarb project directory (default: current directory)
     #[arg(
         long,
         value_name = "DIR",
@@ -286,7 +318,7 @@ pub struct VerifyArgs {
     )]
     pub path: Project,
 
-    /// Class hash to verify
+    /// Class hash of the deployed contract to verify
     #[arg(
         long = "class-hash",
         value_name = "HASH",
@@ -294,11 +326,11 @@ pub struct VerifyArgs {
     )]
     pub class_hash: ClassHash,
 
-    /// Wait indefinitely for verification result
+    /// Wait indefinitely for verification result (polls until completion)
     #[arg(long, default_value_t = false)]
     pub watch: bool,
 
-    /// SPDX license identifier
+    /// SPDX license identifier (e.g., MIT, Apache-2.0)
     #[arg(
         long,
         value_name = "SPDX",
@@ -306,7 +338,7 @@ pub struct VerifyArgs {
     )]
     pub license: Option<LicenseId>,
 
-    /// Contract name for submission
+    /// Name of the contract for verification
     #[arg(
         long = "contract-name",
         value_name = "NAME",
@@ -314,7 +346,7 @@ pub struct VerifyArgs {
     )]
     pub contract_name: String,
 
-    /// Select package for verification (required for workspace projects)
+    /// Select specific package for verification (required for workspace projects)
     #[arg(
         long,
         value_name = "PACKAGE_ID",
