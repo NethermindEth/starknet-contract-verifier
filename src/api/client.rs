@@ -209,11 +209,11 @@ impl ApiClient {
         }
 
         let response_text = response.text()?;
-        log::debug!("Raw API Response: {}", response_text);
+        log::debug!("Raw API Response: {response_text}");
 
         let data: VerificationJob = serde_json::from_str(&response_text).map_err(|e| {
-            log::error!("Failed to parse JSON response: {}", e);
-            log::error!("Response text: {}", response_text);
+            log::error!("Failed to parse JSON response: {e}");
+            log::error!("Response text: {response_text}");
             ApiClientError::from(RequestFailure::new(
                 url.clone(),
                 StatusCode::OK,
