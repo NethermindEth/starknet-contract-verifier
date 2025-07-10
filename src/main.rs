@@ -344,14 +344,35 @@ fn validate_file_type(path: &Utf8PathBuf) -> Result<(), CliError> {
     let extension = path.extension().unwrap_or("");
 
     // Define allowed file types
-    let allowed_extensions = ["cairo", "toml", "lock", "md", "txt", "json"];
+    let allowed_extensions = ["cairo", "toml", "lock", "md", "txt", "json", "rs"];
+
+    // Define common project files without extensions
+    let allowed_no_extension_files = [
+        "LICENSE",
+        "README",
+        "CHANGELOG",
+        "NOTICE",
+        "AUTHORS",
+        "CONTRIBUTORS",
+    ];
 
     // Check if extension is allowed
     if !allowed_extensions.contains(&extension) {
-        return Err(CliError::InvalidFileType {
-            path: path.clone(),
-            extension: extension.to_string(),
-        });
+        // If no extension, check if it's a common project file
+        if extension.is_empty() {
+            let file_name = path.file_name().unwrap_or("");
+            if !allowed_no_extension_files.contains(&file_name) {
+                return Err(CliError::InvalidFileType {
+                    path: path.clone(),
+                    extension: extension.to_string(),
+                });
+            }
+        } else {
+            return Err(CliError::InvalidFileType {
+                path: path.clone(),
+                extension: extension.to_string(),
+            });
+        }
     }
 
     Ok(())
