@@ -139,15 +139,17 @@ pub fn package_sources_with_test_files(
                 }
             }
 
-            // Include Cairo files
+            // Include Cairo files and Rust files
             if let Some(ext) = f.path().extension() {
-                if ext == OsStr::new(CAIRO_EXT) {
+                if ext == OsStr::new(CAIRO_EXT) || ext == OsStr::new("rs") {
                     return true;
                 }
             }
 
-            // Include Scarb.toml files (being more explicit)
-            if f.file_name() == OsStr::new("Scarb.toml") {
+            // Include Scarb.toml and Cargo.toml files (being more explicit)
+            if f.file_name() == OsStr::new("Scarb.toml")
+                || f.file_name() == OsStr::new("Cargo.toml")
+            {
                 return true;
             }
 

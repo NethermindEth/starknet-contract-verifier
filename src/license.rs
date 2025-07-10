@@ -63,10 +63,11 @@ pub fn resolve_license_info(
 fn extract_license_from_manifest(manifest_path: &Utf8Path) -> Option<String> {
     let toml_content = fs::read_to_string(manifest_path).ok()?;
 
-    if let Some(license_line) = toml_content
-        .lines()
-        .find(|line| line.trim().starts_with("license"))
-    {
+    // Look for exact "license = " field, not "license-file" or other variants
+    if let Some(license_line) = toml_content.lines().find(|line| {
+        let trimmed = line.trim();
+        trimmed.starts_with("license ") && trimmed.contains('=')
+    }) {
         if let Some(license_value) = license_line.split('=').nth(1) {
             let license = license_value.trim().trim_matches('"').trim_matches('\'');
             debug!("Found license in Scarb.toml: {license}");
