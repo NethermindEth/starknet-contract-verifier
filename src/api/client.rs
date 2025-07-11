@@ -114,7 +114,8 @@ impl ApiClient {
             .text("scarb_version", project_metadata.scarb_version.to_string())
             .text("package_name", project_metadata.package_name)
             .text("name", name.to_string())
-            .text("contract_file", project_metadata.contract_file)
+            .text("contract_file", project_metadata.contract_file.clone())
+            .text("contract-name", project_metadata.contract_file)
             .text("project_dir_path", project_metadata.project_dir_path);
 
         // Add license using raw SPDX identifier
