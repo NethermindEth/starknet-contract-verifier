@@ -54,7 +54,7 @@ Alternatively, you can provide the license via the `--license` CLI argument when
 Once you have the verifier installed, execute:
 
 ```bash
-starknet-contract-verifier --network mainnet verify \
+voyager verify --network mainnet \
     --class-hash <YOUR_CONTRACT_CLASS_HASH> \
     --contract-name <YOUR_CONTRACT_NAME> \
     --path <PATH_TO_YOUR_SCARB_PROJECT> \ # if you are running outside project root
@@ -67,7 +67,7 @@ starknet-contract-verifier --network mainnet verify \
 For workspace projects (multiple packages), you'll need to specify the package:
 
 ```bash
-starknet-contract-verifier --network mainnet verify \
+voyager verify --network mainnet \
   --class-hash <YOUR_CONTRACT_CLASS_HASH> \
   --contract-name <YOUR_CONTRACT_NAME> \
   --package <PACKAGE_ID> \
@@ -79,7 +79,7 @@ starknet-contract-verifier --network mainnet verify \
 When successful you'll be given verification job id, which you can pass to:
 
 ```bash
-starknet-contract-verifier --network mainnet status --job <JOB_ID>
+voyager status --network mainnet --job <JOB_ID>
 ```
 
 to check the verification status. Afterwards visit [Voyager website](https://sepolia.voyager.online/) and search for your class hash to see the *verified* badge.
@@ -88,7 +88,7 @@ to check the verification status. Afterwards visit [Voyager website](https://sep
 
 ### Verification
 
-`starknet-contract-verifier` provides two subcommands: `verify` and `status`. For both cases user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
+`voyager` provides two subcommands: `verify` and `status`. For both commands the user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
 
 - `mainnet`, main starknet network (default API endpoints: <https://api.voyager.online/beta> and <https://voyager.online>)
 - `sepolia`, test network (default API endpoints: <https://sepolia-api.voyager.online/beta> and <https://sepolia.voyager.online>)

@@ -100,16 +100,13 @@ fn display_verification_job_id(job_id: &str) {
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let Args {
-        command: cmd,
-        network_url: network,
-        network: _,
-    } = Args::parse();
-    let public = ApiClient::new(network.public)?;
-    let private = ApiClient::new(network.private)?;
+    let Args { command: cmd } = Args::parse();
 
     match &cmd {
         Commands::Verify(args) => {
+            let public = ApiClient::new(args.network_url.public.clone())?;
+            let private = ApiClient::new(args.network_url.private.clone())?;
+
             let license_info = license::resolve_license_info(
                 args.license,
                 args.path.get_license(),
@@ -131,10 +128,29 @@ fn main() -> anyhow::Result<()> {
             })?;
             if job_id != "dry-run" {
                 display_verification_job_id(&job_id);
+
+                // If --watch flag is enabled, poll for verification result
+                if args.watch {
+                    let status = check(&public, &job_id).map_err(|e| {
+                        if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
+                            eprintln!("\nSuggestions:");
+                            for suggestion in verification_error.suggestions() {
+                                eprintln!("  • {suggestion}");
+                            }
+                        } else if let CliError::Api(ApiClientError::Failure(ref _request_failure)) =
+                            e
+                        {
+                            // RequestFailure errors already include suggestions in their display
+                        }
+                        e
+                    })?;
+                    info!("{status:?}");
+                }
             }
         }
-        Commands::Status { job } => {
-            let status = check(&public, job).map_err(|e| {
+        Commands::Status(args) => {
+            let public = ApiClient::new(args.network_url.public.clone())?;
+            let status = check(&public, &args.job).map_err(|e| {
                 if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
                     eprintln!("\nSuggestions:");
                     for suggestion in verification_error.suggestions() {
