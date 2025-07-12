@@ -73,12 +73,6 @@ jobs:
         with:
           target: ${{ matrix.target }}
 
-      - name: Install dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libssl-dev pkg-config
-
       - name: Install cross
         if: matrix.cross
         uses: taiki-e/install-action@cross
@@ -89,15 +83,7 @@ jobs:
         run: echo "CARGO=cross" >> $GITHUB_ENV
 
       - name: Build
-        run: |
-          if [ "${{ matrix.cross }}" = "true" ]; then
-            ${{ env.CARGO }} build --release --locked --target ${{ matrix.target }} --features reqwest/native-tls-vendored
-          else
-            ${{ env.CARGO }} build --release --locked --target ${{ matrix.target }}
-          fi
-        env:
-          OPENSSL_STATIC: 1
-          PKG_CONFIG_ALLOW_CROSS: 1
+        run: ${{ env.CARGO }} build --release --locked --target ${{ matrix.target }}
 
       - name: Create archive
         shell: bash
