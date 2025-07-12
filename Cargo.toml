@@ -40,7 +40,7 @@ itertools = "0.14"
 log = "0.4"
 regex = "1"
 lazy_static = "1.5"
-reqwest = { version = "0.12", features = ["blocking", "json", "multipart"] }
+reqwest = { version = "0.12", features = ["blocking", "json", "multipart", "native-tls-vendored"] }
 scarb-metadata = "1.15"
 semver = "1.0"
 serde = { version = "1.0", features = ["derive"] }
