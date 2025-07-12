@@ -41,9 +41,15 @@ jobs:
         id: get_version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ inputs.tag }}" | sed 's/^v//' >> $GITHUB_OUTPUT
+            TAG="${{ inputs.tag }}"
+            VERSION="${TAG#v}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Tag: $TAG"
+            echo "Version: $VERSION"
           else
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Version: $VERSION"
           fi
         
       - name: Verify version in Cargo.toml
