@@ -175,18 +175,31 @@ pub fn package_sources_with_test_files(
                 }
             }
 
-            // Include Cairo files and Rust files
+            // Include Cairo files
             if let Some(ext) = f.path().extension() {
-                if ext == OsStr::new(CAIRO_EXT) || ext == OsStr::new("rs") {
+                if ext == OsStr::new(CAIRO_EXT) {
                     return true;
+                }
+                // Only include Rust files if the package has been validated as a procedural macro
+                if ext == OsStr::new("rs") {
+                    // This will be handled by the procedural macro collection logic above
+                    // if this package is a valid procedural macro package
+                    return false;
                 }
             }
 
-            // Include Scarb.toml and Cargo.toml files (being more explicit)
-            if f.file_name() == OsStr::new("Scarb.toml")
-                || f.file_name() == OsStr::new("Cargo.toml")
-            {
+            // Include Scarb.toml files
+            if f.file_name() == OsStr::new("Scarb.toml") {
                 return true;
+            }
+
+            // Only include Cargo.toml if this package is a validated procedural macro
+            // (handled by the specialized collection above) or if there's no Cargo.toml
+            // indicating this is a pure Cairo package
+            if f.file_name() == OsStr::new("Cargo.toml") {
+                // Don't include Cargo.toml files from non-procedural macro packages
+                // They will be included by the specialized collection if they are valid proc macros
+                return false;
             }
 
             false
@@ -334,7 +347,7 @@ fn validate_cargo_toml_for_proc_macro(cargo_toml_path: &Utf8Path) -> Result<bool
     Ok(is_valid)
 }
 
-/// Collect only the necessary Rust files for a Cairo procedural macro package
+/// Collect all necessary files for a Cairo procedural macro package
 ///
 /// # Errors
 /// Returns an error if files cannot be read or processed
@@ -343,7 +356,7 @@ fn collect_procedural_macro_rust_files(
     include_test_files: bool,
 ) -> Result<Vec<Utf8PathBuf>, Error> {
     debug!(
-        "Collecting procedural macro Rust files for package: {}",
+        "Collecting procedural macro files for package: {}",
         package_metadata.name
     );
 
@@ -355,6 +368,37 @@ fn collect_procedural_macro_rust_files(
     if cargo_toml_path.exists() {
         debug!("Adding Cargo.toml: {cargo_toml_path}");
         required_files.insert(cargo_toml_path);
+    }
+
+    // Always include Scarb.toml (already handled by package_sources_with_test_files)
+    // but we need to ensure it's in our list
+    if !required_files.contains(&package_metadata.manifest_path) {
+        required_files.insert(package_metadata.manifest_path.clone());
+    }
+
+    // Include README and license files referenced in manifest
+    if let Some(readme) = package_metadata
+        .manifest_metadata
+        .readme
+        .as_deref()
+        .map(|r| package_root.join(r))
+    {
+        if readme.exists() {
+            debug!("Adding README: {readme}");
+            required_files.insert(readme);
+        }
+    }
+
+    if let Some(license) = package_metadata
+        .manifest_metadata
+        .license_file
+        .as_ref()
+        .map(|l| package_root.join(l))
+    {
+        if license.exists() {
+            debug!("Adding license file: {license}");
+            required_files.insert(license);
+        }
     }
 
     // Start with the main library file and recursively collect dependencies
@@ -370,6 +414,13 @@ fn collect_procedural_macro_rust_files(
     // Find files with procedural macro attributes
     collect_macro_implementation_files(package_root, &mut required_files)?;
 
+    // Include Cargo.lock if it exists (important for reproducible builds)
+    let cargo_lock_path = package_root.join("Cargo.lock");
+    if cargo_lock_path.exists() {
+        debug!("Adding Cargo.lock: {cargo_lock_path}");
+        required_files.insert(cargo_lock_path);
+    }
+
     // Convert to Vec and filter based on include_test_files
     let mut sources: Vec<Utf8PathBuf> = required_files.into_iter().collect();
 
@@ -382,7 +433,7 @@ fn collect_procedural_macro_rust_files(
     sources.sort();
 
     debug!(
-        "Collected {} Rust files for procedural macro package",
+        "Collected {} files for procedural macro package",
         sources.len()
     );
     for source in &sources {
