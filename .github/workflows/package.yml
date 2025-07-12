@@ -4,13 +4,19 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: true
+        type: string
 
 jobs:
   test:
     name: Run tests
     uses: ./.github/workflows/test.yml
     with:
-      ref: ${{ github.ref }}
+      ref: ${{ inputs.tag || github.ref }}
       fail-fast: true
 
   build_binaries:
@@ -18,7 +24,7 @@ jobs:
     name: Build release binaries
     uses: ./.github/workflows/release.yml
     with:
-      tag: ${{ github.ref_name }}
+      tag: ${{ inputs.tag || github.ref_name }}
 
   publish_crate:
     needs: [test, build_binaries]
@@ -33,7 +39,12 @@ jobs:
         
       - name: Get version
         id: get_version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.tag }}" | sed 's/^v//' >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
         
       - name: Verify version in Cargo.toml
         run: |
@@ -62,9 +73,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.GH_TOKEN }}
-          name: ${{ github.ref_name }}
+          name: ${{ inputs.tag || github.ref_name }}
           body: |
-            Release ${{ github.ref_name }}
+            Release ${{ inputs.tag || github.ref_name }}
             
             ## Installation
             
@@ -78,7 +89,8 @@ jobs:
             
             ## What's Changed
             
-            See the [changelog](https://github.com/${{ github.repository }}/compare/${{ github.ref_name }}...HEAD) for details.
+            See the [changelog](https://github.com/${{ github.repository }}/compare/${{ inputs.tag || github.ref_name }}...HEAD) for details.
+          tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
             artifacts/build-*/starknet-contract-verifier-*
             artifacts/checksums/checksums.sha256
