@@ -165,13 +165,6 @@ Examples:
 pub struct Args {
     #[command(subcommand)]
     pub command: Commands,
-
-    /// Network to verify on (mainnet, sepolia, or custom)
-    #[arg(long, value_enum)]
-    pub network: NetworkKind,
-
-    #[command(flatten)]
-    pub network_url: Network,
 }
 
 #[derive(clap::Subcommand)]
@@ -195,12 +188,8 @@ pub enum Commands {
     /// verification job. The job ID is returned when you submit a verification.
     ///
     /// Example:
-    ///   starknet-contract-verifier --network mainnet status --job 12345678-1234-1234-1234-123456789012
-    Status {
-        /// Verification job ID (UUID format)
-        #[arg(long, value_name = "UUID")]
-        job: String,
-    },
+    ///   voyager status --network mainnet --job 12345678-1234-1234-1234-123456789012
+    Status(StatusArgs),
 }
 
 fn license_value_parser(license: &str) -> Result<LicenseId, String> {
@@ -304,6 +293,13 @@ fn package_name_value_parser(name: &str) -> Result<String, String> {
 
 #[derive(clap::Args)]
 pub struct VerifyArgs {
+    /// Network to verify on (mainnet, sepolia, or custom)
+    #[arg(long, value_enum)]
+    pub network: NetworkKind,
+
+    #[command(flatten)]
+    pub network_url: Network,
+
     /// Execute verification (otherwise performs dry run)
     #[arg(short = 'x', long, default_value_t = false)]
     pub execute: bool,
@@ -361,6 +357,20 @@ pub struct VerifyArgs {
     /// Include test files from src/ directory in verification submission
     #[arg(long, default_value_t = false)]
     pub test_files: bool,
+}
+
+#[derive(clap::Args)]
+pub struct StatusArgs {
+    /// Network to verify on (mainnet, sepolia, or custom)
+    #[arg(long, value_enum)]
+    pub network: NetworkKind,
+
+    #[command(flatten)]
+    pub network_url: Network,
+
+    /// Verification job ID (UUID format)
+    #[arg(long, value_name = "UUID")]
+    pub job: String,
 }
 
 #[derive(clap::ValueEnum, Clone)]

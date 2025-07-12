@@ -4,8 +4,8 @@ description = "Contract class verification tool that allows you to verify your s
 license = "Apache-2.0"
 name = "starknet-contract-verifier"
 repository = "https://github.com/NethermindEth/starknet-contract-verifier"
-version = "0.3.3"
-default-run = "starknet-contract-verifier"
+version = "0.4.0"
+default-run = "voyager"
 edition = "2021"
 keywords = ["starknet", "verification", "smart-contracts", "ethereum"]
 categories = ["command-line-utilities", "development-tools"]
@@ -65,5 +65,5 @@ predicates = "3.0.4"
 name = "verifier"
 
 [[bin]]
-name = "starknet-contract-verifier"
+name = "voyager"
 path = "src/main.rs"

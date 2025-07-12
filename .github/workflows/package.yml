@@ -31,4 +31,26 @@ jobs:
           fi
       
       - name: Publish to crates.io
-        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }} 
+        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+      
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            Release ${{ github.ref_name }}
+            
+            ## Installation
+            
+            ```bash
+            cargo install starknet-contract-verifier
+            ```
+            
+            ## What's Changed
+            
+            See the [changelog](https://github.com/${{ github.repository }}/compare/${{ github.ref_name }}...HEAD) for details.
+          draft: false
+          prerelease: false 
