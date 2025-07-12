@@ -14,6 +14,19 @@ on:
         required: false
         type: boolean
         default: false
+  workflow_dispatch:
+    inputs:
+      # Must start with 'v'
+      tag:
+        required: true
+        type: string
+      ref:
+        required: false
+        type: string
+      full-verify:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -54,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || github.ref }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -117,7 +130,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Download artifact
         uses: actions/download-artifact@v4
