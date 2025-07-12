@@ -1,0 +1,58 @@
+name: Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        required: false
+        type: string
+      fail-fast:
+        required: false
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+      fail-fast:
+        required: false
+        type: boolean
+        default: true
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: test ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: ${{ inputs.fail-fast || true }}
+      matrix:
+        include:
+          - name: linux x86-64
+            os: ubuntu-latest
+          - name: macos aarch64
+            os: macos-14
+          - name: windows x86-64
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --release --all-features --no-fail-fast
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings

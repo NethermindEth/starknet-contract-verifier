@@ -6,14 +6,22 @@ on:
       - 'v*'
 
 jobs:
+  test:
+    name: Run tests
+    uses: ./.github/workflows/test.yml
+    with:
+      ref: ${{ github.ref }}
+      fail-fast: true
+
   build_binaries:
+    needs: test
     name: Build release binaries
     uses: ./.github/workflows/release.yml
     with:
       tag: ${{ github.ref_name }}
 
   publish_crate:
-    needs: build_binaries
+    needs: [test, build_binaries]
     name: Publish to crates.io
     runs-on: ubuntu-latest
     steps:
@@ -54,7 +62,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.GH_TOKEN }}
-          name: Release ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           body: |
             Release ${{ github.ref_name }}
             
