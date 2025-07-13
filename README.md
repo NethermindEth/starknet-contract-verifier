@@ -60,8 +60,7 @@ voyager verify --network mainnet \
     --path <PATH_TO_YOUR_SCARB_PROJECT> \ # if you are running outside project root
     --license <SPDX_LICENSE_ID> # if not provided in Scarb.toml
     --lock-file \ # optional: include Scarb.lock file in verification
-    --test-files \ # optional: include test files from src/ directory in verification
-    --execute
+    --test-files # optional: include test files from src/ directory in verification
 ```
 
 For workspace projects (multiple packages), you'll need to specify the package:
@@ -71,9 +70,6 @@ voyager verify --network mainnet \
   --class-hash <YOUR_CONTRACT_CLASS_HASH> \
   --contract-name <YOUR_CONTRACT_NAME> \
   --package <PACKAGE_ID> \
-  --lock-file \ # optional: include Scarb.lock file in verification
-  --test-files \ # optional: include test files from src/ directory in verification
-  --execute
 ```
 
 When successful you'll be given verification job id, which you can pass to:
@@ -101,7 +97,7 @@ In order to verify a contract, you need to provide several arguments:
 - `--class-hash`, class hash of the declared contract
 - `--contract-name`, name of the contract to verify
 - `--path`, path to directory containing scarb project (If omitted it will use current working directory)
-- `--execute`, flag to actually execute the verification (without this flag, it will only show what would be done)
+- `--dry-run`, perform dry run to preview what files would be collected and submitted without actually sending them for verification
 - `--license`, SPDX license identifier (optional, will use license from Scarb.toml if defined there, otherwise defaults to "All Rights Reserved")
   - The license should be a valid [SPDX license identifier](https://spdx.org/licenses/) such as MIT, Apache-2.0, etc.
 - `--lock-file`, include Scarb.lock file in verification submission (optional, defaults to false)

@@ -137,7 +137,7 @@ pub fn project_value_parser(raw: &str) -> Result<Project, ProjectError> {
 }
 
 #[derive(clap::Parser)]
-#[command(name = "Starknet Contract Verifier")]
+#[command(name = "voyager")]
 #[command(author = "Nethermind")]
 #[command(version)]
 #[command(about = "Verify Starknet smart contracts on block explorers")]
@@ -150,15 +150,15 @@ and automatically handles project dependencies and source file collection.
 
 Examples:
   # Verify a contract on mainnet
-  starknet-contract-verifier --network mainnet verify --execute \\
+  voyager verify --network mainnet \\
     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
     --contract-name MyContract
 
   # Check verification status
-  starknet-contract-verifier --network mainnet status --job job-id-here
+  voyager status --network mainnet --job job-id-here
 
   # Dry run (preview what would be submitted)
-  starknet-contract-verifier --network mainnet verify \\
+  voyager verify --network mainnet \\
     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
     --contract-name MyContract
 ")]
@@ -173,11 +173,11 @@ pub enum Commands {
     /// Verify a smart contract against its deployed bytecode
     ///
     /// Submits the contract source code for verification against the deployed
-    /// bytecode on the blockchain. By default performs a dry run showing what
-    /// would be submitted. Use --execute to actually submit the verification.
+    /// bytecode on the blockchain. By default submits for verification.
+    /// Use --dry-run to preview what would be submitted without sending.
     ///
     /// Example:
-    ///   starknet-contract-verifier --network mainnet verify --execute \
+    ///   voyager verify --network mainnet \
     ///     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \
     ///     --contract-name `MyContract`
     Verify(VerifyArgs),
@@ -300,9 +300,9 @@ pub struct VerifyArgs {
     #[command(flatten)]
     pub network_url: Network,
 
-    /// Execute verification (otherwise performs dry run)
-    #[arg(short = 'x', long, default_value_t = false)]
-    pub execute: bool,
+    /// Perform dry run (preview what would be submitted without sending)
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
 
     /// Path to Scarb project directory (default: current directory)
     #[arg(

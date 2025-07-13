@@ -186,8 +186,8 @@ fn submit(
     // Log verification info
     log_verification_info(args, metadata, &file_infos, &contract_file, license_info);
 
-    // Execute verification if requested
-    if args.execute {
+    // Execute verification unless dry run is requested
+    if !args.dry_run {
         return execute_verification(
             public,
             args,
@@ -199,7 +199,7 @@ fn submit(
         );
     }
 
-    info!("Nothing to do, add `--execute` flag to actually verify the contract");
+    info!("Dry run mode: collected files for verification but skipping submission due to --dry-run flag");
     Ok("dry-run".to_string())
 }
 
