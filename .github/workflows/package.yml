@@ -75,6 +75,25 @@ jobs:
         with:
           path: artifacts
       
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "${{ inputs.tag || github.ref_name }}" | head -1)
+          echo "Previous tag: $PREVIOUS_TAG"
+          
+          # Generate changelog from commits
+          if [ -n "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREVIOUS_TAG}..${{ inputs.tag || github.ref_name }})
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${{ inputs.tag || github.ref_name }})
+          fi
+          
+          # Save changelog to output
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -83,19 +102,9 @@ jobs:
           body: |
             Release ${{ inputs.tag || github.ref_name }}
             
-            ## Installation
-            
-            ### From binaries
-            Download the appropriate binary for your platform from the assets below.
-            
-            ### From crates.io
-            ```bash
-            cargo install starknet-contract-verifier
-            ```
-            
             ## What's Changed
             
-            See the [changelog](https://github.com/${{ github.repository }}/compare/${{ inputs.tag || github.ref_name }}...HEAD) for details.
+            ${{ steps.changelog.outputs.changelog }}
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
             artifacts/build-*/starknet-contract-verifier-*

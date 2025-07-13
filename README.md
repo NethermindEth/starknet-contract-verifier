@@ -4,6 +4,19 @@ Client for the [Voyager Starknet block explorer](https://voyager.online), that a
 
 ## Installation
 
+### With asdf (Recommended)
+
+First, install [asdf](https://asdf-vm.com/guide/getting-started.html) if you haven't already.
+
+```bash
+asdf plugin add voyager https://github.com/NethermindEth/starknet-contract-verifier.git
+asdf install voyager latest
+```
+
+### With Cargo
+
+Alternatively, you can install directly from source:
+
 ```bash
 cargo install starknet-contract-verifier
 ```
