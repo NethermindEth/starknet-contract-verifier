@@ -9,7 +9,8 @@ Client for the [Voyager Starknet block explorer](https://voyager.online), that a
 First, install [asdf](https://asdf-vm.com/guide/getting-started.html) if you haven't already.
 
 ```bash
-asdf plugin add voyager https://github.com/NethermindEth/starknet-contract-verifier.git
+asdf plugin add voyager https://github.com/NethermindEth/asdf-voyager-verifier.git
+
 asdf install voyager latest
 ```
 
