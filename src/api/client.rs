@@ -116,7 +116,8 @@ impl ApiClient {
             .text("name", name.to_string())
             .text("contract_file", project_metadata.contract_file.clone())
             .text("contract-name", project_metadata.contract_file)
-            .text("project_dir_path", project_metadata.project_dir_path);
+            .text("project_dir_path", project_metadata.project_dir_path)
+            .text("build_tool", project_metadata.build_tool);
 
         // Add license using raw SPDX identifier
         let license_value = if let Some(lic) = license {

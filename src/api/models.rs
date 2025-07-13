@@ -1,4 +1,5 @@
 use super::types::VerifyJobStatus;
+use crate::project::ProjectType;
 use semver;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -111,4 +112,28 @@ pub struct ProjectMetadataInfo {
     pub project_dir_path: String,
     pub contract_file: String,
     pub package_name: String,
+    pub build_tool: String, // "scarb" or "sozo"
+}
+
+impl ProjectMetadataInfo {
+    pub fn new(
+        cairo_version: semver::Version,
+        scarb_version: semver::Version,
+        project_dir_path: String,
+        contract_file: String,
+        package_name: String,
+        project_type: ProjectType,
+    ) -> Self {
+        Self {
+            cairo_version,
+            scarb_version,
+            project_dir_path,
+            contract_file,
+            package_name,
+            build_tool: match project_type {
+                ProjectType::Dojo => "sozo".to_string(),
+                _ => "scarb".to_string(),
+            },
+        }
+    }
 }

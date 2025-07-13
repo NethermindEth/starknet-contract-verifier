@@ -7,7 +7,7 @@ use spdx::LicenseId;
 use std::{env, fmt::Display, io, path::PathBuf};
 use thiserror::Error;
 
-use verifier::class_hash::ClassHash;
+use verifier::{class_hash::ClassHash, project::ProjectType};
 
 fn get_name_validation_regex() -> Result<&'static Regex, String> {
     lazy_static! {
@@ -105,6 +105,56 @@ impl Project {
                     }
                 })
         })
+    }
+
+    /// Detect if this is a Dojo project by analyzing dependencies
+    pub fn detect_project_type(&self) -> Result<ProjectType, ProjectError> {
+        let metadata = self.metadata();
+
+        // Check for dojo-core dependency in any package
+        for package in &metadata.packages {
+            for dep in &package.dependencies {
+                if dep.name == "dojo_core" || dep.name == "dojo-core" || dep.name == "dojo" {
+                    return Ok(ProjectType::Dojo);
+                }
+            }
+        }
+
+        // Check for dojo namespace imports in source files
+        if self.has_dojo_imports()? {
+            return Ok(ProjectType::Dojo);
+        }
+
+        // Default to Scarb if no Dojo indicators found
+        Ok(ProjectType::Scarb)
+    }
+
+    /// Check if source files contain Dojo-specific imports
+    fn has_dojo_imports(&self) -> Result<bool, ProjectError> {
+        use std::fs;
+        use walkdir::WalkDir;
+
+        let root = self.root_dir();
+        let src_dir = root.join("src");
+
+        if !src_dir.exists() {
+            return Ok(false);
+        }
+
+        for entry in WalkDir::new(src_dir).into_iter().filter_map(|e| e.ok()) {
+            if entry.path().extension().and_then(|s| s.to_str()) == Some("cairo") {
+                if let Ok(content) = fs::read_to_string(entry.path()) {
+                    if content.contains("use dojo::")
+                        || content.contains("dojo::")
+                        || content.contains("#[dojo::")
+                    {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+
+        Ok(false)
     }
 }
 
@@ -357,6 +407,15 @@ pub struct VerifyArgs {
     /// Include test files from src/ directory in verification submission
     #[arg(long, default_value_t = false)]
     pub test_files: bool,
+
+    /// Project type for build tool selection
+    #[arg(
+        long = "project-type",
+        value_enum,
+        default_value_t = ProjectType::Auto,
+        help = "Specify the project type (scarb, dojo, or auto-detect)"
+    )]
+    pub project_type: ProjectType,
 }
 
 #[derive(clap::Args)]

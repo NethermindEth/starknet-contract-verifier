@@ -53,3 +53,6 @@ pub mod resolver;
 
 /// Voyager block explorer integration utilities
 pub mod voyager;
+
+/// Project type definitions and detection logic
+pub mod project;
