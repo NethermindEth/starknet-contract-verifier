@@ -70,6 +70,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build_binaries, publish_crate]
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for all tags and branches
+      
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -78,8 +83,10 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the previous tag
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "${{ inputs.tag || github.ref_name }}" | head -1)
+          # Get the previous tag (exclude current tag and filter out rc/pre-release versions)
+          CURRENT_TAG="${{ inputs.tag || github.ref_name }}"
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "$CURRENT_TAG" | grep -v "rc" | grep -v "pre" | head -1)
+          echo "Current tag: $CURRENT_TAG"
           echo "Previous tag: $PREVIOUS_TAG"
           
           # Generate changelog from commits
