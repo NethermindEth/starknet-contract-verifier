@@ -388,7 +388,9 @@ fn validate_file_type(path: &Utf8PathBuf) -> Result<(), CliError> {
     let extension = path.extension().unwrap_or("");
 
     // Define allowed file types
-    let allowed_extensions = ["cairo", "toml", "lock", "md", "txt", "json", "rs"];
+    let allowed_extensions = [
+        "cairo", /* "toml", */ "lock", "md", "txt", "json", /*, "rs" */
+    ];
 
     // Define common project files without extensions
     let allowed_no_extension_files = [
