@@ -67,8 +67,20 @@ Alternatively, you can provide the license via the `--license` CLI argument when
 
 Once you have the verifier installed, execute:
 
+**Using predefined networks:**
 ```bash
 voyager verify --network mainnet \
+    --class-hash <YOUR_CONTRACT_CLASS_HASH> \
+    --contract-name <YOUR_CONTRACT_NAME> \
+    --path <PATH_TO_YOUR_SCARB_PROJECT> \ # if you are running outside project root
+    --license <SPDX_LICENSE_ID> # if not provided in Scarb.toml
+    --lock-file \ # optional: include Scarb.lock file in verification
+    --test-files # optional: include test files from src/ directory in verification
+```
+
+**Using custom API endpoint:**
+```bash
+voyager verify --url https://api.custom.com/beta \
     --class-hash <YOUR_CONTRACT_CLASS_HASH> \
     --contract-name <YOUR_CONTRACT_NAME> \
     --path <PATH_TO_YOUR_SCARB_PROJECT> \ # if you are running outside project root
@@ -80,16 +92,27 @@ voyager verify --network mainnet \
 For workspace projects (multiple packages), you'll need to specify the package:
 
 ```bash
+# With predefined network
 voyager verify --network mainnet \
   --class-hash <YOUR_CONTRACT_CLASS_HASH> \
   --contract-name <YOUR_CONTRACT_NAME> \
-  --package <PACKAGE_ID> \
+  --package <PACKAGE_ID>
+
+# With custom API endpoint
+voyager verify --url https://api.custom.com/beta \
+  --class-hash <YOUR_CONTRACT_CLASS_HASH> \
+  --contract-name <YOUR_CONTRACT_NAME> \
+  --package <PACKAGE_ID>
 ```
 
 When successful you'll be given verification job id, which you can pass to:
 
 ```bash
+# With predefined network
 voyager status --network mainnet --job <JOB_ID>
+
+# With custom API endpoint
+voyager status --url https://api.custom.com/beta --job <JOB_ID>
 ```
 
 to check the verification status. Afterwards visit [Voyager website](https://sepolia.voyager.online/) and search for your class hash to see the *verified* badge.
@@ -98,11 +121,16 @@ to check the verification status. Afterwards visit [Voyager website](https://sep
 
 ### Verification
 
-`voyager` provides two subcommands: `verify` and `status`. For both commands the user needs to select the network with which they want to interact via the `--network` argument. Possible cases are:
+`voyager` provides two subcommands: `verify` and `status`. For both commands the user needs to specify either:
 
-- `mainnet`, main starknet network (default API endpoints: <https://api.voyager.online/beta> and <https://voyager.online>)
-- `sepolia`, test network (default API endpoints: <https://sepolia-api.voyager.online/beta> and <https://sepolia.voyager.online>)
-- `custom`, set custom addresses via `--public` and `--private` arguments
+1. **Predefined network** via the `--network` argument:
+   - `mainnet` - main starknet network (default API endpoint: <https://api.voyager.online/beta>)
+   - `sepolia` - test network (default API endpoint: <https://sepolia-api.voyager.online/beta>)
+
+2. **Custom API endpoint** via the `--url` argument:
+   - `--url <URL>` - specify custom API endpoint URL (e.g., `https://api.custom.com/beta`)
+
+Either `--network` or `--url` must be provided, but not both.
 
 #### Verification process
 
