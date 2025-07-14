@@ -309,7 +309,7 @@ fn prepare_project_for_verification(
         .ok_or_else(|| CliError::NoTarget)?;
 
     // Find contract file
-    let contract_file_path = find_contract_file(package_meta, &sources)?;
+    let contract_file_path = find_contract_file(package_meta, &sources, &args.contract_name)?;
     let contract_file =
         contract_file_path
             .strip_prefix(&prefix)
@@ -498,7 +498,22 @@ fn add_lock_file_if_requested(
 fn find_contract_file(
     package_meta: &PackageMetadata,
     sources: &[Utf8PathBuf],
+    contract_name: &str,
 ) -> Result<Utf8PathBuf, CliError> {
+    // First try to find a file that matches the contract name
+    let contract_specific_paths = vec![
+        format!("src/{}.cairo", contract_name),
+        format!("src/systems/{}.cairo", contract_name),
+        format!("src/contracts/{}.cairo", contract_name),
+    ];
+
+    for path in contract_specific_paths {
+        let full_path = package_meta.root.join(&path);
+        if full_path.exists() {
+            return Ok(full_path);
+        }
+    }
+
     // Find the main source file for the package (conventionally src/lib.cairo or src/main.cairo)
     let possible_main_paths = vec!["src/lib.cairo", "src/main.cairo"];
 
@@ -592,6 +607,7 @@ fn execute_verification(
     let scarb_version = metadata.app_version_info.version.clone();
 
     // Create project metadata with build tool information
+    debug!("Creating ProjectMetadataInfo with project_type: {:?}", context.project_type);
     let project_meta = ProjectMetadataInfo::new(
         cairo_version,
         scarb_version,
@@ -600,6 +616,7 @@ fn execute_verification(
         context.package_meta.name,
         context.project_type,
     );
+    debug!("Created ProjectMetadataInfo with build_tool: {}", project_meta.build_tool);
 
     public
         .verify_class(

@@ -117,7 +117,9 @@ impl ApiClient {
             .text("contract_file", project_metadata.contract_file.clone())
             .text("contract-name", project_metadata.contract_file)
             .text("project_dir_path", project_metadata.project_dir_path)
-            .text("build_tool", project_metadata.build_tool);
+            .text("build_tool", project_metadata.build_tool.clone());
+
+        log::debug!("API request will include build_tool: {}", project_metadata.build_tool);
 
         // Add license using raw SPDX identifier
         let license_value = if let Some(lic) = license {

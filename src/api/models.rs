@@ -131,8 +131,14 @@ impl ProjectMetadataInfo {
             contract_file,
             package_name,
             build_tool: match project_type {
-                ProjectType::Dojo => "sozo".to_string(),
-                _ => "scarb".to_string(),
+                ProjectType::Dojo => {
+                    log::debug!("Setting build_tool to 'sozo' for Dojo project");
+                    "sozo".to_string()
+                },
+                _ => {
+                    log::debug!("Setting build_tool to 'scarb' for non-Dojo project: {:?}", project_type);
+                    "scarb".to_string()
+                },
             },
         }
     }
