@@ -123,8 +123,7 @@ fn main() -> anyhow::Result<()> {
 
     match &cmd {
         Commands::Verify(args) => {
-            let public = ApiClient::new(args.network_url.public.clone())?;
-            let private = ApiClient::new(args.network_url.private.clone())?;
+            let api_client = ApiClient::new(args.network_url.url.clone())?;
 
             let license_info = license::resolve_license_info(
                 args.license,
@@ -134,7 +133,7 @@ fn main() -> anyhow::Result<()> {
 
             license::warn_if_no_license(&license_info);
 
-            let job_id = submit(&public, &private, args, &license_info).map_err(|e| {
+            let job_id = submit(&api_client, args, &license_info).map_err(|e| {
                 if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
                     eprintln!("\nSuggestions:");
                     for suggestion in verification_error.suggestions() {
@@ -150,7 +149,7 @@ fn main() -> anyhow::Result<()> {
 
                 // If --watch flag is enabled, poll for verification result
                 if args.watch {
-                    let status = check(&public, &job_id).map_err(|e| {
+                    let status = check(&api_client, &job_id).map_err(|e| {
                         if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
                             eprintln!("\nSuggestions:");
                             for suggestion in verification_error.suggestions() {
@@ -168,8 +167,8 @@ fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Status(args) => {
-            let public = ApiClient::new(args.network_url.public.clone())?;
-            let status = check(&public, &args.job).map_err(|e| {
+            let api_client = ApiClient::new(args.network_url.url.clone())?;
+            let status = check(&api_client, &args.job).map_err(|e| {
                 if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
                     eprintln!("\nSuggestions:");
                     for suggestion in verification_error.suggestions() {
@@ -187,8 +186,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn submit(
-    public: &ApiClient,
-    _private: &ApiClient,
+    api_client: &ApiClient,
     args: &VerifyArgs,
     license_info: &license::LicenseInfo,
 ) -> Result<String, CliError> {
@@ -217,7 +215,9 @@ fn submit(
 
     // Execute verification unless dry run is requested
     if !args.dry_run {
-        let context = VerificationContext {
+        return execute_verification(
+            api_client,
+            args,
             file_infos,
             package_meta,
             contract_file,
@@ -590,7 +590,9 @@ fn log_verification_info(
     }
 }
 
-struct VerificationContext {
+fn execute_verification(
+    api_client: &ApiClient,
+    args: &VerifyArgs,
     file_infos: Vec<FileInfo>,
     package_meta: PackageMetadata,
     contract_file: String,
@@ -620,7 +622,7 @@ fn execute_verification(
     );
     debug!("Created ProjectMetadataInfo with build_tool: {}", project_meta.build_tool);
 
-    public
+    api_client
         .verify_class(
             &args.class_hash,
             Some(license_info.display_string().to_string()),
@@ -641,8 +643,8 @@ fn format_timestamp(timestamp: f64) -> String {
     }
 }
 
-fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> {
-    let status = poll_verification_status(public, job_id).map_err(CliError::from)?;
+fn check(api_client: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> {
+    let status = poll_verification_status(api_client, job_id).map_err(CliError::from)?;
 
     match status.status() {
         VerifyJobStatus::Success => {
