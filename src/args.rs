@@ -28,7 +28,7 @@ pub enum ProjectError {
     #[error("[E020] Scarb project manifest not found at: {0}\n\nSuggestions:\n  • Check that you're in a Scarb project directory\n  • Verify that Scarb.toml exists in the specified path\n  • Run 'scarb init' to create a new project\n  • Use --manifest-path to specify the correct path")]
     MissingManifest(Utf8PathBuf),
 
-    #[error("[E021] Failed to read project metadata\n\nSuggestions:\n  • Check that Scarb.toml is valid TOML format\n  • Verify all dependencies are properly declared\n  • Run 'scarb check' to validate your project\n  • Ensure scarb is installed and up to date")]
+    #[error("[E021] Failed to read project metadata: {0}\n\nSuggestions:\n  • Check that Scarb.toml is valid TOML format\n  • Verify all dependencies are properly declared\n  • Run 'scarb metadata --format-version 1' to see the full error\n  • Run 'scarb check' to validate your project\n  • Ensure scarb is installed and up to date")]
     MetadataError(#[from] MetadataCommandError),
 
     #[error("[E022] File system error\n\nSuggestions:\n  • Check file permissions\n  • Verify the path exists and is accessible\n  • Ensure you have read access to the directory")]

@@ -1,6 +1,7 @@
 use std::{fs, time::Duration};
 
 use backon::{BlockingRetryable, ExponentialBuilder};
+use log::{debug, info};
 use reqwest::{
     blocking::{self, multipart, Client},
     StatusCode,
@@ -119,7 +120,18 @@ impl ApiClient {
             .text("project_dir_path", project_metadata.project_dir_path)
             .text("build_tool", project_metadata.build_tool.clone());
 
-        log::debug!("API request will include build_tool: {}", project_metadata.build_tool);
+        // Add Dojo version if available
+        if let Some(ref dojo_version) = project_metadata.dojo_version {
+            info!("📤 Adding dojo_version to API request: {dojo_version}");
+            body = body.text("dojo_version", dojo_version.clone());
+        } else {
+            debug!("📤 No dojo_version to include in API request");
+        }
+
+        info!(
+            "🌐 API request payload prepared - build_tool: '{}', dojo_version: {:?}",
+            project_metadata.build_tool, project_metadata.dojo_version
+        );
 
         // Add license using raw SPDX identifier
         let license_value = if let Some(lic) = license {

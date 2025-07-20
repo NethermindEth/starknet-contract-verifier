@@ -10,6 +10,7 @@ use itertools::Itertools;
 use log::{debug, info, warn};
 use scarb_metadata::PackageMetadata;
 use std::collections::HashMap;
+use std::fs;
 use std::time::{Duration, UNIX_EPOCH};
 use thiserror::Error;
 use verifier::{
@@ -22,6 +23,15 @@ use verifier::{
     project::ProjectType,
     resolver, voyager,
 };
+
+#[derive(Debug)]
+struct VerificationContext {
+    project_type: ProjectType,
+    project_dir_path: String,
+    contract_file: String,
+    package_meta: PackageMetadata,
+    file_infos: Vec<FileInfo>,
+}
 
 #[derive(Debug, Error)]
 pub enum CliError {
@@ -190,6 +200,8 @@ fn submit(
     args: &VerifyArgs,
     license_info: &license::LicenseInfo,
 ) -> Result<String, CliError> {
+    info!("🚀 Starting verification for project at: {}", args.path);
+
     // Determine project type early in the process
     let project_type = determine_project_type(args)?;
 
@@ -202,9 +214,20 @@ fn submit(
 
     let metadata = args.path.metadata();
 
+    // Determine test_files setting - default to true for Dojo projects
+    let include_test_files = match project_type {
+        ProjectType::Dojo => {
+            if !args.test_files {
+                info!("🧪 Including test files by default for Dojo project");
+            }
+            true
+        }
+        _ => args.test_files,
+    };
+
     // Gather packages and sources
     let packages = gather_packages_and_validate(metadata, args)?;
-    let sources = collect_source_files(metadata, &packages, args.test_files)?;
+    let sources = collect_source_files(metadata, &packages, include_test_files)?;
 
     // Prepare project structure
     let (file_infos, package_meta, contract_file, project_dir_path) =
@@ -215,16 +238,14 @@ fn submit(
 
     // Execute verification unless dry run is requested
     if !args.dry_run {
-        return execute_verification(
-            api_client,
-            args,
-            file_infos,
-            package_meta,
-            contract_file,
-            project_dir_path,
+        let context = VerificationContext {
             project_type,
+            project_dir_path,
+            contract_file,
+            package_meta,
+            file_infos,
         };
-        return execute_verification(public, args, context, license_info);
+        return execute_verification(api_client, args, context, license_info);
     }
 
     info!("Dry run mode: collected files for verification but skipping submission due to --dry-run flag");
@@ -388,9 +409,7 @@ fn validate_file_type(path: &Utf8PathBuf) -> Result<(), CliError> {
     let extension = path.extension().unwrap_or("");
 
     // Define allowed file types
-    let allowed_extensions = [
-        "cairo", /* "toml", */ "lock", "md", "txt", "json", /*, "rs" */
-    ];
+    let allowed_extensions = ["cairo", "toml", "lock", "md", "txt", "json"];
 
     // Define common project files without extensions
     let allowed_no_extension_files = [
@@ -593,16 +612,6 @@ fn log_verification_info(
 fn execute_verification(
     api_client: &ApiClient,
     args: &VerifyArgs,
-    file_infos: Vec<FileInfo>,
-    package_meta: PackageMetadata,
-    contract_file: String,
-    project_dir_path: String,
-    project_type: ProjectType,
-}
-
-fn execute_verification(
-    public: &ApiClient,
-    args: &VerifyArgs,
     context: VerificationContext,
     license_info: &license::LicenseInfo,
 ) -> Result<String, CliError> {
@@ -611,7 +620,38 @@ fn execute_verification(
     let scarb_version = metadata.app_version_info.version.clone();
 
     // Create project metadata with build tool information
-    debug!("Creating ProjectMetadataInfo with project_type: {:?}", context.project_type);
+    debug!(
+        "Creating ProjectMetadataInfo with project_type: {:?}",
+        context.project_type
+    );
+
+    // Extract Dojo version if it's a Dojo project
+    let dojo_version = if context.project_type == ProjectType::Dojo {
+        info!("🔍 Dojo project detected - attempting to extract Dojo version from Scarb.toml");
+        debug!(
+            "📍 context.project_dir_path (relative): {}",
+            context.project_dir_path
+        );
+        debug!(
+            "📍 args.path.root_dir() (absolute): {}",
+            args.path.root_dir()
+        );
+
+        // Use the absolute path for Dojo version extraction
+        let absolute_project_path = args.path.root_dir().to_string();
+        let extracted_version = extract_dojo_version(&absolute_project_path);
+        match &extracted_version {
+            Some(version) => info!("✅ Successfully extracted Dojo version: {version}"),
+            None => warn!(
+                "⚠️  Could not extract Dojo version from Scarb.toml - proceeding without version"
+            ),
+        }
+        extracted_version
+    } else {
+        debug!("📦 Regular project (not Dojo) - skipping Dojo version extraction");
+        None
+    };
+
     let project_meta = ProjectMetadataInfo::new(
         cairo_version,
         scarb_version,
@@ -619,8 +659,12 @@ fn execute_verification(
         context.contract_file,
         context.package_meta.name,
         context.project_type,
+        dojo_version,
     );
-    debug!("Created ProjectMetadataInfo with build_tool: {}", project_meta.build_tool);
+    debug!(
+        "Created ProjectMetadataInfo with build_tool: {}, dojo_version: {:?}",
+        project_meta.build_tool, project_meta.dojo_version
+    );
 
     api_client
         .verify_class(
@@ -631,6 +675,62 @@ fn execute_verification(
             &context.file_infos,
         )
         .map_err(CliError::from)
+}
+
+fn extract_dojo_version(project_dir_path: &str) -> Option<String> {
+    let scarb_toml_path = format!("{project_dir_path}/Scarb.toml");
+    debug!("📁 Looking for Scarb.toml at: {scarb_toml_path}");
+
+    // Read the Scarb.toml file
+    let contents = match fs::read_to_string(&scarb_toml_path) {
+        Ok(contents) => {
+            debug!("📖 Successfully read Scarb.toml ({} bytes)", contents.len());
+            contents
+        }
+        Err(e) => {
+            warn!("❌ Failed to read Scarb.toml at {scarb_toml_path}: {e}");
+            return None;
+        }
+    };
+
+    // Parse the TOML content
+    let parsed: toml::Value = match toml::from_str(&contents) {
+        Ok(parsed) => {
+            debug!("✅ Successfully parsed Scarb.toml as TOML");
+            parsed
+        }
+        Err(e) => {
+            warn!("❌ Failed to parse Scarb.toml: {e}");
+            return None;
+        }
+    };
+
+    // Navigate to dependencies.dojo.tag
+    debug!("🔎 Searching for dependencies.dojo.tag in Scarb.toml");
+    if let Some(dependencies) = parsed.get("dependencies") {
+        debug!("✅ Found [dependencies] section");
+        if let Some(dojo_dep) = dependencies.get("dojo") {
+            debug!("✅ Found dojo dependency: {dojo_dep:?}");
+            if let Some(tag) = dojo_dep.get("tag") {
+                debug!("✅ Found tag field: {tag:?}");
+                if let Some(tag_str) = tag.as_str() {
+                    info!("🎯 Successfully extracted Dojo version from tag: {tag_str}");
+                    return Some(tag_str.to_string());
+                } else {
+                    warn!("⚠️  Tag field exists but is not a string: {tag:?}");
+                }
+            } else {
+                warn!("⚠️  Dojo dependency found but no 'tag' field");
+            }
+        } else {
+            warn!("⚠️  Dependencies section found but no 'dojo' dependency");
+        }
+    } else {
+        warn!("⚠️  No [dependencies] section found in Scarb.toml");
+    }
+
+    info!("❌ No Dojo version found in Scarb.toml");
+    None
 }
 
 fn format_timestamp(timestamp: f64) -> String {
@@ -656,7 +756,10 @@ fn check(api_client: &ApiClient, job_id: &str) -> Result<VerificationJob, CliErr
                 println!("Contract file: {file}");
             }
             if let Some(version) = status.version() {
-                println!("Version: {version}");
+                println!("Cairo version: {version}");
+            }
+            if let Some(dojo_version) = status.dojo_version() {
+                println!("Dojo version: {dojo_version}");
             }
             if let Some(license) = status.license() {
                 println!("License: {license}");

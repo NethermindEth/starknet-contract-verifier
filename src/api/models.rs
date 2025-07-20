@@ -29,6 +29,8 @@ pub struct VerificationJob {
     pub name: Option<String>,
     pub version: Option<String>,
     pub license: Option<String>,
+    pub dojo_version: Option<String>,
+    pub build_tool: Option<String>,
 }
 
 impl VerificationJob {
@@ -84,6 +86,14 @@ impl VerificationJob {
         self.license.as_deref()
     }
 
+    pub fn dojo_version(&self) -> Option<&str> {
+        self.dojo_version.as_deref()
+    }
+
+    pub fn build_tool(&self) -> Option<&str> {
+        self.build_tool.as_deref()
+    }
+
     pub const fn is_completed(&self) -> bool {
         matches!(
             self.status,
@@ -112,7 +122,8 @@ pub struct ProjectMetadataInfo {
     pub project_dir_path: String,
     pub contract_file: String,
     pub package_name: String,
-    pub build_tool: String, // "scarb" or "sozo"
+    pub build_tool: String,           // "scarb" or "sozo"
+    pub dojo_version: Option<String>, // Dojo version for Dojo projects
 }
 
 impl ProjectMetadataInfo {
@@ -123,6 +134,7 @@ impl ProjectMetadataInfo {
         contract_file: String,
         package_name: String,
         project_type: ProjectType,
+        dojo_version: Option<String>,
     ) -> Self {
         Self {
             cairo_version,
@@ -130,16 +142,14 @@ impl ProjectMetadataInfo {
             project_dir_path,
             contract_file,
             package_name,
-            build_tool: match project_type {
-                ProjectType::Dojo => {
-                    log::debug!("Setting build_tool to 'sozo' for Dojo project");
-                    "sozo".to_string()
-                },
-                _ => {
-                    log::debug!("Setting build_tool to 'scarb' for non-Dojo project: {:?}", project_type);
-                    "scarb".to_string()
-                },
+            build_tool: if project_type == ProjectType::Dojo {
+                log::debug!("Setting build_tool to 'sozo' for Dojo project");
+                "sozo".to_string()
+            } else {
+                log::debug!("Setting build_tool to 'scarb' for non-Dojo project: {project_type:?}");
+                "scarb".to_string()
             },
+            dojo_version,
         }
     }
 }
