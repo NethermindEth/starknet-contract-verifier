@@ -195,12 +195,17 @@ pub fn project_value_parser(raw: &str) -> Result<Project, ProjectError> {
 A command-line tool for verifying Starknet smart contracts on block explorers.
 
 This tool allows you to verify that the source code of a deployed contract matches
-the bytecode on the blockchain. It supports predefined networks (mainnet, sepolia)
+the bytecode on the blockchain. It supports predefined networks (mainnet, sepolia, dev)
 and custom API endpoints, automatically handling project dependencies and source file collection.
 
 Examples:
   # Verify a contract on mainnet
   voyager verify --network mainnet \\
+    --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
+    --contract-name MyContract
+
+  # Verify a contract on development network
+  voyager verify --network dev \\
     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
     --contract-name MyContract
 
@@ -235,6 +240,11 @@ pub enum Commands {
     ///     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \
     ///     --contract-name `MyContract`
     ///   
+    ///   # Using development network
+    ///   voyager verify --network dev \
+    ///     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \
+    ///     --contract-name `MyContract`
+    ///   
     ///   # Using custom API endpoint
     ///   voyager verify --url <https://api.custom.com/beta> \
     ///     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \
@@ -249,6 +259,9 @@ pub enum Commands {
     /// Examples:
     ///   # Using predefined network
     ///   voyager status --network mainnet --job 12345678-1234-1234-1234-123456789012
+    ///   
+    ///   # Using development network
+    ///   voyager status --network dev --job 12345678-1234-1234-1234-123456789012
     ///   
     ///   # Using custom API endpoint
     ///   voyager status --url <https://api.custom.com/beta> --job 12345678-1234-1234-1234-123456789012
@@ -356,7 +369,7 @@ fn package_name_value_parser(name: &str) -> Result<String, String> {
 
 #[derive(clap::Args)]
 pub struct VerifyArgs {
-    /// Network to verify on (mainnet, sepolia). If not specified, --url is required
+    /// Network to verify on (mainnet, sepolia, dev). If not specified, --url is required
     #[arg(long, value_enum)]
     pub network: Option<NetworkKind>,
 
@@ -433,7 +446,7 @@ pub struct VerifyArgs {
 
 #[derive(clap::Args)]
 pub struct StatusArgs {
-    /// Network to verify on (mainnet, sepolia). If not specified, --url is required
+    /// Network to verify on (mainnet, sepolia, dev). If not specified, --url is required
     #[arg(long, value_enum)]
     pub network: Option<NetworkKind>,
 
@@ -452,6 +465,9 @@ pub enum NetworkKind {
 
     /// Target Sepolia testnet
     Sepolia,
+
+    /// Target the development network
+    Dev,
 }
 
 #[derive(Clone)]
@@ -518,6 +534,7 @@ impl clap::Args for Network {
                         "sepolia",
                         "https://sepolia-api.voyager.online/beta",
                     ),
+                    ("network", "dev", "https://dev-api.voyager.online/beta"),
                 ])
                 .required_unless_present("network"),
         )
@@ -537,6 +554,7 @@ impl clap::Args for Network {
                         "sepolia",
                         "https://sepolia-api.voyager.online/beta",
                     ),
+                    ("network", "dev", "https://dev-api.voyager.online/beta"),
                 ])
                 .required_unless_present("network"),
         )
