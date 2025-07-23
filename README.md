@@ -1,4 +1,4 @@
-# starknet-contract-verifier
+# voyager-verifier
 
 Client for the [Voyager Starknet block explorer](https://voyager.online), that allows you to verify your starknet classes.
 
@@ -19,7 +19,7 @@ asdf install voyager latest
 Alternatively, you can install directly from source:
 
 ```bash
-cargo install starknet-contract-verifier
+cargo install voyager-verifier
 ```
 
 ## Quickstart guide
@@ -68,6 +68,7 @@ Alternatively, you can provide the license via the `--license` CLI argument when
 Once you have the verifier installed, execute:
 
 **Using predefined networks:**
+
 ```bash
 voyager verify --network mainnet \
     --class-hash <YOUR_CONTRACT_CLASS_HASH> \
@@ -79,6 +80,7 @@ voyager verify --network mainnet \
 ```
 
 **Using custom API endpoint:**
+
 ```bash
 voyager verify --url https://api.custom.com/beta \
     --class-hash <YOUR_CONTRACT_CLASS_HASH> \
