@@ -5,10 +5,12 @@ use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use colored::*;
+use dialoguer::Select;
 use itertools::Itertools;
 use log::{debug, info, warn};
 use scarb_metadata::PackageMetadata;
 use std::collections::HashMap;
+use std::fs;
 use std::time::{Duration, UNIX_EPOCH};
 use thiserror::Error;
 use verifier::{
@@ -17,8 +19,19 @@ use verifier::{
         VerificationJob, VerifyJobStatus,
     },
     class_hash::ClassHash,
-    errors, license, resolver, voyager,
+    errors, license,
+    project::ProjectType,
+    resolver, voyager,
 };
+
+#[derive(Debug)]
+struct VerificationContext {
+    project_type: ProjectType,
+    project_dir_path: String,
+    contract_file: String,
+    package_meta: PackageMetadata,
+    file_infos: Vec<FileInfo>,
+}
 
 #[derive(Debug, Error)]
 pub enum CliError {
@@ -70,6 +83,19 @@ pub enum CliError {
         path: Utf8PathBuf,
         extension: String,
     },
+
+    #[error("[E025] Invalid project type specified\n\nSpecified: {specified}\nDetected: {detected}\n\nSuggestions:\n{}", suggestions.join("\n  • "))]
+    InvalidProjectType {
+        specified: String,
+        detected: String,
+        suggestions: Vec<String>,
+    },
+
+    #[error("[E026] Dojo project validation failed\n\nSuggestions:\n  • Ensure dojo-core is listed in dependencies\n  • Check that Scarb.toml is properly configured for Dojo\n  • Verify project structure follows Dojo conventions\n  • Run 'sozo build' to test project compilation")]
+    DojoValidationFailed,
+
+    #[error("[E027] Interactive prompt failed\n\nSuggestions:\n  • Use --project-type=scarb or --project-type=dojo to skip prompt\n  • Ensure terminal supports interactive input\n  • Check that stdin is available")]
+    InteractivePromptFailed(#[from] dialoguer::Error),
 }
 
 impl CliError {
@@ -88,6 +114,9 @@ impl CliError {
             Self::Voyager(_) => "E999",
             Self::FileSizeLimit { .. } => "E019",
             Self::InvalidFileType { .. } => "E024",
+            Self::InvalidProjectType { .. } => "E025",
+            Self::DojoValidationFailed => "E026",
+            Self::InteractivePromptFailed(_) => "E027",
         }
     }
 }
@@ -104,8 +133,7 @@ fn main() -> anyhow::Result<()> {
 
     match &cmd {
         Commands::Verify(args) => {
-            let public = ApiClient::new(args.network_url.public.clone())?;
-            let private = ApiClient::new(args.network_url.private.clone())?;
+            let api_client = ApiClient::new(args.network_url.url.clone())?;
 
             let license_info = license::resolve_license_info(
                 args.license,
@@ -115,7 +143,7 @@ fn main() -> anyhow::Result<()> {
 
             license::warn_if_no_license(&license_info);
 
-            let job_id = submit(&public, &private, args, &license_info).map_err(|e| {
+            let job_id = submit(&api_client, args, &license_info).map_err(|e| {
                 if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
                     eprintln!("\nSuggestions:");
                     for suggestion in verification_error.suggestions() {
@@ -131,7 +159,7 @@ fn main() -> anyhow::Result<()> {
 
                 // If --watch flag is enabled, poll for verification result
                 if args.watch {
-                    let status = check(&public, &job_id).map_err(|e| {
+                    let status = check(&api_client, &job_id).map_err(|e| {
                         if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
                             eprintln!("\nSuggestions:");
                             for suggestion in verification_error.suggestions() {
@@ -149,8 +177,8 @@ fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Status(args) => {
-            let public = ApiClient::new(args.network_url.public.clone())?;
-            let status = check(&public, &args.job).map_err(|e| {
+            let api_client = ApiClient::new(args.network_url.url.clone())?;
+            let status = check(&api_client, &args.job).map_err(|e| {
                 if let CliError::Api(ApiClientError::Verify(ref verification_error)) = e {
                     eprintln!("\nSuggestions:");
                     for suggestion in verification_error.suggestions() {
@@ -168,16 +196,38 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn submit(
-    public: &ApiClient,
-    _private: &ApiClient,
+    api_client: &ApiClient,
     args: &VerifyArgs,
     license_info: &license::LicenseInfo,
 ) -> Result<String, CliError> {
+    info!("🚀 Starting verification for project at: {}", args.path);
+
+    // Determine project type early in the process
+    let project_type = determine_project_type(args)?;
+
+    // Log the selected build tool
+    match project_type {
+        ProjectType::Dojo => info!("Using sozo build for Dojo project"),
+        ProjectType::Scarb => info!("Using scarb build for Scarb project"),
+        ProjectType::Auto => unreachable!("Auto should be resolved by now"),
+    }
+
     let metadata = args.path.metadata();
+
+    // Determine test_files setting - default to true for Dojo projects
+    let include_test_files = match project_type {
+        ProjectType::Dojo => {
+            if !args.test_files {
+                info!("🧪 Including test files by default for Dojo project");
+            }
+            true
+        }
+        _ => args.test_files,
+    };
 
     // Gather packages and sources
     let packages = gather_packages_and_validate(metadata, args)?;
-    let sources = collect_source_files(metadata, &packages, args.test_files)?;
+    let sources = collect_source_files(metadata, &packages, include_test_files)?;
 
     // Prepare project structure
     let (file_infos, package_meta, contract_file, project_dir_path) =
@@ -188,15 +238,14 @@ fn submit(
 
     // Execute verification unless dry run is requested
     if !args.dry_run {
-        return execute_verification(
-            public,
-            args,
-            file_infos,
-            package_meta,
-            contract_file,
+        let context = VerificationContext {
+            project_type,
             project_dir_path,
-            license_info,
-        );
+            contract_file,
+            package_meta,
+            file_infos,
+        };
+        return execute_verification(api_client, args, context, license_info);
     }
 
     info!("Dry run mode: collected files for verification but skipping submission due to --dry-run flag");
@@ -281,7 +330,7 @@ fn prepare_project_for_verification(
         .ok_or_else(|| CliError::NoTarget)?;
 
     // Find contract file
-    let contract_file_path = find_contract_file(package_meta, &sources)?;
+    let contract_file_path = find_contract_file(package_meta, &sources, &args.contract_name)?;
     let contract_file =
         contract_file_path
             .strip_prefix(&prefix)
@@ -360,9 +409,7 @@ fn validate_file_type(path: &Utf8PathBuf) -> Result<(), CliError> {
     let extension = path.extension().unwrap_or("");
 
     // Define allowed file types
-    let allowed_extensions = [
-        "cairo", /* "toml", */ "lock", "md", "txt", "json", /*, "rs" */
-    ];
+    let allowed_extensions = ["cairo", "toml", "lock", "md", "txt", "json"];
 
     // Define common project files without extensions
     let allowed_no_extension_files = [
@@ -472,7 +519,22 @@ fn add_lock_file_if_requested(
 fn find_contract_file(
     package_meta: &PackageMetadata,
     sources: &[Utf8PathBuf],
+    contract_name: &str,
 ) -> Result<Utf8PathBuf, CliError> {
+    // First try to find a file that matches the contract name
+    let contract_specific_paths = vec![
+        format!("src/{}.cairo", contract_name),
+        format!("src/systems/{}.cairo", contract_name),
+        format!("src/contracts/{}.cairo", contract_name),
+    ];
+
+    for path in contract_specific_paths {
+        let full_path = package_meta.root.join(&path);
+        if full_path.exists() {
+            return Ok(full_path);
+        }
+    }
+
     // Find the main source file for the package (conventionally src/lib.cairo or src/main.cairo)
     let possible_main_paths = vec!["src/lib.cairo", "src/main.cairo"];
 
@@ -548,35 +610,127 @@ fn log_verification_info(
 }
 
 fn execute_verification(
-    public: &ApiClient,
+    api_client: &ApiClient,
     args: &VerifyArgs,
-    file_infos: Vec<FileInfo>,
-    package_meta: PackageMetadata,
-    contract_file: String,
-    project_dir_path: String,
+    context: VerificationContext,
     license_info: &license::LicenseInfo,
 ) -> Result<String, CliError> {
     let metadata = args.path.metadata();
     let cairo_version = metadata.app_version_info.cairo.version.clone();
     let scarb_version = metadata.app_version_info.version.clone();
 
-    let project_meta = ProjectMetadataInfo {
-        cairo_version,
-        scarb_version,
-        contract_file,
-        project_dir_path,
-        package_name: package_meta.name,
+    // Create project metadata with build tool information
+    debug!(
+        "Creating ProjectMetadataInfo with project_type: {:?}",
+        context.project_type
+    );
+
+    // Extract Dojo version if it's a Dojo project
+    let dojo_version = if context.project_type == ProjectType::Dojo {
+        info!("🔍 Dojo project detected - attempting to extract Dojo version from Scarb.toml");
+        debug!(
+            "📍 context.project_dir_path (relative): {}",
+            context.project_dir_path
+        );
+        debug!(
+            "📍 args.path.root_dir() (absolute): {}",
+            args.path.root_dir()
+        );
+
+        // Use the absolute path for Dojo version extraction
+        let absolute_project_path = args.path.root_dir().to_string();
+        let extracted_version = extract_dojo_version(&absolute_project_path);
+        match &extracted_version {
+            Some(version) => info!("✅ Successfully extracted Dojo version: {version}"),
+            None => warn!(
+                "⚠️  Could not extract Dojo version from Scarb.toml - proceeding without version"
+            ),
+        }
+        extracted_version
+    } else {
+        debug!("📦 Regular project (not Dojo) - skipping Dojo version extraction");
+        None
     };
 
-    public
+    let project_meta = ProjectMetadataInfo::new(
+        cairo_version,
+        scarb_version,
+        context.project_dir_path,
+        context.contract_file,
+        context.package_meta.name,
+        context.project_type,
+        dojo_version,
+    );
+    debug!(
+        "Created ProjectMetadataInfo with build_tool: {}, dojo_version: {:?}",
+        project_meta.build_tool, project_meta.dojo_version
+    );
+
+    api_client
         .verify_class(
             &args.class_hash,
             Some(license_info.display_string().to_string()),
             &args.contract_name,
             project_meta,
-            &file_infos,
+            &context.file_infos,
         )
         .map_err(CliError::from)
+}
+
+fn extract_dojo_version(project_dir_path: &str) -> Option<String> {
+    let scarb_toml_path = format!("{project_dir_path}/Scarb.toml");
+    debug!("📁 Looking for Scarb.toml at: {scarb_toml_path}");
+
+    // Read the Scarb.toml file
+    let contents = match fs::read_to_string(&scarb_toml_path) {
+        Ok(contents) => {
+            debug!("📖 Successfully read Scarb.toml ({} bytes)", contents.len());
+            contents
+        }
+        Err(e) => {
+            warn!("❌ Failed to read Scarb.toml at {scarb_toml_path}: {e}");
+            return None;
+        }
+    };
+
+    // Parse the TOML content
+    let parsed: toml::Value = match toml::from_str(&contents) {
+        Ok(parsed) => {
+            debug!("✅ Successfully parsed Scarb.toml as TOML");
+            parsed
+        }
+        Err(e) => {
+            warn!("❌ Failed to parse Scarb.toml: {e}");
+            return None;
+        }
+    };
+
+    // Navigate to dependencies.dojo.tag
+    debug!("🔎 Searching for dependencies.dojo.tag in Scarb.toml");
+    if let Some(dependencies) = parsed.get("dependencies") {
+        debug!("✅ Found [dependencies] section");
+        if let Some(dojo_dep) = dependencies.get("dojo") {
+            debug!("✅ Found dojo dependency: {dojo_dep:?}");
+            if let Some(tag) = dojo_dep.get("tag") {
+                debug!("✅ Found tag field: {tag:?}");
+                if let Some(tag_str) = tag.as_str() {
+                    info!("🎯 Successfully extracted Dojo version from tag: {tag_str}");
+                    return Some(tag_str.to_string());
+                } else {
+                    warn!("⚠️  Tag field exists but is not a string: {tag:?}");
+                }
+            } else {
+                warn!("⚠️  Dojo dependency found but no 'tag' field");
+            }
+        } else {
+            warn!("⚠️  Dependencies section found but no 'dojo' dependency");
+        }
+    } else {
+        warn!("⚠️  No [dependencies] section found in Scarb.toml");
+    }
+
+    info!("❌ No Dojo version found in Scarb.toml");
+    None
 }
 
 fn format_timestamp(timestamp: f64) -> String {
@@ -589,8 +743,8 @@ fn format_timestamp(timestamp: f64) -> String {
     }
 }
 
-fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> {
-    let status = poll_verification_status(public, job_id).map_err(CliError::from)?;
+fn check(api_client: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> {
+    let status = poll_verification_status(api_client, job_id).map_err(CliError::from)?;
 
     match status.status() {
         VerifyJobStatus::Success => {
@@ -602,7 +756,10 @@ fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> 
                 println!("Contract file: {file}");
             }
             if let Some(version) = status.version() {
-                println!("Version: {version}");
+                println!("Cairo version: {version}");
+            }
+            if let Some(dojo_version) = status.dojo_version() {
+                println!("Dojo version: {dojo_version}");
             }
             if let Some(license) = status.license() {
                 println!("License: {license}");
@@ -691,4 +848,75 @@ fn check(public: &ApiClient, job_id: &str) -> Result<VerificationJob, CliError> 
     }
 
     Ok(status)
+}
+
+fn determine_project_type(args: &VerifyArgs) -> Result<ProjectType, CliError> {
+    match args.project_type {
+        ProjectType::Scarb => Ok(ProjectType::Scarb),
+        ProjectType::Dojo => {
+            // Validate that this is actually a Dojo project
+            validate_dojo_project(&args.path)?;
+            Ok(ProjectType::Dojo)
+        }
+        ProjectType::Auto => {
+            // Try automatic detection first
+            match args.path.detect_project_type()? {
+                ProjectType::Dojo => {
+                    info!("Detected Dojo project automatically");
+                    Ok(ProjectType::Dojo)
+                }
+                ProjectType::Scarb => {
+                    info!("Detected Scarb project automatically");
+                    Ok(ProjectType::Scarb)
+                }
+                ProjectType::Auto => {
+                    // Fallback to interactive prompt
+                    let options = vec![
+                        "Regular Scarb project (uses scarb build)",
+                        "Dojo project (uses sozo build)",
+                    ];
+
+                    let selection = Select::new()
+                        .with_prompt("What type of project are you verifying?")
+                        .items(&options)
+                        .default(0)
+                        .interact()?;
+
+                    match selection {
+                        0 => Ok(ProjectType::Scarb),
+                        1 => {
+                            validate_dojo_project(&args.path)?;
+                            Ok(ProjectType::Dojo)
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn validate_dojo_project(project: &args::Project) -> Result<(), CliError> {
+    // Check if sozo is available (optional warning)
+    if std::process::Command::new("sozo")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        warn!("sozo command not found. Dojo project verification will be handled remotely.");
+    }
+
+    // Validate project has Dojo dependencies
+    if project.detect_project_type()? != ProjectType::Dojo {
+        return Err(CliError::InvalidProjectType {
+            specified: "dojo".to_string(),
+            detected: "scarb".to_string(),
+            suggestions: vec![
+                "Add dojo-core dependency to Scarb.toml".to_string(),
+                "Use --project-type=scarb for regular Scarb projects".to_string(),
+            ],
+        });
+    }
+
+    Ok(())
 }

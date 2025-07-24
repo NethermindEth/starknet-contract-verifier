@@ -7,7 +7,7 @@ use spdx::LicenseId;
 use std::{env, fmt::Display, io, path::PathBuf};
 use thiserror::Error;
 
-use verifier::class_hash::ClassHash;
+use verifier::{class_hash::ClassHash, project::ProjectType};
 
 fn get_name_validation_regex() -> Result<&'static Regex, String> {
     lazy_static! {
@@ -28,7 +28,7 @@ pub enum ProjectError {
     #[error("[E020] Scarb project manifest not found at: {0}\n\nSuggestions:\n  • Check that you're in a Scarb project directory\n  • Verify that Scarb.toml exists in the specified path\n  • Run 'scarb init' to create a new project\n  • Use --manifest-path to specify the correct path")]
     MissingManifest(Utf8PathBuf),
 
-    #[error("[E021] Failed to read project metadata\n\nSuggestions:\n  • Check that Scarb.toml is valid TOML format\n  • Verify all dependencies are properly declared\n  • Run 'scarb check' to validate your project\n  • Ensure scarb is installed and up to date")]
+    #[error("[E021] Failed to read project metadata: {0}\n\nSuggestions:\n  • Check that Scarb.toml is valid TOML format\n  • Verify all dependencies are properly declared\n  • Run 'scarb metadata --format-version 1' to see the full error\n  • Run 'scarb check' to validate your project\n  • Ensure scarb is installed and up to date")]
     MetadataError(#[from] MetadataCommandError),
 
     #[error("[E022] File system error\n\nSuggestions:\n  • Check file permissions\n  • Verify the path exists and is accessible\n  • Ensure you have read access to the directory")]
@@ -106,6 +106,56 @@ impl Project {
                 })
         })
     }
+
+    /// Detect if this is a Dojo project by analyzing dependencies
+    pub fn detect_project_type(&self) -> Result<ProjectType, ProjectError> {
+        let metadata = self.metadata();
+
+        // Check for dojo-core dependency in any package
+        for package in &metadata.packages {
+            for dep in &package.dependencies {
+                if dep.name == "dojo_core" || dep.name == "dojo-core" || dep.name == "dojo" {
+                    return Ok(ProjectType::Dojo);
+                }
+            }
+        }
+
+        // Check for dojo namespace imports in source files
+        if self.has_dojo_imports()? {
+            return Ok(ProjectType::Dojo);
+        }
+
+        // Default to Scarb if no Dojo indicators found
+        Ok(ProjectType::Scarb)
+    }
+
+    /// Check if source files contain Dojo-specific imports
+    fn has_dojo_imports(&self) -> Result<bool, ProjectError> {
+        use std::fs;
+        use walkdir::WalkDir;
+
+        let root = self.root_dir();
+        let src_dir = root.join("src");
+
+        if !src_dir.exists() {
+            return Ok(false);
+        }
+
+        for entry in WalkDir::new(src_dir).into_iter().filter_map(|e| e.ok()) {
+            if entry.path().extension().and_then(|s| s.to_str()) == Some("cairo") {
+                if let Ok(content) = fs::read_to_string(entry.path()) {
+                    if content.contains("use dojo::")
+                        || content.contains("dojo::")
+                        || content.contains("#[dojo::")
+                    {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+
+        Ok(false)
+    }
 }
 
 impl Display for Project {
@@ -145,8 +195,8 @@ pub fn project_value_parser(raw: &str) -> Result<Project, ProjectError> {
 A command-line tool for verifying Starknet smart contracts on block explorers.
 
 This tool allows you to verify that the source code of a deployed contract matches
-the bytecode on the blockchain. It supports multiple networks (mainnet, testnet, custom)
-and automatically handles project dependencies and source file collection.
+the bytecode on the blockchain. It supports predefined networks (mainnet, sepolia, dev)
+and custom API endpoints, automatically handling project dependencies and source file collection.
 
 Examples:
   # Verify a contract on mainnet
@@ -154,13 +204,21 @@ Examples:
     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
     --contract-name MyContract
 
+  # Verify a contract on development network
+  voyager verify --network dev \\
+    --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
+    --contract-name MyContract
+
+  # Verify using custom API endpoint
+  voyager verify --url https://api.custom.com/beta \\
+    --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
+    --contract-name MyContract
+
   # Check verification status
   voyager status --network mainnet --job job-id-here
 
-  # Dry run (preview what would be submitted)
-  voyager verify --network mainnet \\
-    --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \\
-    --contract-name MyContract
+  # Check status using custom API
+  voyager status --url https://api.custom.com/beta --job job-id-here
 ")]
 pub struct Args {
     #[command(subcommand)]
@@ -176,8 +234,19 @@ pub enum Commands {
     /// bytecode on the blockchain. By default submits for verification.
     /// Use --dry-run to preview what would be submitted without sending.
     ///
-    /// Example:
+    /// Examples:
+    ///   # Using predefined network
     ///   voyager verify --network mainnet \
+    ///     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \
+    ///     --contract-name `MyContract`
+    ///   
+    ///   # Using development network
+    ///   voyager verify --network dev \
+    ///     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \
+    ///     --contract-name `MyContract`
+    ///   
+    ///   # Using custom API endpoint
+    ///   voyager verify --url <https://api.custom.com/beta> \
     ///     --class-hash 0x044dc2b3239382230d8b1e943df23b96f52eebcac93efe6e8bde92f9a2f1da18 \
     ///     --contract-name `MyContract`
     Verify(VerifyArgs),
@@ -187,8 +256,15 @@ pub enum Commands {
     /// Queries the verification service for the current status of a submitted
     /// verification job. The job ID is returned when you submit a verification.
     ///
-    /// Example:
+    /// Examples:
+    ///   # Using predefined network
     ///   voyager status --network mainnet --job 12345678-1234-1234-1234-123456789012
+    ///   
+    ///   # Using development network
+    ///   voyager status --network dev --job 12345678-1234-1234-1234-123456789012
+    ///   
+    ///   # Using custom API endpoint
+    ///   voyager status --url <https://api.custom.com/beta> --job 12345678-1234-1234-1234-123456789012
     Status(StatusArgs),
 }
 
@@ -293,9 +369,9 @@ fn package_name_value_parser(name: &str) -> Result<String, String> {
 
 #[derive(clap::Args)]
 pub struct VerifyArgs {
-    /// Network to verify on (mainnet, sepolia, or custom)
+    /// Network to verify on (mainnet, sepolia, dev). If not specified, --url is required
     #[arg(long, value_enum)]
-    pub network: NetworkKind,
+    pub network: Option<NetworkKind>,
 
     #[command(flatten)]
     pub network_url: Network,
@@ -357,13 +433,22 @@ pub struct VerifyArgs {
     /// Include test files from src/ directory in verification submission
     #[arg(long, default_value_t = false)]
     pub test_files: bool,
+
+    /// Project type for build tool selection
+    #[arg(
+        long = "project-type",
+        value_enum,
+        default_value_t = ProjectType::Auto,
+        help = "Specify the project type (scarb, dojo, or auto-detect)"
+    )]
+    pub project_type: ProjectType,
 }
 
 #[derive(clap::Args)]
 pub struct StatusArgs {
-    /// Network to verify on (mainnet, sepolia, or custom)
+    /// Network to verify on (mainnet, sepolia, dev). If not specified, --url is required
     #[arg(long, value_enum)]
-    pub network: NetworkKind,
+    pub network: Option<NetworkKind>,
 
     #[command(flatten)]
     pub network_url: Network,
@@ -381,42 +466,29 @@ pub enum NetworkKind {
     /// Target Sepolia testnet
     Sepolia,
 
-    /// Target custom network
-    Custom,
+    /// Target the development network
+    Dev,
 }
 
 #[derive(Clone)]
 pub struct Network {
-    /// Custom public API address
-    pub public: Url,
-
-    /// Custom interval API address
-    pub private: Url,
+    /// API endpoint URL
+    pub url: Url,
 }
 
 impl clap::FromArgMatches for Network {
     fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
-        let public = matches
-            .get_one::<Url>("public")
+        let url = matches
+            .get_one::<Url>("url")
             .ok_or_else(|| {
                 clap::Error::raw(
                     clap::error::ErrorKind::MissingRequiredArgument,
-                    "Custom network API public URL is missing",
+                    "API URL is required when not using predefined networks",
                 )
             })?
             .clone();
 
-        let private = matches
-            .get_one::<Url>("private")
-            .ok_or_else(|| {
-                clap::Error::raw(
-                    clap::error::ErrorKind::MissingRequiredArgument,
-                    "Custom network API private URL is missing",
-                )
-            })?
-            .clone();
-
-        Ok(Self { public, private })
+        Ok(Self { url })
     }
 
     fn from_arg_matches_mut(matches: &mut clap::ArgMatches) -> Result<Self, clap::Error> {
@@ -432,22 +504,12 @@ impl clap::FromArgMatches for Network {
         &mut self,
         matches: &mut clap::ArgMatches,
     ) -> Result<(), clap::Error> {
-        self.public = matches
-            .get_one::<Url>("public")
+        self.url = matches
+            .get_one::<Url>("url")
             .ok_or_else(|| {
                 clap::Error::raw(
                     clap::error::ErrorKind::MissingRequiredArgument,
-                    "Custom network API public URL is missing",
-                )
-            })?
-            .clone();
-
-        self.private = matches
-            .get_one::<Url>("private")
-            .ok_or_else(|| {
-                clap::Error::raw(
-                    clap::error::ErrorKind::MissingRequiredArgument,
-                    "Custom network API private URL is missing",
+                    "API URL is required when not using predefined networks",
                 )
             })?
             .clone();
@@ -460,9 +522,9 @@ impl clap::FromArgMatches for Network {
 impl clap::Args for Network {
     fn augment_args(cmd: clap::Command) -> clap::Command {
         cmd.arg(
-            clap::Arg::new("public")
-                .long("public")
-                .help("Custom public API address")
+            clap::Arg::new("url")
+                .long("url")
+                .help("API endpoint URL (required when --network is not specified)")
                 .value_hint(clap::ValueHint::Url)
                 .value_parser(Url::parse)
                 .default_value_ifs([
@@ -472,33 +534,19 @@ impl clap::Args for Network {
                         "sepolia",
                         "https://sepolia-api.voyager.online/beta",
                     ),
+                    ("network", "dev", "https://dev-api.voyager.online/beta"),
                 ])
-                .required_if_eq("network", "custom"),
-            // this would overwrite the defaults in _all_ the cases
-            // .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
-        )
-        .arg(
-            clap::Arg::new("private")
-                .long("private")
-                .help("Custom interval API address")
-                .value_hint(clap::ValueHint::Url)
-                .value_parser(Url::parse)
-                .default_value_ifs([
-                    ("network", "mainnet", "https://voyager.online"),
-                    ("network", "sepolia", "https://sepolia.voyager.online"),
-                ])
-                .required_if_eq("network", "custom"),
-            // this would overwrite the defaults in _all_ the cases
-            // .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
+                .required_unless_present("network"),
         )
     }
 
     fn augment_args_for_update(cmd: clap::Command) -> clap::Command {
         cmd.arg(
-            clap::Arg::new("public")
-                .long("public")
-                .help("Custom public API address")
+            clap::Arg::new("url")
+                .long("url")
+                .help("API endpoint URL (required when --network is not specified)")
                 .value_hint(clap::ValueHint::Url)
+                .value_parser(Url::parse)
                 .default_value_ifs([
                     ("network", "mainnet", "https://api.voyager.online/beta"),
                     (
@@ -506,23 +554,9 @@ impl clap::Args for Network {
                         "sepolia",
                         "https://sepolia-api.voyager.online/beta",
                     ),
+                    ("network", "dev", "https://dev-api.voyager.online/beta"),
                 ])
-                .required_if_eq("network", "custom"),
-            // this would overwrite the defaults in _all_ the cases
-            // .env("CUSTOM_PUBLIC_API_ENDPOINT_URL"),
-        )
-        .arg(
-            clap::Arg::new("private")
-                .long("private")
-                .help("Custom interval API address")
-                .value_hint(clap::ValueHint::Url)
-                .default_value_ifs([
-                    ("network", "mainnet", "https://api.voyager.online"),
-                    ("network", "sepolia", "https://sepolia-api.voyager.online"),
-                ])
-                .required_if_eq("network", "custom"),
-            // this would overwrite the defaults in _all_ the cases
-            // .env("CUSTOM_INTERNAL_API_ENDPOINT_URL"),
+                .required_unless_present("network"),
         )
     }
 }

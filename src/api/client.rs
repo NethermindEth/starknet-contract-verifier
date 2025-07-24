@@ -1,6 +1,7 @@
 use std::{fs, time::Duration};
 
 use backon::{BlockingRetryable, ExponentialBuilder};
+use log::{debug, info};
 use reqwest::{
     blocking::{self, multipart, Client},
     StatusCode,
@@ -112,11 +113,28 @@ impl ApiClient {
                 project_metadata.cairo_version.to_string(),
             )
             .text("scarb_version", project_metadata.scarb_version.to_string())
-            .text("package_name", project_metadata.package_name)
+            .text("package_name", project_metadata.package_name.clone())
             .text("name", name.to_string())
             .text("contract_file", project_metadata.contract_file.clone())
-            .text("contract-name", project_metadata.contract_file)
-            .text("project_dir_path", project_metadata.project_dir_path);
+            .text("contract-name", project_metadata.contract_file.clone())
+            .text(
+                "project_dir_path",
+                project_metadata.project_dir_path.clone(),
+            )
+            .text("build_tool", project_metadata.build_tool.clone());
+
+        // Add Dojo version if available
+        if let Some(ref dojo_version) = project_metadata.dojo_version {
+            info!("📤 Adding dojo_version to API request: {dojo_version}");
+            body = body.text("dojo_version", dojo_version.clone());
+        } else {
+            debug!("📤 No dojo_version to include in API request");
+        }
+
+        info!(
+            "🌐 API request payload prepared - build_tool: '{}', dojo_version: {:?}",
+            project_metadata.build_tool, project_metadata.dojo_version
+        );
 
         // Add license using raw SPDX identifier
         let license_value = if let Some(lic) = license {
@@ -129,7 +147,7 @@ impl ApiClient {
             "NONE".to_string()
         };
 
-        body = body.text("license", license_value);
+        body = body.text("license", license_value.clone());
 
         // Send each file as a separate field with files[] prefix
         for file in files {
@@ -138,6 +156,43 @@ impl ApiClient {
         }
 
         let url = self.verify_class_url(class_hash)?;
+
+        // Debug log: Complete API payload summary
+        debug!("🚀 === API REQUEST PAYLOAD DEBUG ===");
+        debug!("🎯 Target URL: {url}");
+        debug!("🏗️  Request Method: POST");
+        debug!("📦 Content-Type: multipart/form-data");
+        debug!("📋 === FORM FIELDS ===");
+        debug!("  compiler_version: {}", project_metadata.cairo_version);
+        debug!("  scarb_version: {}", project_metadata.scarb_version);
+        debug!("  package_name: {}", project_metadata.package_name);
+        debug!("  name: {name}");
+        debug!("  contract_file: {}", project_metadata.contract_file);
+        debug!("  contract-name: {}", project_metadata.contract_file);
+        debug!("  project_dir_path: {}", project_metadata.project_dir_path);
+        debug!("  build_tool: {}", project_metadata.build_tool);
+        if let Some(ref dojo_version) = project_metadata.dojo_version {
+            debug!("  dojo_version: {dojo_version}");
+        } else {
+            debug!("  dojo_version: <not included>");
+        }
+        debug!("  license: {license_value}");
+        debug!("📁 === FILES INCLUDED ===");
+        for (index, file) in files.iter().enumerate() {
+            let file_size = match fs::metadata(&file.path) {
+                Ok(metadata) => metadata.len(),
+                Err(_) => 0,
+            };
+            debug!(
+                "  [{:2}] files[{}] -> {} ({} bytes)",
+                index + 1,
+                file.name,
+                file.path.display(),
+                file_size
+            );
+        }
+        debug!("📊 Total files: {}", files.len());
+        debug!("🚀 === END API REQUEST PAYLOAD ===");
 
         let response = self
             .client

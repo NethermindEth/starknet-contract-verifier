@@ -93,18 +93,18 @@ jobs:
           if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
             cp target/${{ matrix.target }}/release/voyager.exe staging/
             cd staging
-            7z a ../starknet-contract-verifier-${{ inputs.tag }}-${{ matrix.target }}.zip voyager.exe
+            7z a ../voyager-verifier-${{ inputs.tag }}-${{ matrix.target }}.zip voyager.exe
           else
             cp target/${{ matrix.target }}/release/voyager staging/
             cd staging
-            tar czf ../starknet-contract-verifier-${{ inputs.tag }}-${{ matrix.target }}.tar.gz voyager
+            tar czf ../voyager-verifier-${{ inputs.tag }}-${{ matrix.target }}.tar.gz voyager
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.target }}
-          path: starknet-contract-verifier-${{ inputs.tag }}-${{ matrix.target }}.*
+          path: voyager-verifier-${{ inputs.tag }}-${{ matrix.target }}.*
 
   verify:
     name: verify ${{ matrix.os }} ${{ matrix.target }}
@@ -164,12 +164,12 @@ jobs:
       - name: Unpack artifacts to staging directory
         run: |
           mkdir -p artifacts
-          mv artifacts-dl/build-*/starknet-contract-verifier-* artifacts/
+          mv artifacts-dl/build-*/voyager-verifier-* artifacts/
 
       - name: Compute checksums
         working-directory: artifacts
         run: |
-          sha256sum -b starknet-contract-verifier-* > checksums.sha256
+          sha256sum -b voyager-verifier-* > checksums.sha256
           cat checksums.sha256
 
       - name: Upload artifact

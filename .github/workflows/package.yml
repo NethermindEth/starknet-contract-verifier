@@ -114,7 +114,7 @@ jobs:
             ${{ steps.changelog.outputs.changelog }}
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
-            artifacts/build-*/starknet-contract-verifier-*
+            artifacts/build-*/voyager-verifier-*
             artifacts/checksums/checksums.sha256
           draft: false
           prerelease: false
